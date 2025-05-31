@@ -124,6 +124,24 @@
   (with-current-buffer (claude-code-emacs-buffer-name)
     (vterm-send-return)))
 
+;;;###autoload
+(defun claude-code-emacs-send-1 ()
+  "Send '1' to Claude Code buffer."
+  (interactive)
+  (claude-code-emacs-send-string "1"))
+
+;;;###autoload
+(defun claude-code-emacs-send-2 ()
+  "Send '2' to Claude Code buffer."
+  (interactive)
+  (claude-code-emacs-send-string "2"))
+
+;;;###autoload
+(defun claude-code-emacs-send-3 ()
+  "Send '3' to Claude Code buffer."
+  (interactive)
+  (claude-code-emacs-send-string "3"))
+
 (defun claude-code-emacs-chunk-string (str chunk-size)
   (if (<= chunk-size 0)
       (error "chunk-size must be greater than 0")
@@ -239,6 +257,10 @@
     ("b" "Switch to Claude Code buffer" claude-code-emacs-switch-to-buffer)
     ("p" "Open Prompt File" claude-code-emacs-open-prompt-file)
     ("s" "Send Region" claude-code-emacs-send-region)]
+   ["Quick Send"
+    ("1" "Send 1" claude-code-emacs-send-1)
+    ("2" "Send 2" claude-code-emacs-send-2)
+    ("3" "Send 3" claude-code-emacs-send-3)]
    ["Commands"
     ("i" "Init project" claude-code-emacs-init)
     ("k" "Clear conversation" claude-code-emacs-clear)
