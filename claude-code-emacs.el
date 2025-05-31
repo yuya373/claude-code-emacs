@@ -271,6 +271,7 @@
     ("s" "Send Region" claude-code-emacs-send-region)]
    ["Quick Send"
     ("1" "Send 1" claude-code-emacs-send-1)
+    ("y" "Send 1 (yes)" claude-code-emacs-send-1)
     ("2" "Send 2" claude-code-emacs-send-2)
     ("3" "Send 3" claude-code-emacs-send-3)
     ("g" "Send commit" claude-code-emacs-send-commit)
