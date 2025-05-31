@@ -114,12 +114,16 @@
   (interactive)
   (claude-code-emacs-send-string "/logout"))
 
+;;;###autoload
 (defun claude-code-emacs-send-escape ()
+  "Send ESC key to Claude Code buffer."
   (interactive)
   (with-current-buffer (claude-code-emacs-buffer-name)
     (vterm-send-escape)))
 
-(defun claude-code-emacs-send-retern ()
+;;;###autoload
+(defun claude-code-emacs-send-return ()
+  "Send Return key to Claude Code buffer."
   (interactive)
   (with-current-buffer (claude-code-emacs-buffer-name)
     (vterm-send-return)))
@@ -141,6 +145,12 @@
   "Send '3' to Claude Code buffer."
   (interactive)
   (claude-code-emacs-send-string "3"))
+
+;;;###autoload
+(defun claude-code-emacs-send-commit ()
+  "Send 'commit' to Claude Code buffer."
+  (interactive)
+  (claude-code-emacs-send-string "commit"))
 
 (defun claude-code-emacs-chunk-string (str chunk-size)
   (if (<= chunk-size 0)
@@ -260,13 +270,16 @@
    ["Quick Send"
     ("1" "Send 1" claude-code-emacs-send-1)
     ("2" "Send 2" claude-code-emacs-send-2)
-    ("3" "Send 3" claude-code-emacs-send-3)]
+    ("3" "Send 3" claude-code-emacs-send-3)
+    ("g" "Send commit" claude-code-emacs-send-commit)
+    ("e" "Send Escape" claude-code-emacs-send-escape)
+    ("m" "Send Return" claude-code-emacs-send-return)]
    ["Commands"
     ("i" "Init project" claude-code-emacs-init)
     ("k" "Clear conversation" claude-code-emacs-clear)
     ("h" "Help" claude-code-emacs-help)]
    ["Memory & Config"
-    ("m" "Memory" claude-code-emacs-memory)
+    ("M" "Memory" claude-code-emacs-memory)
     ("C" "Config" claude-code-emacs-config)
     ("o" "Compact" claude-code-emacs-compact)]
    ["Review"
