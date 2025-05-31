@@ -245,6 +245,45 @@
     (claude-code-emacs-compact "focus on tests")
     (should (member "/compact focus on tests" sent-commands))))
 
+(ert-deftest test-claude-code-emacs-quick-send-functions ()
+  "Test quick send functions."
+  (cl-letf* ((sent-commands nil)
+             ((symbol-function 'claude-code-emacs-send-string)
+              (lambda (str &optional paste-p)
+                (push str sent-commands))))
+
+    ;; Test number sending functions
+    (claude-code-emacs-send-1)
+    (should (member "1" sent-commands))
+
+    (claude-code-emacs-send-2)
+    (should (member "2" sent-commands))
+
+    (claude-code-emacs-send-3)
+    (should (member "3" sent-commands))
+
+    ;; Test commit sending
+    (claude-code-emacs-send-commit)
+    (should (member "commit" sent-commands))))
+
+(ert-deftest test-claude-code-emacs-special-key-functions ()
+  "Test special key sending functions."
+  (cl-letf* ((escape-sent nil)
+             (return-sent nil)
+             ((symbol-function 'vterm-send-escape)
+              (lambda () (setq escape-sent t)))
+             ((symbol-function 'vterm-send-return)
+              (lambda () (setq return-sent t))))
+
+    (with-claude-mock-buffer
+     ;; Test escape sending
+     (claude-code-emacs-send-escape)
+     (should escape-sent)
+
+     ;; Test return sending
+     (claude-code-emacs-send-return)
+     (should return-sent))))
+
 ;;; Integration test
 
 (ert-deftest test-claude-code-emacs-integration ()
