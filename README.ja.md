@@ -1,5 +1,7 @@
 # Claude Code Emacs
 
+[![CI Tests](https://github.com/yuya373/claude-code-emacs/actions/workflows/test.yml/badge.svg)](https://github.com/yuya373/claude-code-emacs/actions/workflows/test.yml)
+
 Claude CodeをEmacs内で実行するためのパッケージです。
 
 ## Claude Codeの起動

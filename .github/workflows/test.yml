@@ -1,0 +1,53 @@
+name: CI Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        emacs-version:
+          - '26.3'
+          - '27.2'
+          - '28.2'
+          - '29.1'
+          - 'snapshot'
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Emacs
+      uses: purcell/setup-emacs@master
+      with:
+        version: ${{ matrix.emacs-version }}
+
+    - name: Install dependencies
+      run: |
+        # Install package dependencies
+        emacs --batch --eval "(progn
+          (require 'package)
+          (add-to-list 'package-archives '(\"melpa\" . \"https://melpa.org/packages/\") t)
+          (package-initialize)
+          (package-refresh-contents)
+          (package-install 'projectile)
+          (package-install 'vterm)
+          (package-install 'transient)
+          (package-install 'markdown-mode))"
+
+    - name: Compile
+      run: make compile
+
+    - name: Run tests
+      run: make test
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-emacs-${{ matrix.emacs-version }}
+        path: |
+          *.log
+          *.elc
