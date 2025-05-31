@@ -1,40 +1,69 @@
 # Claude Code Emacs
-claude codeをEmacsで動かすpackageです
 
-## claude codeを起動
+An Emacs package to run Claude Code within Emacs.
+
+## Starting Claude Code
 `claude-code-emacs-run`
 
-## プロンプト管理機能
-プロジェクト毎にプロジェクトルートに`.claude-code-emacs.prompt.md`が作成される
-`switch-to-buffer-other-window`でbufferが開かれる
+## Prompt Management Features
+A `.claude-code-emacs.prompt.md` file is created in each project root.
+The buffer is opened with `switch-to-buffer-other-window`.
 
-### キーバインド
-- `C-c C-s`: カーソル位置のmarkdownセクションをClaude Codeバッファに送信
-- `C-c C-r`: 選択したリージョンをClaude Codeバッファに送信
-- `C-c C-o`: Claude Codeセッションを開く
+### Key Bindings
+- `C-c C-s`: Send the markdown section at point to Claude Code buffer
+- `C-c C-r`: Send the selected region to Claude Code buffer
+- `C-c C-o`: Open Claude Code session
 
-## Transientメニュー
-### メインメニュー
-`M-x claude-code-emacs-transient` でメインメニューを表示
+## Transient Menus
+### Main Menu
+Display the main menu with `M-x claude-code-emacs-transient`
 
-### プロンプトバッファメニュー
-プロンプトバッファ内で `C-c C-t` または `M-x claude-code-emacs-prompt-transient` でメニューを表示
+### Prompt Buffer Menu
+In prompt buffers, display the menu with `C-c C-t` or `M-x claude-code-emacs-prompt-transient`
 
-## その他の機能
-### リージョン送信
-`claude-code-emacs-send-region` - 選択したリージョンまたはバッファ全体をClaude Codeに送信
+## Other Features
+### Send Region
+`claude-code-emacs-send-region` - Send the selected region or entire buffer to Claude Code
 
-## テスト
-### テストの実行
+## Testing
+### Running Tests
 ```bash
-# Makefileを使用
+# Using Makefile
 make test
 
-# または直接実行
+# Or run directly
 emacs -batch -l run-tests.el
 ```
 
-### 全てのタスク（クリーン、コンパイル、テスト）
+### All Tasks (clean, compile, test)
 ```bash
 make all
 ```
+
+## Dependencies
+- `projectile` - For project root detection
+- `vterm` - For terminal emulation
+- `transient` - For menu system
+- `markdown-mode` - Base mode for prompt files
+
+## Installation
+Clone this repository and add to your Emacs configuration:
+
+```elisp
+(add-to-list 'load-path "/path/to/claude-code-emacs")
+(require 'claude-code-emacs)
+
+;; Optional: Set global keybinding for the main menu
+(global-set-key (kbd "C-c c") 'claude-code-emacs-transient)
+```
+
+## Usage
+1. Run `M-x claude-code-emacs-run` to start Claude Code in the current project
+2. Use `M-x claude-code-emacs-open-prompt-file` to create/edit project-specific prompts
+3. Access all commands through the transient menu with `C-c c`
+
+## License
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
