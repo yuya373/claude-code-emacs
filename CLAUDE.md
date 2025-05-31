@@ -6,17 +6,55 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is an Emacs package that provides integration with Claude Code CLI. The package allows running Claude Code sessions within Emacs using vterm mode.
 
+## Development Commands
+
+### Testing
+```bash
+# Run all tests
+make test
+
+# Run tests directly
+emacs -batch -l run-tests.el
+
+# Run a specific test
+emacs -batch -l run-tests.el -f ert-run-tests-batch-and-exit 'test-name-pattern'
+```
+
+### Building
+```bash
+# Clean, compile, and test
+make all
+
+# Compile only
+make compile
+
+# Clean compiled files
+make clean
+
+# Install dependencies
+make install-deps
+```
+
+### CI/CD
+- Tests run automatically on push/PR via GitHub Actions
+- Tests against Emacs 28.1, 29.1, and snapshot versions
+- Special handling for vterm module compilation in CI environment
+
 ## Architecture
 
-The main functionality is in `claude-code-emacs.el` which provides:
+The package implements a complete Claude Code integration by:
 
-- `claude-code-emacs-run`: Main entry point that creates a Claude Code session buffer
-- `claude-code-emacs-switch-to-buffer`: Switch to existing Claude Code buffer
-- `claude-code-emacs-open-prompt-file`: Opens project-specific prompt file (`.claude-code-emacs.prompt.md`)
-- Buffer management using projectile for project-aware naming 
-- vterm-mode for terminal-like interaction
-- Integration with Emacs workflow through interactive commands
-- Transient menus for easy access to all functions
+1. **Session Management**: Each project gets its own Claude Code buffer named `*claude:<project-root>*`. This allows multiple concurrent sessions across different projects.
+
+2. **Prompt File System**: Creates `.claude-code-emacs.prompt.md` files in each project root. These serve as persistent context that can be sent to Claude Code in chunks.
+
+3. **String Chunking**: Long strings are split into 50-character chunks before sending to avoid terminal input limitations. This is handled transparently by `claude-code-emacs-chunk-string`.
+
+4. **Two-Layer Interface**:
+   - Direct commands via `claude-code-emacs-send-string` for programmatic interaction
+   - Transient menus for user-friendly access to all functionality
+
+5. **Mode Integration**: Custom major modes for both vterm sessions (`claude-code-emacs-mode`) and prompt files (`claude-code-emacs-prompt-mode`)
 
 ## Key Functions
 
@@ -91,6 +129,24 @@ Available in prompt buffers with `C-c C-t`:
 - markdown-mode: Base for prompt file editing
 - lsp-mode (optional): For LSP integration
 
-## Development Notes
+## Testing Strategy
 
-This is a Japanese-language project (README in Japanese) that implements Emacs integration for Claude Code CLI. All slash commands have been implemented using a consistent interface through `claude-code-emacs-send-string`.
+The test suite (`test-claude-code-emacs.el`) uses mock implementations to avoid requiring actual vterm instances. Key testing patterns:
+
+1. **Mock vterm buffers**: Tests create fake buffers that simulate vterm behavior
+2. **Process simulation**: Mock process objects for testing send functions
+3. **Integration tests**: Verify complete workflows like prompt file creation and sending
+
+## Package Structure
+
+```
+claude-code-emacs/
+├── claude-code-emacs.el      # Main implementation
+├── test-claude-code-emacs.el  # Test suite
+├── run-tests.el              # Test runner
+├── install-deps.el           # Dependency installer
+├── Makefile                  # Build automation
+├── README.md                 # English documentation
+├── README.ja.md              # Japanese documentation
+└── CLAUDE.md                 # This file
+```
