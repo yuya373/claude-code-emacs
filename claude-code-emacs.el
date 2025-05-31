@@ -1,9 +1,11 @@
-;;; claude-code-emacs.el ---                         -*- lexical-binding: t; -*-
+;;; claude-code-emacs.el --- Run Claude Code within Emacs -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025  DESKTOP2
 
 ;; Author: DESKTOP2 <yuya373@DESKTOP2>
-;; Keywords:
+;; Keywords: tools, convenience
+;; Version: 0.1.0
+;; Package-Requires: ((emacs "26.1") (vterm "0.0.1") (transient "0.8.8") (projectile "2.9.1") (markdown-mode "2.7"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
