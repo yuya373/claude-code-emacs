@@ -3,15 +3,29 @@
 EMACS ?= emacs
 BATCH = $(EMACS) -batch -Q -L .
 
-.PHONY: test clean compile
+# Files
+EL_FILES = claude-code-emacs.el
+TEST_FILES = test-claude-code-emacs.el
 
-test:
+.PHONY: test clean compile install-deps all
+
+# Install dependencies for development
+install-deps:
+	@echo "Installing dependencies..."
+	@$(BATCH) -l install-deps.el
+
+# Compile with actual dependencies
+compile: install-deps
+	@echo "Compiling with actual dependencies..."
+	@$(BATCH) -l package \
+		--eval "(package-initialize)" \
+		-f batch-byte-compile $(EL_FILES)
+
+test: install-deps
 	@echo "Running tests..."
-	@$(BATCH) -l run-tests.el
-
-compile:
-	@echo "Compiling..."
-	@$(BATCH) -f batch-byte-compile claude-code-emacs.el
+	@$(BATCH) -l package \
+		--eval "(package-initialize)" \
+		-l run-tests.el
 
 clean:
 	@echo "Cleaning..."

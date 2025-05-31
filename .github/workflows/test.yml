@@ -24,18 +24,20 @@ jobs:
       with:
         version: ${{ matrix.emacs-version }}
 
+    - name: Cache Emacs packages
+      uses: actions/cache@v4
+      id: cache-emacs-packages
+      with:
+        path: |
+          ~/.emacs.d/elpa
+          ~/.config/emacs/elpa
+        key: ${{ runner.os }}-emacs-${{ matrix.emacs-version }}-packages-${{ hashFiles('Makefile') }}
+        restore-keys: |
+          ${{ runner.os }}-emacs-${{ matrix.emacs-version }}-packages-
+          ${{ runner.os }}-emacs-${{ matrix.emacs-version }}-
+
     - name: Install dependencies
-      run: |
-        # Install package dependencies
-        emacs --batch --eval "(progn
-          (require 'package)
-          (add-to-list 'package-archives '(\"melpa\" . \"https://melpa.org/packages/\") t)
-          (package-initialize)
-          (package-refresh-contents)
-          (package-install 'projectile)
-          (package-install 'vterm)
-          (package-install 'transient)
-          (package-install 'markdown-mode))"
+      run: make install-deps
 
     - name: Compile
       run: make compile

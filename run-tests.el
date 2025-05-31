@@ -9,14 +9,6 @@
 
 ;; Add current directory to load path
 (add-to-list 'load-path (file-name-directory load-file-name))
-(require 'package)
-(add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
-(package-initialize)
-(package-install 'ert)
-(package-install 'projectile)
-(package-install 'vterm)
-(package-install 'transient)
-(package-install 'markdown-mode)
 
 ;; Load dependencies
 (require 'ert)

@@ -150,7 +150,7 @@
 
 ;;;###autoload
 (defun claude-code-emacs-send-commit ()
-  "Send 'commit' to Claude Code buffer."
+  "Send \\='commit\\=' to Claude Code buffer."
   (interactive)
   (claude-code-emacs-send-string "commit"))
 
@@ -220,7 +220,8 @@
     (message "No region selected")))
 
 (defun claude-code-emacs-get-markdown-section-at-point ()
-  "Get the markdown section at point (from heading to next heading or end of buffer)."
+  "Get the markdown section at point.
+Returns text from current heading to next heading or end of buffer."
   (save-excursion
     (let* ((start (progn
                     (if (markdown-heading-at-point)

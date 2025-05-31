@@ -1,0 +1,32 @@
+# Compiled files
+*.elc
+
+# Backup files
+*~
+\#*\#
+.\#*
+
+# Auto-save files
+.#*
+
+# TAGS
+TAGS
+
+# Directory files
+.DS_Store
+
+# Project-specific prompt files (optional - uncomment if you want to ignore them)
+# .claude-code-emacs.prompt.md
+
+# Test artifacts
+*.log
+
+# Emacs package directories
+elpa/
+quelpa/
+
+# Temporary files
+/tmp/
+
+# Development helper files (optional - uncomment if you want to ignore them)
+# install-deps.el
