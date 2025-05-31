@@ -28,6 +28,7 @@
 (require 'projectile)
 (require 'markdown-mode)
 
+;;;###autoload
 (defun claude-code-emacs-run ()
   (interactive)
   (let* ((buffer-name (claude-code-emacs-buffer-name))
@@ -40,6 +41,7 @@
       (vterm-send-return))
     (switch-to-buffer-other-window buffer-name)))
 
+;;;###autoload
 (defun claude-code-emacs-switch-to-buffer ()
   "Switch to the Claude Code buffer for the current project."
   (interactive)
@@ -144,6 +146,7 @@
         (vterm-send-return))
     (error "No vterm-claude buffer found.")))
 
+;;;###autoload
 (defun claude-code-emacs-send-region ()
   (interactive)
   (let ((text (if (use-region-p)
@@ -151,6 +154,7 @@
                 (buffer-substring-no-properties (point-min) (point-max)))))
     (claude-code-emacs-send-string text t)))
 
+;;;###autoload
 (defun claude-code-emacs-open-prompt-file ()
   "Open project-specific prompt file in another window."
   (interactive)
@@ -208,6 +212,7 @@
     map)
   "Keymap for `claude-code-emacs-prompt-mode'.")
 
+;;;###autoload
 (define-derived-mode claude-code-emacs-prompt-mode markdown-mode "Claude Prompt"
   "Major mode for editing Claude Code prompt files.
 \\{claude-code-emacs-prompt-mode-map}"
@@ -225,6 +230,7 @@
 
 ;;; Transient menus
 
+;;;###autoload
 (transient-define-prefix claude-code-emacs-transient ()
   "Claude Code Emacs main menu."
   ["Claude Code"
@@ -268,6 +274,9 @@
 ;; Add transient to prompt mode keymap
 (define-key claude-code-emacs-prompt-mode-map (kbd "C-c C-t") 'claude-code-emacs-prompt-transient)
 
+;; Auto-mode for prompt files
+;;;###autoload
+(add-to-list 'auto-mode-alist '("\\.claude-code-emacs\\.prompt\\.md\\'" . claude-code-emacs-prompt-mode))
 
 (provide 'claude-code-emacs)
 ;;; claude-code-emacs.el ends here
