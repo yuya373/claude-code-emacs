@@ -18,6 +18,14 @@ The buffer is opened with `switch-to-buffer-other-window`.
 ### Main Menu
 Display the main menu with `M-x claude-code-emacs-transient`
 
+#### Quick Send Keys
+- `1` or `y`: Send "1" (useful for "yes" responses)
+- `2`: Send "2"
+- `3`: Send "3"
+- `g`: Send "commit"
+- `e`: Send Escape
+- `m`: Send Return
+
 ### Prompt Buffer Menu
 In prompt buffers, display the menu with `C-c C-t` or `M-x claude-code-emacs-prompt-transient`
 

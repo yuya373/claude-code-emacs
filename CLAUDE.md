@@ -49,6 +49,14 @@ All slash commands have been implemented and use `claude-code-emacs-send-string`
 - `claude-code-emacs-send-prompt-region`: Send selected region to Claude Code
 - LSP mode integration: Automatically configures language ID as "markdown" when lsp-mode is available
 
+### Quick Send Functions
+- `claude-code-emacs-send-1`: Send "1" to Claude Code
+- `claude-code-emacs-send-2`: Send "2" to Claude Code
+- `claude-code-emacs-send-3`: Send "3" to Claude Code
+- `claude-code-emacs-send-commit`: Send "commit" to Claude Code
+- `claude-code-emacs-send-escape`: Send ESC key to Claude Code
+- `claude-code-emacs-send-return`: Send Return key to Claude Code
+
 ### Utility Functions
 - `claude-code-emacs-send-string`: Core function for sending strings to Claude Code buffer
 - `claude-code-emacs-send-region`: Send selected region or entire buffer
@@ -59,12 +67,15 @@ All slash commands have been implemented and use `claude-code-emacs-send-string`
 ### Main Menu (`claude-code-emacs-transient`)
 Organized into logical groups:
 - Session: Run, switch buffer, open prompt file, send region
+- Quick Send: Number keys (1/y, 2, 3), commit (g), escape (e), return (m)
 - Commands: Init, clear, help
 - Memory & Config: Memory, config, compact
 - Review: Review code, PR comments
 - Info: Cost, status
 - Account: Login, logout
 - Other: Bug report, doctor
+
+Note: The "1" key can also be triggered with "y" for intuitive "yes" responses.
 
 ### Prompt Mode Menu (`claude-code-emacs-prompt-transient`)
 Available in prompt buffers with `C-c C-t`:

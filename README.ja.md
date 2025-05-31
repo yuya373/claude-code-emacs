@@ -18,6 +18,14 @@ Claude CodeをEmacs内で実行するためのパッケージです。
 ### メインメニュー
 `M-x claude-code-emacs-transient`でメインメニューを表示
 
+#### クイック送信キー
+- `1` または `y`: "1"を送信（「はい」の応答に便利）
+- `2`: "2"を送信
+- `3`: "3"を送信
+- `g`: "commit"を送信
+- `e`: Escapeを送信
+- `m`: Returnを送信
+
 ### プロンプトバッファメニュー
 プロンプトバッファ内で`C-c C-t`または`M-x claude-code-emacs-prompt-transient`でメニューを表示
 
