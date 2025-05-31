@@ -22,6 +22,11 @@ jobs:
       with:
         version: ${{ matrix.emacs-version }}
 
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libtool-bin
+
     - name: Cache Emacs packages
       uses: actions/cache@v4
       id: cache-emacs-packages
@@ -36,6 +41,19 @@ jobs:
 
     - name: Install dependencies
       run: make install-deps
+
+    - name: Build libvterm
+      run: |
+        # Find vterm.el location
+        VTERM_DIR=$(emacs -batch -Q --eval "(progn (package-initialize) (princ (file-name-directory (locate-library \"vterm\"))))")
+        echo "Building vterm module in: $VTERM_DIR"
+
+        # Build vterm module
+        cd "$VTERM_DIR"
+        mkdir -p build
+        cd build
+        cmake -DUSE_SYSTEM_LIBVTERM=no ..
+        make
 
     - name: Compile
       run: make compile

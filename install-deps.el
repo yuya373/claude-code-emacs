@@ -8,6 +8,7 @@
 ;;; Code:
 
 (require 'package)
+(require 'cl-lib)
 
 ;; Add MELPA to package archives
 (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
