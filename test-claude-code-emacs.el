@@ -37,7 +37,8 @@
         (claude-code-emacs-vterm-mode)
         ,@body)
       (when (get-buffer buffer-name)
-        (kill-buffer buffer-name)))))
+        (let ((kill-buffer-query-functions nil))
+          (kill-buffer buffer-name))))))
 
 ;;; Tests for core functions
 
@@ -75,7 +76,8 @@
        (should (string= (buffer-name) buffer-name)))
 
      ;; Test when buffer doesn't exist
-     (kill-buffer buffer-name)
+     (let ((kill-buffer-query-functions nil))
+       (kill-buffer buffer-name))
      (with-temp-buffer
        (let ((inhibit-message t))
          (claude-code-emacs-switch-to-buffer))
@@ -107,7 +109,8 @@
      (should (eq major-mode 'claude-code-emacs-prompt-mode))
 
      ;; Clean up
-     (kill-buffer (current-buffer)))))
+     (let ((kill-buffer-query-functions nil))
+       (kill-buffer (current-buffer))))))
 
 (ert-deftest test-claude-code-emacs-get-markdown-section-at-point ()
   "Test markdown section extraction."
@@ -249,17 +252,19 @@
   (with-claude-test-project
    ;; Create prompt file
    (claude-code-emacs-open-prompt-file)
+   (goto-char (point-max))
    (insert "\n## Test Section\nThis is a test prompt.")
    (save-buffer)
 
    ;; Test section extraction
-   (search-backward "Test Section")
+   (search-backward "This is a test prompt.")
    (let ((section (claude-code-emacs-get-markdown-section-at-point)))
      (should (string-match-p "Test Section" section))
      (should (string-match-p "test prompt" section)))
 
    ;; Clean up
-   (kill-buffer (current-buffer))))
+   (let ((kill-buffer-query-functions nil))
+     (kill-buffer (current-buffer)))))
 
 (provide 'test-claude-code-emacs)
 ;;; test-claude-code-emacs.el ends here
