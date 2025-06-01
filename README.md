@@ -15,6 +15,10 @@ Include information about the open file, surrounding code (±3 lines), and diagn
 Since Claude Code reads files with `@path/to/file`
 
 ### Register Emacs as an MCP server for Claude Code
+Set up TypeScript SDK server (stdio)
+Set up elnode server
+claude code → typescript-sdk → elnode → control Emacs
+
 #### Open files
 Text selection functionality (startText, endText)
 #### Get open buffers

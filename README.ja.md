@@ -5,34 +5,38 @@
 Claude CodeをEmacs内で実行するためのパッケージです。
 
 ## TODO
-### lspのdiagnosticを使ってclaude codeに仕事させる
-- fix diagnositic
-- explain diagnostic
+### LSPの診断情報を使ってClaude Codeに作業させる
+- 診断エラーの修正
+- 診断内容の説明
 
 開いているファイルの情報、周辺コード（±3行）、diagnosticの情報を含める
 
-### プロンプトファイルで`@`をインサートしたときにファイル補完をさせる
-claude codeは`@path/to/file`でそのファイルを読みにいくので
+### プロンプトファイルで`@`を入力した際のファイル補完機能
+Claude Codeは`@path/to/file`の形式でファイルを参照できるため、`@`入力時に補完機能を提供
 
-### Emacsをmcpサーバーとしてclaude codeに登録する
+### EmacsをMCPサーバーとしてClaude Codeに登録する
+TypeScript SDKでサーバーを構築（stdio通信）
+elnodeでHTTPサーバーを構築
+Claude Code → TypeScript SDK → elnode → Emacsを操作
+
 #### ファイルを開く
 テキスト選択の機能 (startText, endText)
 #### 開いているバッファを取得
 ファイルパス、ファイル名、アクティブかどうか
 #### 現在選択している範囲
 選択しているテキスト、開始行、終了行、開始文字、終了文字、ファイル名
-#### diagnosticsの情報
-lspのワークスペースの診断情報
+#### 診断情報
+LSPワークスペースの診断情報
 
 ### カスタムコマンド
-$ARGUMENTSがをプレイスホルダーにできる
+$ARGUMENTSをプレースホルダーとして使用可能
 
-#### プロジェクト固有のもの
-`project-root/.claude/commands/optimize.md`があった場合claudeからは`/project:optimize`で実行できる
-引数がある場合は`/project:optimize 123`
-#### ユーザー固有のもの
-`~/.claude/commands/optimize.md`があった場合claudeからは`/user:optimize`で実行できる
-引数がある場合は`/user:optimize 123`
+#### プロジェクト固有のコマンド
+`project-root/.claude/commands/optimize.md`がある場合、Claudeからは`/project:optimize`で実行可能
+引数付きの場合：`/project:optimize 123`
+#### ユーザー固有のコマンド
+`~/.claude/commands/optimize.md`がある場合、Claudeからは`/user:optimize`で実行可能
+引数付きの場合：`/user:optimize 123`
 
 
 ## Claude Codeの起動
