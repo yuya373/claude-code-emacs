@@ -18,7 +18,7 @@
 
 ;; List of required packages
 (defvar claude-code-emacs-required-packages
-  '(projectile vterm transient markdown-mode)
+  '(projectile vterm transient markdown-mode lsp-mode)
   "List of packages required by claude-code-emacs.")
 
 ;; Check if all packages are installed

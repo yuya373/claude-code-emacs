@@ -179,7 +179,6 @@
 
 (ert-deftest test-claude-code-emacs-lsp-integration ()
   "Test LSP mode integration."
-  (skip-unless (and (fboundp 'lsp-mode) (boundp 'lsp-language-id-configuration)))
   (let ((lsp-language-id-configuration nil))
     (with-temp-buffer
       (claude-code-emacs-prompt-mode)
@@ -411,7 +410,7 @@
              ((symbol-function 'projectile-project-files)
               (lambda (root)
                 '("test.el" "src/main.el"))))
-    
+
     (with-claude-test-project
      ;; Test @ completion
      (with-temp-buffer
