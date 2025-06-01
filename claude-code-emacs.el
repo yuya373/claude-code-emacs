@@ -38,9 +38,15 @@
          (default-directory project-root)
          (buf (get-buffer-create buffer-name)))
     (with-current-buffer buf
-      (claude-code-emacs-vterm-mode)
-      (vterm-send-string "claude")
-      (vterm-send-return))
+      (unless (eq major-mode 'claude-code-emacs-vterm-mode)
+        (claude-code-emacs-vterm-mode))
+      ;; Wait for vterm to be ready
+      (run-at-time 0.1 nil
+                   (lambda ()
+                     (when (buffer-live-p buf)
+                       (with-current-buffer buf
+                         (vterm-send-string "claude")
+                         (vterm-send-return))))))
     (switch-to-buffer-other-window buffer-name)))
 
 ;;;###autoload
@@ -55,6 +61,15 @@
 (defun claude-code-emacs-buffer-name ()
   (let ((project-root (projectile-project-root)))
     (format "*claude:%s*" project-root)))
+
+(defun claude-code-emacs-get-buffer ()
+  "Get the Claude Code buffer for the current project, or nil if it doesn't exist."
+  (get-buffer (claude-code-emacs-buffer-name)))
+
+(defun claude-code-emacs-ensure-buffer ()
+  "Ensure Claude Code buffer exists, error if not."
+  (or (claude-code-emacs-get-buffer)
+      (error "No Claude Code session for this project. Use 'claude-code-emacs-run' to start one")))
 
 (defun claude-code-emacs-init ()
   (interactive)
@@ -120,15 +135,17 @@
 (defun claude-code-emacs-send-escape ()
   "Send ESC key to Claude Code buffer."
   (interactive)
-  (with-current-buffer (claude-code-emacs-buffer-name)
-    (vterm-send-escape)))
+  (let ((buf (claude-code-emacs-ensure-buffer)))
+    (with-current-buffer buf
+      (vterm-send-escape))))
 
 ;;;###autoload
 (defun claude-code-emacs-send-return ()
   "Send Return key to Claude Code buffer."
   (interactive)
-  (with-current-buffer (claude-code-emacs-buffer-name)
-    (vterm-send-return)))
+  (let ((buf (claude-code-emacs-ensure-buffer)))
+    (with-current-buffer buf
+      (vterm-send-return))))
 
 ;;;###autoload
 (defun claude-code-emacs-send-1 ()
@@ -150,31 +167,37 @@
 
 ;;;###autoload
 (defun claude-code-emacs-send-commit ()
-  "Send \\='commit\\=' to Claude Code buffer."
+  "Send \='commit\=' to Claude Code buffer."
   (interactive)
   (claude-code-emacs-send-string "commit"))
 
 (defun claude-code-emacs-chunk-string (str chunk-size)
-  (if (<= chunk-size 0)
-      (error "chunk-size must be greater than 0")
-    (let ((len (length str))
-          (result '())
-          (start 0))
-      (while (< start len)
-        (let ((end (min (+ start chunk-size) len)))
-          (push (substring str start end) result)
-          (setq start end)))
-      (nreverse result))))
+  "Split STR into chunks of CHUNK-SIZE characters."
+  (if (or (<= chunk-size 0)
+          (not (stringp str)))
+      (error "Invalid input: string must be non-empty and chunk-size must be greater than 0")
+    (if (string-empty-p str)
+        '("")
+      (let ((len (length str))
+            (result '())
+            (start 0))
+        (while (< start len)
+          (let ((end (min (+ start chunk-size) len)))
+            (push (substring str start end) result)
+            (setq start end)))
+        (nreverse result)))))
 
 (defun claude-code-emacs-send-string (string &optional paste-p)
-  (if-let ((buf (claude-code-emacs-buffer-name))
-           (strings (claude-code-emacs-chunk-string string 50)))
-      (with-current-buffer buf
+  "Send STRING to Claude Code buffer. If PASTE-P is non-nil, paste the string."
+  (let ((buf (claude-code-emacs-ensure-buffer)))
+    (with-current-buffer buf
+      (unless (eq major-mode 'claude-code-emacs-vterm-mode)
+        (error "Buffer is not in claude-code-emacs-vterm-mode"))
+      (let ((strings (claude-code-emacs-chunk-string string 50)))
         (mapc (lambda (str)
                 (vterm-send-string str paste-p))
               strings)
-        (vterm-send-return))
-    (error "No vterm-claude buffer found.")))
+        (vterm-send-return)))))
 
 ;;;###autoload
 (defun claude-code-emacs-send-region ()
@@ -201,6 +224,7 @@
     (claude-code-emacs-prompt-mode)))
 
 (define-derived-mode claude-code-emacs-vterm-mode vterm-mode "Claude Code Session"
+  "Major mode for Claude Code vterm sessions."
   (display-line-numbers-mode -1))
 
 (defun claude-code-emacs-send-prompt-at-point ()
@@ -240,6 +264,7 @@ Returns text from current heading to next heading or end of buffer."
     (define-key map (kbd "C-c C-s") 'claude-code-emacs-send-prompt-at-point)
     (define-key map (kbd "C-c C-r") 'claude-code-emacs-send-prompt-region)
     (define-key map (kbd "C-c C-o") 'claude-code-emacs-run)
+    (define-key map (kbd "C-c C-t") 'claude-code-emacs-prompt-transient)
     map)
   "Keymap for `claude-code-emacs-prompt-mode'.")
 
@@ -309,9 +334,6 @@ Returns text from current heading to next heading or end of buffer."
    ["Navigation"
     ("c" "Run Claude Code" claude-code-emacs-run)
     ("b" "Switch to Claude Code buffer" claude-code-emacs-switch-to-buffer)]])
-
-;; Add transient to prompt mode keymap
-(define-key claude-code-emacs-prompt-mode-map (kbd "C-c C-t") 'claude-code-emacs-prompt-transient)
 
 ;; Auto-mode for prompt files
 ;;;###autoload
