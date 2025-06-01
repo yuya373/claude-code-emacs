@@ -24,6 +24,16 @@ Selected text, start line, end line, start character, end character, file name
 #### Diagnostic information
 LSP workspace diagnostic information
 
+### Custom commands
+$ARGUMENTS can be used as placeholder
+
+#### Project-specific commands
+If `project-root/.claude/commands/optimize.md` exists, it can be executed from Claude as `/project:optimize`
+With arguments: `/project:optimize 123`
+#### User-specific commands
+If `~/.claude/commands/optimize.md` exists, it can be executed from Claude as `/user:optimize`
+With arguments: `/user:optimize 123`
+
 ## Starting Claude Code
 `claude-code-emacs-run`
 

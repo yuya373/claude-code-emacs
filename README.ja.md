@@ -24,6 +24,16 @@ claude codeは`@path/to/file`でそのファイルを読みにいくので
 #### diagnosticsの情報
 lspのワークスペースの診断情報
 
+### カスタムコマンド
+$ARGUMENTSがをプレイスホルダーにできる
+
+#### プロジェクト固有のもの
+`project-root/.claude/commands/optimize.md`があった場合claudeからは`/project:optimize`で実行できる
+引数がある場合は`/project:optimize 123`
+#### ユーザー固有のもの
+`~/.claude/commands/optimize.md`があった場合claudeからは`/user:optimize`で実行できる
+引数がある場合は`/user:optimize 123`
+
 
 ## Claude Codeの起動
 `claude-code-emacs-run`
