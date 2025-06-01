@@ -4,6 +4,26 @@
 
 An Emacs package to run Claude Code within Emacs.
 
+## TODO
+### Use LSP diagnostics to make Claude Code work
+- fix diagnostic
+- explain diagnostic
+
+Include information about the open file, surrounding code (±3 lines), and diagnostic information.
+
+### File completion when inserting `@` in prompt files
+Since Claude Code reads files with `@path/to/file`
+
+### Register Emacs as an MCP server for Claude Code
+#### Open files
+Text selection functionality (startText, endText)
+#### Get open buffers
+File path, file name, whether active or not
+#### Currently selected range
+Selected text, start line, end line, start character, end character, file name
+#### Diagnostic information
+LSP workspace diagnostic information
+
 ## Starting Claude Code
 `claude-code-emacs-run`
 

@@ -4,6 +4,27 @@
 
 Claude CodeをEmacs内で実行するためのパッケージです。
 
+## TODO
+### lspのdiagnosticを使ってclaude codeに仕事させる
+- fix diagnositic
+- explain diagnostic
+
+開いているファイルの情報、周辺コード（±3行）、diagnosticの情報を含める
+
+### プロンプトファイルで`@`をインサートしたときにファイル補完をさせる
+claude codeは`@path/to/file`でそのファイルを読みにいくので
+
+### Emacsをmcpサーバーとしてclaude codeに登録する
+#### ファイルを開く
+テキスト選択の機能 (startText, endText)
+#### 開いているバッファを取得
+ファイルパス、ファイル名、アクティブかどうか
+#### 現在選択している範囲
+選択しているテキスト、開始行、終了行、開始文字、終了文字、ファイル名
+#### diagnosticsの情報
+lspのワークスペースの診断情報
+
+
 ## Claude Codeの起動
 `claude-code-emacs-run`
 
