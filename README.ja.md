@@ -11,8 +11,6 @@ Claude CodeをEmacs内で実行するためのパッケージです。
 
 開いているファイルの情報、周辺コード（±3行）、diagnosticの情報を含める
 
-### プロンプトファイルで`@`を入力した際のファイル補完機能
-Claude Codeは`@path/to/file`の形式でファイルを参照できるため、`@`入力時に補完機能を提供
 
 ### EmacsをMCPサーバーとしてClaude Codeに登録する
 TypeScript SDKでサーバーを構築（stdio通信）
@@ -50,6 +48,10 @@ $ARGUMENTSをプレースホルダーとして使用可能
 - `C-c C-s`: カーソル位置のmarkdownセクションをClaude Codeバッファに送信
 - `C-c C-r`: 選択したリージョンをClaude Codeバッファに送信
 - `C-c C-o`: Claude Codeセッションを開く
+- `C-c C-i`: プロジェクトファイルのパスを選択して挿入（@プレフィックス付き）
+- `C-c C-a`: 開いているバッファのファイルパスを挿入
+- `C-c C-t`: プロンプトバッファ用のtransientメニューを表示
+- `@`: @を入力すると自動的にファイル補完が起動
 
 ## Transientメニュー
 ### メインメニュー

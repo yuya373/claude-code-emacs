@@ -11,8 +11,6 @@ An Emacs package to run Claude Code within Emacs.
 
 Include information about the open file, surrounding code (±3 lines), and diagnostic information.
 
-### File completion when inserting `@` in prompt files
-Since Claude Code reads files with `@path/to/file`
 
 ### Register Emacs as an MCP server for Claude Code
 Set up TypeScript SDK server (stdio)
@@ -49,6 +47,10 @@ The buffer is opened with `switch-to-buffer-other-window`.
 - `C-c C-s`: Send the markdown section at point to Claude Code buffer
 - `C-c C-r`: Send the selected region to Claude Code buffer
 - `C-c C-o`: Open Claude Code session
+- `C-c C-i`: Insert a project file path with @ prefix (interactive selection)
+- `C-c C-a`: Insert all open buffer file paths
+- `C-c C-t`: Show transient menu for prompt buffer
+- `@`: Typing @ automatically triggers file completion
 
 ## Transient Menus
 ### Main Menu
