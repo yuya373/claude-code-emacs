@@ -37,8 +37,9 @@ $ARGUMENTSをプレースホルダーとして使用可能
 引数付きの場合：`/user:optimize 123`
 
 
-## Claude Codeの起動
-`claude-code-emacs-run`
+## Claude Codeの起動と終了
+- `claude-code-emacs-run` - 現在のプロジェクトでClaude Codeを起動
+- `claude-code-emacs-close` - Claude Codeバッファを表示しているウィンドウを閉じる
 
 ## プロンプト管理機能
 各プロジェクトのルートディレクトリに`.claude-code-emacs.prompt.md`ファイルが作成されます。

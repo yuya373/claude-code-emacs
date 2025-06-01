@@ -132,6 +132,19 @@
   (claude-code-emacs-send-string "/logout"))
 
 ;;;###autoload
+(defun claude-code-emacs-close ()
+  "Close the window displaying the Claude Code buffer for the current project."
+  (interactive)
+  (let* ((buffer-name (claude-code-emacs-buffer-name))
+         (buffer (get-buffer buffer-name)))
+    (if buffer
+        (let ((window (get-buffer-window buffer)))
+          (if window
+              (delete-window window)
+            (message "Claude Code buffer is not displayed in any window")))
+      (message "No Claude Code buffer found for this project"))))
+
+;;;###autoload
 (defun claude-code-emacs-send-escape ()
   "Send ESC key to Claude Code buffer."
   (interactive)
@@ -357,6 +370,7 @@ Each path is inserted on a new line with @ prefix."
    ["Session"
     ("c" "Run Claude Code" claude-code-emacs-run)
     ("b" "Switch to Claude Code buffer" claude-code-emacs-switch-to-buffer)
+    ("q" "Close Claude Code" claude-code-emacs-close)
     ("p" "Open Prompt File" claude-code-emacs-open-prompt-file)
     ("s" "Send Region" claude-code-emacs-send-region)]
    ["Quick Send"
@@ -400,7 +414,8 @@ Each path is inserted on a new line with @ prefix."
     ("a" "Insert open buffer paths" claude-code-emacs-insert-open-buffer-paths)]
    ["Navigation"
     ("c" "Run Claude Code" claude-code-emacs-run)
-    ("b" "Switch to Claude Code buffer" claude-code-emacs-switch-to-buffer)]])
+    ("b" "Switch to Claude Code buffer" claude-code-emacs-switch-to-buffer)
+    ("q" "Close Claude Code" claude-code-emacs-close)]])
 
 ;; Auto-mode for prompt files
 ;;;###autoload

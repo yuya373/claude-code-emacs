@@ -36,8 +36,9 @@ With arguments: `/project:optimize 123`
 If `~/.claude/commands/optimize.md` exists, it can be executed from Claude as `/user:optimize`
 With arguments: `/user:optimize 123`
 
-## Starting Claude Code
-`claude-code-emacs-run`
+## Starting and Closing Claude Code
+- `claude-code-emacs-run` - Start Claude Code in the current project
+- `claude-code-emacs-close` - Close the window displaying Claude Code buffer
 
 ## Prompt Management Features
 A `.claude-code-emacs.prompt.md` file is created in each project root.

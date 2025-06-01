@@ -84,6 +84,45 @@
        ;; Should stay in current buffer when Claude buffer doesn't exist
        (should-not (string= (buffer-name) buffer-name))))))
 
+(ert-deftest test-claude-code-emacs-close ()
+  "Test closing Claude Code window."
+  (with-claude-test-project
+   (let ((buffer-name (claude-code-emacs-buffer-name)))
+     ;; Create a Claude Code buffer without vterm process
+     (with-current-buffer (get-buffer-create buffer-name)
+       ;; Just set the mode name without invoking vterm
+       (setq major-mode 'claude-code-emacs-vterm-mode)
+       (setq mode-name "Claude Code Session"))
+
+     ;; Test closing window when buffer is displayed
+     (should (get-buffer buffer-name))
+     ;; Display the buffer in a window
+     (save-window-excursion
+       (split-window)
+       (switch-to-buffer buffer-name)
+       (should (get-buffer-window buffer-name))
+       (let ((inhibit-message t))
+         (claude-code-emacs-close))
+       ;; Window should be closed but buffer still exists
+       (should-not (get-buffer-window buffer-name))
+       (should (get-buffer buffer-name)))
+
+     ;; Test closing when buffer exists but not displayed
+     (let ((inhibit-message t))
+       (claude-code-emacs-close))
+     ;; Buffer should still exist
+     (should (get-buffer buffer-name))
+
+     ;; Clean up the buffer
+     (let ((kill-buffer-query-functions nil))
+       (kill-buffer buffer-name))
+
+     ;; Test closing when no buffer exists
+     (let ((inhibit-message t))
+       (claude-code-emacs-close))
+     ;; Should not error when no buffer exists
+     (should t))))
+
 ;;; Tests for prompt file functions
 
 (ert-deftest test-claude-code-emacs-open-prompt-file ()
