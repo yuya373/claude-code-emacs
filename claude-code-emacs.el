@@ -71,65 +71,54 @@
   (or (claude-code-emacs-get-buffer)
       (error "No Claude Code session for this project. Use 'claude-code-emacs-run' to start one")))
 
-(defun claude-code-emacs-init ()
-  (interactive)
-  (claude-code-emacs-send-string "/init"))
+;;; Slash command definitions
 
-(defun claude-code-emacs-clear ()
-  (interactive)
-  (claude-code-emacs-send-string "/clear"))
+(defmacro claude-code-emacs-define-slash-command (name command)
+  "Define a function claude-code-emacs-NAME that sends COMMAND."
+  `(defun ,(intern (format "claude-code-emacs-%s" name)) ()
+     (interactive)
+     (claude-code-emacs-send-string ,command)))
 
-(defun claude-code-emacs-help ()
-  (interactive)
-  (claude-code-emacs-send-string "/help"))
+;; Helper for commands with optional arguments
+(defun claude-code-emacs-send-command-with-optional-args (command prompt)
+  "Send COMMAND with optional arguments prompted by PROMPT."
+  (let ((args (read-string prompt)))
+    (if (string-empty-p args)
+        (claude-code-emacs-send-string command)
+      (claude-code-emacs-send-string (format "%s %s" command args)))))
+
+;; Define simple slash commands
+(claude-code-emacs-define-slash-command "init" "/init")
+(claude-code-emacs-define-slash-command "clear" "/clear")
+(claude-code-emacs-define-slash-command "help" "/help")
+(claude-code-emacs-define-slash-command "memory" "/memory")
 
 (defun claude-code-emacs-config (&optional args)
   (interactive "sConfig arguments (leave empty to show): ")
-  (if (string-empty-p args)
-      (claude-code-emacs-send-string "/config")
-    (claude-code-emacs-send-string (format "/config %s" args))))
-
-(defun claude-code-emacs-memory ()
-  (interactive)
-  (claude-code-emacs-send-string "/memory"))
+  (if args
+      (if (string-empty-p args)
+          (claude-code-emacs-send-string "/config")
+        (claude-code-emacs-send-string (format "/config %s" args)))
+    (claude-code-emacs-send-command-with-optional-args 
+     "/config" "Config arguments (leave empty to show): ")))
 
 (defun claude-code-emacs-compact (&optional instructions)
   (interactive "sCompact instructions (optional): ")
-  (if (string-empty-p instructions)
-      (claude-code-emacs-send-string "/compact")
-    (claude-code-emacs-send-string (format "/compact %s" instructions))))
+  (if instructions
+      (if (string-empty-p instructions)
+          (claude-code-emacs-send-string "/compact")
+        (claude-code-emacs-send-string (format "/compact %s" instructions)))
+    (claude-code-emacs-send-command-with-optional-args 
+     "/compact" "Compact instructions (optional): ")))
 
-(defun claude-code-emacs-cost ()
-  (interactive)
-  (claude-code-emacs-send-string "/cost"))
-
-(defun claude-code-emacs-status ()
-  (interactive)
-  (claude-code-emacs-send-string "/status"))
-
-(defun claude-code-emacs-review ()
-  (interactive)
-  (claude-code-emacs-send-string "/review"))
-
-(defun claude-code-emacs-pr-comments ()
-  (interactive)
-  (claude-code-emacs-send-string "/pr_comments"))
-
-(defun claude-code-emacs-bug ()
-  (interactive)
-  (claude-code-emacs-send-string "/bug"))
-
-(defun claude-code-emacs-doctor ()
-  (interactive)
-  (claude-code-emacs-send-string "/doctor"))
-
-(defun claude-code-emacs-login ()
-  (interactive)
-  (claude-code-emacs-send-string "/login"))
-
-(defun claude-code-emacs-logout ()
-  (interactive)
-  (claude-code-emacs-send-string "/logout"))
+(claude-code-emacs-define-slash-command "cost" "/cost")
+(claude-code-emacs-define-slash-command "status" "/status")
+(claude-code-emacs-define-slash-command "review" "/review")
+(claude-code-emacs-define-slash-command "pr-comments" "/pr_comments")
+(claude-code-emacs-define-slash-command "bug" "/bug")
+(claude-code-emacs-define-slash-command "doctor" "/doctor")
+(claude-code-emacs-define-slash-command "login" "/login")
+(claude-code-emacs-define-slash-command "logout" "/logout")
 
 ;;;###autoload
 (defun claude-code-emacs-close ()
@@ -144,21 +133,30 @@
             (message "Claude Code buffer is not displayed in any window")))
       (message "No Claude Code buffer found for this project"))))
 
+;;; Key sending functions
+
+(defun claude-code-emacs-with-vterm-buffer (body-fn)
+  "Execute BODY-FN in the Claude Code vterm buffer."
+  (let ((buf (claude-code-emacs-ensure-buffer)))
+    (with-current-buffer buf
+      (funcall body-fn))))
+
 ;;;###autoload
 (defun claude-code-emacs-send-escape ()
   "Send ESC key to Claude Code buffer."
   (interactive)
-  (let ((buf (claude-code-emacs-ensure-buffer)))
-    (with-current-buffer buf
-      (vterm-send-escape))))
+  (claude-code-emacs-with-vterm-buffer #'vterm-send-escape))
 
 ;;;###autoload
 (defun claude-code-emacs-send-return ()
   "Send Return key to Claude Code buffer."
   (interactive)
-  (let ((buf (claude-code-emacs-ensure-buffer)))
-    (with-current-buffer buf
-      (vterm-send-return))))
+  (claude-code-emacs-with-vterm-buffer #'vterm-send-return))
+
+;;; Quick send functions
+
+;; Since these need autoload cookies, we'll keep them as regular functions
+;; but group them together for clarity
 
 ;;;###autoload
 (defun claude-code-emacs-send-1 ()
@@ -188,9 +186,8 @@
 (defun claude-code-emacs-send-ctrl-r ()
   "Send Ctrl+R to Claude Code buffer to toggle expand."
   (interactive)
-  (let ((buf (claude-code-emacs-ensure-buffer)))
-    (with-current-buffer buf
-      (vterm-send-key (kbd "C-r")))))
+  (claude-code-emacs-with-vterm-buffer 
+   (lambda () (vterm-send-key (kbd "C-r")))))
 
 (defun claude-code-emacs-chunk-string (str chunk-size)
   "Split STR into chunks of CHUNK-SIZE characters."
@@ -400,20 +397,30 @@ Returns a list of arguments."
   (let ((project-root (projectile-project-root)))
     (expand-file-name ".claude/commands" project-root)))
 
+;;; Common command file functions
+
+(defun claude-code-emacs-list-command-files (directory)
+  "List all .md files in DIRECTORY."
+  (when (file-directory-p directory)
+    (directory-files directory nil "\\.md$")))
+
+(defun claude-code-emacs-read-command-file (filepath)
+  "Read and trim the contents of command file at FILEPATH."
+  (when (file-exists-p filepath)
+    (with-temp-buffer
+      (insert-file-contents filepath)
+      (string-trim (buffer-string)))))
+
 (defun claude-code-emacs-list-custom-command-files ()
   "List all .md files containing custom project commands.
 Files are located in the .claude/commands directory."
-  (let ((commands-dir (claude-code-emacs-custom-commands-directory)))
-    (when (file-directory-p commands-dir)
-      (directory-files commands-dir nil "\\.md$"))))
+  (claude-code-emacs-list-command-files 
+   (claude-code-emacs-custom-commands-directory)))
 
 (defun claude-code-emacs-read-custom-command-file (filename)
   "Read the contents of a custom project command file."
-  (let ((filepath (expand-file-name filename (claude-code-emacs-custom-commands-directory))))
-    (when (file-exists-p filepath)
-      (with-temp-buffer
-        (insert-file-contents filepath)
-        (string-trim (buffer-string))))))
+  (claude-code-emacs-read-command-file
+   (expand-file-name filename (claude-code-emacs-custom-commands-directory))))
 
 (defun claude-code-emacs-execute-custom-command ()
   "Select and execute a custom project command from .claude/commands.
@@ -450,17 +457,13 @@ send as /project:command args."
 
 (defun claude-code-emacs-list-global-command-files ()
   "List all .md files in the ~/.claude/commands directory."
-  (let ((commands-dir (claude-code-emacs-global-commands-directory)))
-    (when (file-directory-p commands-dir)
-      (directory-files commands-dir nil "\\.md$"))))
+  (claude-code-emacs-list-command-files 
+   (claude-code-emacs-global-commands-directory)))
 
 (defun claude-code-emacs-read-global-command-file (filename)
   "Read the contents of a global command file."
-  (let ((filepath (expand-file-name filename (claude-code-emacs-global-commands-directory))))
-    (when (file-exists-p filepath)
-      (with-temp-buffer
-        (insert-file-contents filepath)
-        (string-trim (buffer-string))))))
+  (claude-code-emacs-read-command-file
+   (expand-file-name filename (claude-code-emacs-global-commands-directory))))
 
 (defun claude-code-emacs-execute-global-command ()
   "Select and execute a global command from ~/.claude/commands using /user: prefix.
