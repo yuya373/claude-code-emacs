@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an Emacs package that provides integration with Claude Code CLI. The package allows running Claude Code sessions within Emacs using vterm mode.
+This is an Emacs package that provides integration with Claude Code CLI. The package allows running Claude Code sessions within Emacs using vterm mode, with each project getting its own isolated session.
 
 ## Development Commands
 
@@ -35,118 +35,96 @@ make clean
 make install-deps
 ```
 
-### CI/CD
-- Tests run automatically on push/PR via GitHub Actions
-- Tests against Emacs 28.1, 29.1, and snapshot versions
-- Special handling for vterm module compilation in CI environment
+### Linting and Type Checking
+When completing tasks, run these commands to ensure code quality:
+```bash
+# For Emacs Lisp files, byte-compilation serves as linting
+make compile
+
+# Run tests to ensure functionality
+make test
+```
 
 ## Architecture
 
-The package implements a complete Claude Code integration by:
-
-1. **Session Management**: Each project gets its own Claude Code buffer named `*claude:<project-root>*`. This allows multiple concurrent sessions across different projects.
-
-2. **Prompt File System**: Creates `.claude-code-emacs.prompt.md` files in each project root. These serve as persistent context that can be sent to Claude Code in chunks.
-
-3. **String Chunking**: Long strings are split into 50-character chunks before sending to avoid terminal input limitations. This is handled transparently by `claude-code-emacs-chunk-string`.
-
-4. **Two-Layer Interface**:
-   - Direct commands via `claude-code-emacs-send-string` for programmatic interaction
-   - Transient menus for user-friendly access to all functionality
-
-5. **Mode Integration**: Custom major modes for both vterm sessions (`claude-code-emacs-mode`) and prompt files (`claude-code-emacs-prompt-mode`)
-
-## Key Functions
-
 ### Session Management
-- `claude-code-emacs-run`: Starts Claude Code CLI in a project-specific buffer
-- `claude-code-emacs-switch-to-buffer`: Switch to existing Claude Code buffer for current project
-- Buffer naming follows pattern `*claude:<project-root>*`
+Each project gets its own Claude Code buffer named `*claude:<project-root>*`. Key components:
+- `claude-code-emacs-buffer-name()` - Generates unique buffer names per project
+- `claude-code-emacs-ensure-buffer()` - Ensures buffer exists before operations
+- `claude-code-emacs-with-vterm-buffer` - Helper macro for buffer context operations
 
-### Slash Commands
-All slash commands have been implemented and use `claude-code-emacs-send-string` for consistency:
-- `claude-code-emacs-init`: Sends `/init` command
-- `claude-code-emacs-clear`: Sends `/clear` command
-- `claude-code-emacs-help`: Sends `/help` command
-- `claude-code-emacs-config`: Sends `/config` command
-- `claude-code-emacs-memory`: Sends `/memory` command
-- `claude-code-emacs-compact`: Sends `/compact` command with optional instructions
-- `claude-code-emacs-cost`: Sends `/cost` command
-- `claude-code-emacs-status`: Sends `/status` command
-- `claude-code-emacs-review`: Sends `/review` command
-- `claude-code-emacs-pr-comments`: Sends `/pr_comments` command
-- `claude-code-emacs-bug`: Sends `/bug` command
-- `claude-code-emacs-doctor`: Sends `/doctor` command
-- `claude-code-emacs-login`: Sends `/login` command
-- `claude-code-emacs-logout`: Sends `/logout` command
+### String Chunking System
+Long strings are split into 50-character chunks to avoid terminal input limitations:
+- `claude-code-emacs-chunk-string()` - Core chunking function
+- Automatic delays between chunks for reliability
+- Transparent to the user
 
-### Prompt Management
-- `claude-code-emacs-open-prompt-file`: Creates/opens project-specific prompt file
-- `claude-code-emacs-prompt-mode`: Markdown-based major mode for prompt files
-- `claude-code-emacs-send-prompt-at-point`: Send markdown section at point to Claude Code
-- `claude-code-emacs-send-prompt-region`: Send selected region to Claude Code
-- LSP mode integration: Automatically configures language ID as "markdown" when lsp-mode is available
+### Custom Commands Architecture
+Two types of custom commands are supported:
 
-### Quick Send Functions
-- `claude-code-emacs-send-1`: Send "1" to Claude Code
-- `claude-code-emacs-send-2`: Send "2" to Claude Code
-- `claude-code-emacs-send-3`: Send "3" to Claude Code
-- `claude-code-emacs-send-commit`: Send "commit" to Claude Code
-- `claude-code-emacs-send-escape`: Send ESC key to Claude Code
-- `claude-code-emacs-send-return`: Send Return key to Claude Code
+1. **Project Commands** (`.claude/commands/*.md`)
+   - Sent as `/project:command-name`
+   - Functions: `claude-code-emacs-execute-custom-command`
+   
+2. **Global Commands** (`~/.claude/commands/*.md`)
+   - Sent as `/user:command-name`
+   - Functions: `claude-code-emacs-execute-global-command`
 
-### Utility Functions
-- `claude-code-emacs-send-string`: Core function for sending strings to Claude Code buffer
-- `claude-code-emacs-send-region`: Send selected region or entire buffer
-- `claude-code-emacs-chunk-string`: Splits long strings into manageable chunks
+Both support `$ARGUMENTS` placeholders with interactive prompting.
 
-## Transient Menus
+### Macro Pattern for Slash Commands
+Simple commands use this macro:
+```elisp
+(claude-code-emacs-define-slash-command "name" "/command")
+```
+This generates functions like `claude-code-emacs-init` that send `/init`.
 
-### Main Menu (`claude-code-emacs-transient`)
-Organized into logical groups:
-- Session: Run, switch buffer, open prompt file, send region
-- Quick Send: Number keys (1/y, 2, 3), commit (g), escape (e), return (m)
-- Commands: Init, clear, help
-- Memory & Config: Memory, config, compact
-- Review: Review code, PR comments
-- Info: Cost, status
-- Account: Login, logout
-- Other: Bug report, doctor
+### File Path Completion System
+The `@` symbol triggers project file completion:
+- `claude-code-emacs-get-buffer-paths()` - Lists all open project files
+- `claude-code-emacs-at-sign-complete()` - Interactive completion
+- Project root is replaced with `@` for brevity
 
-Note: The "1" key can also be triggered with "y" for intuitive "yes" responses.
+### Mode Architecture
+- **`claude-code-emacs-vterm-mode`** - For Claude Code sessions
+- **`claude-code-emacs-prompt-mode`** - For prompt markdown files
+- Both have custom keymaps and integrate with their parent modes
 
-### Prompt Mode Menu (`claude-code-emacs-prompt-transient`)
-Available in prompt buffers with `C-c C-t`:
-- Send section at point
-- Send region
-- Run/switch to Claude Code
-
-## Dependencies
-
-- projectile: For project root detection
-- vterm: Terminal emulation mode
-- transient: Menu system
-- markdown-mode: Base for prompt file editing
-- lsp-mode (optional): For LSP integration
+### Transient Menu System
+- Main menu: `claude-code-emacs-transient`
+- Prompt menu: `claude-code-emacs-prompt-transient`
+- Organized into logical groups with mnemonic key bindings
 
 ## Testing Strategy
 
-The test suite (`test-claude-code-emacs.el`) uses mock implementations to avoid requiring actual vterm instances. Key testing patterns:
+Tests use mock implementations to avoid vterm dependencies:
+- Mock vterm functions with `cl-letf`
+- Test data flows rather than terminal interactions
+- Integration tests verify complete workflows
 
-1. **Mock vterm buffers**: Tests create fake buffers that simulate vterm behavior
-2. **Process simulation**: Mock process objects for testing send functions
-3. **Integration tests**: Verify complete workflows like prompt file creation and sending
+## CI/CD
+- GitHub Actions runs tests on push/PR
+- Tests against Emacs 28.1, 29.1, and snapshot
+- Special handling for vterm module compilation in CI
 
-## Package Structure
+## Important Implementation Details
 
-```
-claude-code-emacs/
-├── claude-code-emacs.el      # Main implementation
-├── test-claude-code-emacs.el  # Test suite
-├── run-tests.el              # Test runner
-├── install-deps.el           # Dependency installer
-├── Makefile                  # Build automation
-├── README.md                 # English documentation
-├── README.ja.md              # Japanese documentation
-└── CLAUDE.md                 # This file
-```
+### Error Handling
+- Always use `claude-code-emacs-ensure-buffer` before operations
+- Check file existence before reading command files
+- Validate arguments are non-empty when required
+
+### Keybinding Conventions
+- `C-c C-*` in prompt buffers for mode-specific commands
+- Single letters in transient menus for quick access
+- `y` as alias for `1` (yes responses)
+
+### Dependencies
+- **Required**: projectile, vterm, transient, markdown-mode
+- **Optional**: lsp-mode (for language ID configuration)
+
+When modifying this package:
+1. Add tests for new functionality
+2. Use the established macro patterns for new commands
+3. Maintain project isolation in buffer naming
+4. Follow the chunking pattern for long strings
