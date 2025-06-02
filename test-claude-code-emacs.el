@@ -618,18 +618,6 @@
   (should (= 2 (claude-code-emacs-count-arguments "$ARGUMENTS and $ARGUMENTS")))
   (should (= 3 (claude-code-emacs-count-arguments "Start $ARGUMENTS middle $ARGUMENTS end $ARGUMENTS"))))
 
-(ert-deftest test-claude-code-emacs-replace-arguments ()
-  "Test replacing $ARGUMENTS placeholders."
-  (should (equal "No arguments here" 
-                 (claude-code-emacs-replace-arguments "No arguments here" '())))
-  (should (equal "One foo here" 
-                 (claude-code-emacs-replace-arguments "One $ARGUMENTS here" '("foo"))))
-  (should (equal "foo and bar" 
-                 (claude-code-emacs-replace-arguments "$ARGUMENTS and $ARGUMENTS" '("foo" "bar"))))
-  (should (equal "Start 1 middle 2 end 3" 
-                 (claude-code-emacs-replace-arguments 
-                  "Start $ARGUMENTS middle $ARGUMENTS end $ARGUMENTS" 
-                  '("1" "2" "3")))))
 
 (ert-deftest test-claude-code-emacs-execute-custom-command-with-multiple-args ()
   "Test custom command execution with multiple $ARGUMENTS."
@@ -659,7 +647,7 @@
          
          (claude-code-emacs-execute-custom-command)
          (should claude-code-emacs-send-string-called)
-         (should (equal "Command with arg1 and arg2" claude-code-emacs-send-string-arg)))))))
+         (should (equal "/project:multi-arg arg1 arg2" claude-code-emacs-send-string-arg)))))))
 
 (ert-deftest test-claude-code-emacs-execute-global-command-with-multiple-args ()
   "Test global command execution with multiple $ARGUMENTS."

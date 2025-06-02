@@ -381,15 +381,6 @@ Each path is inserted on a new line with @ prefix."
             pos (match-end 0)))
     count))
 
-(defun claude-code-emacs-replace-arguments (template args-list)
-  "Replace $ARGUMENTS placeholders in TEMPLATE with values from ARGS-LIST.
-Each occurrence of $ARGUMENTS is replaced with the corresponding element from ARGS-LIST."
-  (let ((result template)
-        (args args-list))
-    (while (and args (string-match "\\$ARGUMENTS" result))
-      (setq result (replace-match (car args) t t result)
-            args (cdr args)))
-    result))
 
 (defun claude-code-emacs-prompt-for-arguments (command-name arg-count)
   "Prompt user for ARG-COUNT arguments for COMMAND-NAME.
@@ -425,7 +416,7 @@ Returns a list of arguments."
 
 (defun claude-code-emacs-execute-custom-command ()
   "Select and execute a custom project command from .claude/commands directory.
-If the command contains $ARGUMENTS, prompt for each argument."
+If the command contains $ARGUMENTS, prompt for each argument and send as /project:command args."
   (interactive)
   (let ((command-files (claude-code-emacs-list-custom-command-files)))
     (if command-files
@@ -439,10 +430,12 @@ If the command contains $ARGUMENTS, prompt for each argument."
                                  (file-name-sans-extension selected-file) arg-count)))
                       (if (seq-some #'string-empty-p args)
                           (message "All arguments are required for this command")
-                        (let ((final-command (claude-code-emacs-replace-arguments 
-                                              command-content args)))
-                          (claude-code-emacs-send-string final-command))))
-                  ;; No $ARGUMENTS, send as is
+                        ;; Send as /project:command arg1 arg2 ...
+                        (claude-code-emacs-send-string 
+                         (format "/project:%s %s" 
+                                 (file-name-sans-extension selected-file)
+                                 (mapconcat #'identity args " ")))))
+                  ;; No $ARGUMENTS, send command content as is
                   (claude-code-emacs-send-string command-content)))
             (message "Failed to read custom command file: %s" selected-file)))
       (message "No custom command files found in %s" (claude-code-emacs-custom-commands-directory)))))
