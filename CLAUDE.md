@@ -68,7 +68,7 @@ All slash commands have been implemented and use `claude-code-emacs-send-string`
 - `claude-code-emacs-init`: Sends `/init` command
 - `claude-code-emacs-clear`: Sends `/clear` command
 - `claude-code-emacs-help`: Sends `/help` command
-- `claude-code-emacs-config`: Sends `/config` command with optional arguments
+- `claude-code-emacs-config`: Sends `/config` command
 - `claude-code-emacs-memory`: Sends `/memory` command
 - `claude-code-emacs-compact`: Sends `/compact` command with optional instructions
 - `claude-code-emacs-cost`: Sends `/cost` command

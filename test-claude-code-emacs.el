@@ -270,12 +270,9 @@
     (claude-code-emacs-help)
     (should (member "/help" sent-commands))
 
-    ;; Test commands with optional arguments
-    (claude-code-emacs-config "")
+    ;; Test config command (now simplified to just send /config)
+    (claude-code-emacs-config)
     (should (member "/config" sent-commands))
-
-    (claude-code-emacs-config "theme dark")
-    (should (member "/config theme dark" sent-commands))
 
     (claude-code-emacs-compact "")
     (should (member "/compact" sent-commands))

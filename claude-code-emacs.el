@@ -93,14 +93,7 @@
 (claude-code-emacs-define-slash-command "help" "/help")
 (claude-code-emacs-define-slash-command "memory" "/memory")
 
-(defun claude-code-emacs-config (&optional args)
-  (interactive "sConfig arguments (leave empty to show): ")
-  (if args
-      (if (string-empty-p args)
-          (claude-code-emacs-send-string "/config")
-        (claude-code-emacs-send-string (format "/config %s" args)))
-    (claude-code-emacs-send-command-with-optional-args 
-     "/config" "Config arguments (leave empty to show): ")))
+(claude-code-emacs-define-slash-command "config" "/config")
 
 (defun claude-code-emacs-compact (&optional instructions)
   (interactive "sCompact instructions (optional): ")
@@ -108,7 +101,7 @@
       (if (string-empty-p instructions)
           (claude-code-emacs-send-string "/compact")
         (claude-code-emacs-send-string (format "/compact %s" instructions)))
-    (claude-code-emacs-send-command-with-optional-args 
+    (claude-code-emacs-send-command-with-optional-args
      "/compact" "Compact instructions (optional): ")))
 
 (claude-code-emacs-define-slash-command "cost" "/cost")
@@ -186,7 +179,7 @@
 (defun claude-code-emacs-send-ctrl-r ()
   "Send Ctrl+R to Claude Code buffer to toggle expand."
   (interactive)
-  (claude-code-emacs-with-vterm-buffer 
+  (claude-code-emacs-with-vterm-buffer
    (lambda () (vterm-send-key (kbd "C-r")))))
 
 (defun claude-code-emacs-chunk-string (str chunk-size)
@@ -414,7 +407,7 @@ Returns a list of arguments."
 (defun claude-code-emacs-list-custom-command-files ()
   "List all .md files containing custom project commands.
 Files are located in the .claude/commands directory."
-  (claude-code-emacs-list-command-files 
+  (claude-code-emacs-list-command-files
    (claude-code-emacs-custom-commands-directory)))
 
 (defun claude-code-emacs-read-custom-command-file (filename)
@@ -457,7 +450,7 @@ send as /project:command args."
 
 (defun claude-code-emacs-list-global-command-files ()
   "List all .md files in the ~/.claude/commands directory."
-  (claude-code-emacs-list-command-files 
+  (claude-code-emacs-list-command-files
    (claude-code-emacs-global-commands-directory)))
 
 (defun claude-code-emacs-read-global-command-file (filename)
@@ -482,11 +475,11 @@ If the command file contains $ARGUMENTS, prompt for each argument."
                 (if (seq-some #'string-empty-p args)
                     (message "All arguments are required for this command")
                   (claude-code-emacs-send-string
-                   (format "/user:%s %s" 
+                   (format "/user:%s %s"
                            (file-name-sans-extension selected-file)
                            (mapconcat #'identity args " ")))))
             ;; No $ARGUMENTS, send as before
-            (claude-code-emacs-send-string 
+            (claude-code-emacs-send-string
              (format "/user:%s" (file-name-sans-extension selected-file)))))
       (message "No command files found in %s" (claude-code-emacs-global-commands-directory)))))
 
