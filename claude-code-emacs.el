@@ -184,6 +184,14 @@
   (interactive)
   (claude-code-emacs-send-string "commit"))
 
+;;;###autoload
+(defun claude-code-emacs-send-ctrl-r ()
+  "Send Ctrl+R to Claude Code buffer to toggle expand."
+  (interactive)
+  (let ((buf (claude-code-emacs-ensure-buffer)))
+    (with-current-buffer buf
+      (vterm-send-key (kbd "C-r")))))
+
 (defun claude-code-emacs-chunk-string (str chunk-size)
   "Split STR into chunks of CHUNK-SIZE characters."
   (if (or (<= chunk-size 0)
@@ -361,6 +369,39 @@ Each path is inserted on a new line with @ prefix."
     (add-to-list 'lsp-language-id-configuration
                  '(claude-code-emacs-prompt-mode . "markdown"))))
 
+;;; Command file functions
+
+(defun claude-code-emacs-commands-directory ()
+  "Return the path to the .claude/commands directory in the current project."
+  (let ((project-root (projectile-project-root)))
+    (expand-file-name ".claude/commands" project-root)))
+
+(defun claude-code-emacs-list-command-files ()
+  "List all .md files in the .claude/commands directory."
+  (let ((commands-dir (claude-code-emacs-commands-directory)))
+    (when (file-directory-p commands-dir)
+      (directory-files commands-dir nil "\\.md$"))))
+
+(defun claude-code-emacs-read-command-file (filename)
+  "Read the contents of a command file."
+  (let ((filepath (expand-file-name filename (claude-code-emacs-commands-directory))))
+    (when (file-exists-p filepath)
+      (with-temp-buffer
+        (insert-file-contents filepath)
+        (string-trim (buffer-string))))))
+
+(defun claude-code-emacs-execute-command ()
+  "Select and execute a command from .claude/commands directory."
+  (interactive)
+  (let ((command-files (claude-code-emacs-list-command-files)))
+    (if command-files
+        (let* ((selected-file (completing-read "Select command: " command-files nil t))
+               (command-content (claude-code-emacs-read-command-file selected-file)))
+          (if command-content
+              (claude-code-emacs-send-string command-content)
+            (message "Failed to read command file: %s" selected-file)))
+      (message "No command files found in %s" (claude-code-emacs-commands-directory)))))
+
 ;;; Transient menus
 
 ;;;###autoload
@@ -380,11 +421,13 @@ Each path is inserted on a new line with @ prefix."
     ("3" "Send 3" claude-code-emacs-send-3)
     ("g" "Send commit" claude-code-emacs-send-commit)
     ("e" "Send Escape" claude-code-emacs-send-escape)
-    ("m" "Send Return" claude-code-emacs-send-return)]
+    ("m" "Send Return" claude-code-emacs-send-return)
+    ("r" "Send Ctrl+R (toggle expand)" claude-code-emacs-send-ctrl-r)]
    ["Commands"
     ("i" "Init project" claude-code-emacs-init)
     ("k" "Clear conversation" claude-code-emacs-clear)
-    ("h" "Help" claude-code-emacs-help)]
+    ("h" "Help" claude-code-emacs-help)
+    ("x" "Execute command from file" claude-code-emacs-execute-command)]
    ["Memory & Config"
     ("M" "Memory" claude-code-emacs-memory)
     ("C" "Config" claude-code-emacs-config)

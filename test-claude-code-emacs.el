@@ -308,10 +308,14 @@
   "Test special key sending functions."
   (cl-letf* ((escape-sent nil)
              (return-sent nil)
+             (ctrl-r-sent nil)
              ((symbol-function 'vterm-send-escape)
               (lambda () (setq escape-sent t)))
              ((symbol-function 'vterm-send-return)
-              (lambda () (setq return-sent t))))
+              (lambda () (setq return-sent t)))
+             ((symbol-function 'vterm-send-key)
+              (lambda (key) (when (equal key (kbd "C-r"))
+                              (setq ctrl-r-sent t)))))
 
     (with-claude-mock-buffer
      ;; Test escape sending
@@ -320,7 +324,11 @@
 
      ;; Test return sending
      (claude-code-emacs-send-return)
-     (should return-sent))))
+     (should return-sent)
+
+     ;; Test ctrl-r sending
+     (claude-code-emacs-send-ctrl-r)
+     (should ctrl-r-sent))))
 
 ;;; Tests for buffer path functions
 
@@ -476,6 +484,85 @@
    ;; Clean up
    (let ((kill-buffer-query-functions nil))
      (kill-buffer (current-buffer)))))
+
+;;; Tests for command file functions
+
+(ert-deftest test-claude-code-emacs-commands-directory ()
+  "Test commands directory path generation."
+  (with-claude-test-project
+   (let ((commands-dir (claude-code-emacs-commands-directory)))
+     (should (string-match-p "\\.claude/commands$" commands-dir))
+     (should (string-prefix-p temp-dir commands-dir)))))
+
+(ert-deftest test-claude-code-emacs-list-command-files ()
+  "Test listing command files."
+  (with-claude-test-project
+   ;; Test when directory doesn't exist
+   (should (null (claude-code-emacs-list-command-files)))
+   
+   ;; Create commands directory and files
+   (let ((commands-dir (claude-code-emacs-commands-directory)))
+     (make-directory commands-dir t)
+     
+     ;; Create some test command files
+     (with-temp-file (expand-file-name "test1.md" commands-dir)
+       (insert "test command 1"))
+     (with-temp-file (expand-file-name "test2.md" commands-dir)
+       (insert "test command 2"))
+     (with-temp-file (expand-file-name "not-markdown.txt" commands-dir)
+       (insert "not a command"))
+     
+     ;; Test listing
+     (let ((files (claude-code-emacs-list-command-files)))
+       (should (= 2 (length files)))
+       (should (member "test1.md" files))
+       (should (member "test2.md" files))
+       (should-not (member "not-markdown.txt" files))))))
+
+(ert-deftest test-claude-code-emacs-read-command-file ()
+  "Test reading command file contents."
+  (with-claude-test-project
+   (let ((commands-dir (claude-code-emacs-commands-directory)))
+     (make-directory commands-dir t)
+     
+     ;; Create test file
+     (with-temp-file (expand-file-name "test-command.md" commands-dir)
+       (insert "  test command content  \n"))
+     
+     ;; Test reading
+     (should (equal "test command content"
+                    (claude-code-emacs-read-command-file "test-command.md")))
+     
+     ;; Test non-existent file
+     (should (null (claude-code-emacs-read-command-file "non-existent.md"))))))
+
+(ert-deftest test-claude-code-emacs-execute-command ()
+  "Test command execution functionality."
+  (with-claude-mock-buffer
+   (let ((commands-dir (claude-code-emacs-commands-directory))
+         (claude-code-emacs-send-string-called nil)
+         (claude-code-emacs-send-string-arg nil))
+     ;; Mock send-string to capture calls
+     (cl-letf (((symbol-function 'claude-code-emacs-send-string)
+                (lambda (str)
+                  (setq claude-code-emacs-send-string-called t
+                        claude-code-emacs-send-string-arg str))))
+       
+       ;; Test with no commands directory
+       (claude-code-emacs-execute-command)
+       (should-not claude-code-emacs-send-string-called)
+       
+       ;; Create commands directory and file
+       (make-directory commands-dir t)
+       (with-temp-file (expand-file-name "test-cmd.md" commands-dir)
+         (insert "execute this command"))
+       
+       ;; Mock completing-read to select our test file
+       (cl-letf (((symbol-function 'completing-read)
+                  (lambda (&rest _) "test-cmd.md")))
+         (claude-code-emacs-execute-command)
+         (should claude-code-emacs-send-string-called)
+         (should (equal "execute this command" claude-code-emacs-send-string-arg)))))))
 
 (provide 'test-claude-code-emacs)
 ;;; test-claude-code-emacs.el ends here
