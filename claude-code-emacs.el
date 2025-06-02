@@ -479,9 +479,12 @@ If the command file contains $ARGUMENTS, prompt for each argument."
                 (if (seq-some #'string-empty-p args)
                     (message "All arguments are required for this command")
                   (claude-code-emacs-send-string
-                   (format "/user:%s %s" selected-file (mapconcat #'identity args " ")))))
+                   (format "/user:%s %s" 
+                           (file-name-sans-extension selected-file)
+                           (mapconcat #'identity args " ")))))
             ;; No $ARGUMENTS, send as before
-            (claude-code-emacs-send-string (format "/user:%s" selected-file))))
+            (claude-code-emacs-send-string 
+             (format "/user:%s" (file-name-sans-extension selected-file)))))
       (message "No command files found in %s" (claude-code-emacs-global-commands-directory)))))
 
 ;;; Transient menus

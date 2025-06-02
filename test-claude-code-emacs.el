@@ -611,7 +611,7 @@
 
        (claude-code-emacs-execute-global-command)
        (should claude-code-emacs-send-string-called)
-       (should (equal "/user:test-command.md" claude-code-emacs-send-string-arg))))))
+       (should (equal "/user:test-command" claude-code-emacs-send-string-arg))))))
 
 ;;; Tests for argument handling functions
 
@@ -680,7 +680,7 @@
 
        (claude-code-emacs-execute-global-command)
        (should claude-code-emacs-send-string-called)
-       (should (equal "/user:multi-cmd.md first second third"
+       (should (equal "/user:multi-cmd first second third"
                       claude-code-emacs-send-string-arg))))))
 
 (provide 'test-claude-code-emacs)
