@@ -216,7 +216,8 @@
         (error "Buffer is not in claude-code-emacs-vterm-mode"))
       (let ((strings (claude-code-emacs-chunk-string string 50)))
         (mapc (lambda (str)
-                (vterm-send-string str paste-p))
+                (vterm-send-string str paste-p)
+                (sleep-for 0.1))
               strings)
         (vterm-send-return)))))
 
@@ -369,6 +370,38 @@ Each path is inserted on a new line with @ prefix."
     (add-to-list 'lsp-language-id-configuration
                  '(claude-code-emacs-prompt-mode . "markdown"))))
 
+;;; Helper functions for command argument handling
+
+(defun claude-code-emacs-count-arguments (template)
+  "Count the number of $ARGUMENTS placeholders in TEMPLATE."
+  (let ((count 0)
+        (pos 0))
+    (while (string-match "\\$ARGUMENTS" template pos)
+      (setq count (1+ count)
+            pos (match-end 0)))
+    count))
+
+(defun claude-code-emacs-replace-arguments (template args-list)
+  "Replace $ARGUMENTS placeholders in TEMPLATE with values from ARGS-LIST.
+Each occurrence of $ARGUMENTS is replaced with the corresponding element from ARGS-LIST."
+  (let ((result template)
+        (args args-list))
+    (while (and args (string-match "\\$ARGUMENTS" result))
+      (setq result (replace-match (car args) t t result)
+            args (cdr args)))
+    result))
+
+(defun claude-code-emacs-prompt-for-arguments (command-name arg-count)
+  "Prompt user for ARG-COUNT arguments for COMMAND-NAME.
+Returns a list of arguments."
+  (let ((args '()))
+    (dotimes (i arg-count)
+      (let ((prompt (if (= arg-count 1)
+                        (format "Argument for '%s': " command-name)
+                      (format "Argument %d/%d for '%s': " (1+ i) arg-count command-name))))
+        (push (read-string prompt) args)))
+    (nreverse args)))
+
 ;;; Custom project command functions
 
 (defun claude-code-emacs-custom-commands-directory ()
@@ -391,14 +424,26 @@ Each path is inserted on a new line with @ prefix."
         (string-trim (buffer-string))))))
 
 (defun claude-code-emacs-execute-custom-command ()
-  "Select and execute a custom project command from .claude/commands directory."
+  "Select and execute a custom project command from .claude/commands directory.
+If the command contains $ARGUMENTS, prompt for each argument."
   (interactive)
   (let ((command-files (claude-code-emacs-list-custom-command-files)))
     (if command-files
         (let* ((selected-file (completing-read "Select custom command: " command-files nil t))
                (command-content (claude-code-emacs-read-custom-command-file selected-file)))
           (if command-content
-              (claude-code-emacs-send-string command-content)
+              (let ((arg-count (claude-code-emacs-count-arguments command-content)))
+                (if (> arg-count 0)
+                    ;; Command contains $ARGUMENTS, prompt for arguments
+                    (let ((args (claude-code-emacs-prompt-for-arguments 
+                                 (file-name-sans-extension selected-file) arg-count)))
+                      (if (seq-some #'string-empty-p args)
+                          (message "All arguments are required for this command")
+                        (let ((final-command (claude-code-emacs-replace-arguments 
+                                              command-content args)))
+                          (claude-code-emacs-send-string final-command))))
+                  ;; No $ARGUMENTS, send as is
+                  (claude-code-emacs-send-string command-content)))
             (message "Failed to read custom command file: %s" selected-file)))
       (message "No custom command files found in %s" (claude-code-emacs-custom-commands-directory)))))
 
@@ -414,14 +459,34 @@ Each path is inserted on a new line with @ prefix."
     (when (file-directory-p commands-dir)
       (directory-files commands-dir nil "^[^.].*$"))))
 
+(defun claude-code-emacs-read-global-command-file (filename)
+  "Read the contents of a global command file."
+  (let ((filepath (expand-file-name filename (claude-code-emacs-global-commands-directory))))
+    (when (file-exists-p filepath)
+      (with-temp-buffer
+        (insert-file-contents filepath)
+        (string-trim (buffer-string))))))
+
 (defun claude-code-emacs-execute-global-command ()
-  "Select and execute a global command from ~/.claude/commands using /user: prefix."
+  "Select and execute a global command from ~/.claude/commands using /user: prefix.
+If the command file contains $ARGUMENTS, prompt for each argument."
   (interactive)
   (let ((command-files (claude-code-emacs-list-global-command-files)))
     (if command-files
         (let* ((selected-file (completing-read "Select global command: " command-files nil t))
-               (command-string (format "/user:%s" selected-file)))
-          (claude-code-emacs-send-string command-string))
+               (file-content (claude-code-emacs-read-global-command-file selected-file))
+               (arg-count (if file-content 
+                              (claude-code-emacs-count-arguments file-content)
+                            0)))
+          (if (> arg-count 0)
+              ;; File contains $ARGUMENTS, prompt for arguments
+              (let ((args (claude-code-emacs-prompt-for-arguments selected-file arg-count)))
+                (if (seq-some #'string-empty-p args)
+                    (message "All arguments are required for this command")
+                  (claude-code-emacs-send-string 
+                   (format "/user:%s %s" selected-file (mapconcat #'identity args " ")))))
+            ;; No $ARGUMENTS, send as before
+            (claude-code-emacs-send-string (format "/user:%s" selected-file))))
       (message "No command files found in %s" (claude-code-emacs-global-commands-directory)))))
 
 ;;; Transient menus

@@ -579,6 +579,12 @@
   (let ((result (claude-code-emacs-list-global-command-files)))
     (should (or (null result) (listp result)))))
 
+(ert-deftest test-claude-code-emacs-read-global-command-file ()
+  "Test reading global command file contents."
+  ;; This test is limited because we can't easily mock the home directory
+  ;; We'll just test that the function doesn't error with non-existent file
+  (should (null (claude-code-emacs-read-global-command-file "non-existent.txt"))))
+
 (ert-deftest test-claude-code-emacs-execute-global-command ()
   "Test global command execution functionality."
   (with-claude-mock-buffer
@@ -592,6 +598,9 @@
                ;; Mock list-global-command-files to return test data
                ((symbol-function 'claude-code-emacs-list-global-command-files)
                 (lambda () '("test-command.md" "another-command.txt")))
+               ;; Mock read-global-command-file to return content without $ARGUMENTS
+               ((symbol-function 'claude-code-emacs-read-global-command-file)
+                (lambda (file) "Simple command content"))
                ;; Mock completing-read to select a file
                ((symbol-function 'completing-read)
                 (lambda (&rest _) "test-command.md")))
@@ -599,6 +608,88 @@
        (claude-code-emacs-execute-global-command)
        (should claude-code-emacs-send-string-called)
        (should (equal "/user:test-command.md" claude-code-emacs-send-string-arg))))))
+
+;;; Tests for argument handling functions
+
+(ert-deftest test-claude-code-emacs-count-arguments ()
+  "Test counting $ARGUMENTS placeholders."
+  (should (= 0 (claude-code-emacs-count-arguments "No arguments here")))
+  (should (= 1 (claude-code-emacs-count-arguments "One $ARGUMENTS here")))
+  (should (= 2 (claude-code-emacs-count-arguments "$ARGUMENTS and $ARGUMENTS")))
+  (should (= 3 (claude-code-emacs-count-arguments "Start $ARGUMENTS middle $ARGUMENTS end $ARGUMENTS"))))
+
+(ert-deftest test-claude-code-emacs-replace-arguments ()
+  "Test replacing $ARGUMENTS placeholders."
+  (should (equal "No arguments here" 
+                 (claude-code-emacs-replace-arguments "No arguments here" '())))
+  (should (equal "One foo here" 
+                 (claude-code-emacs-replace-arguments "One $ARGUMENTS here" '("foo"))))
+  (should (equal "foo and bar" 
+                 (claude-code-emacs-replace-arguments "$ARGUMENTS and $ARGUMENTS" '("foo" "bar"))))
+  (should (equal "Start 1 middle 2 end 3" 
+                 (claude-code-emacs-replace-arguments 
+                  "Start $ARGUMENTS middle $ARGUMENTS end $ARGUMENTS" 
+                  '("1" "2" "3")))))
+
+(ert-deftest test-claude-code-emacs-execute-custom-command-with-multiple-args ()
+  "Test custom command execution with multiple $ARGUMENTS."
+  (with-claude-mock-buffer
+   (let ((commands-dir (claude-code-emacs-custom-commands-directory))
+         (claude-code-emacs-send-string-called nil)
+         (claude-code-emacs-send-string-arg nil))
+     ;; Mock send-string to capture calls
+     (cl-letf (((symbol-function 'claude-code-emacs-send-string)
+                (lambda (str)
+                  (setq claude-code-emacs-send-string-called t
+                        claude-code-emacs-send-string-arg str))))
+       
+       ;; Create commands directory and test file
+       (make-directory commands-dir t)
+       (with-temp-file (expand-file-name "multi-arg.md" commands-dir)
+         (insert "Command with $ARGUMENTS and $ARGUMENTS"))
+       
+       ;; Mock user input
+       (cl-letf (((symbol-function 'completing-read)
+                  (lambda (&rest _) "multi-arg.md"))
+                 ((symbol-function 'read-string)
+                  (let ((counter 0))
+                    (lambda (&rest _)
+                      (setq counter (1+ counter))
+                      (format "arg%d" counter)))))
+         
+         (claude-code-emacs-execute-custom-command)
+         (should claude-code-emacs-send-string-called)
+         (should (equal "Command with arg1 and arg2" claude-code-emacs-send-string-arg)))))))
+
+(ert-deftest test-claude-code-emacs-execute-global-command-with-multiple-args ()
+  "Test global command execution with multiple $ARGUMENTS."
+  (with-claude-mock-buffer
+   (let ((claude-code-emacs-send-string-called nil)
+         (claude-code-emacs-send-string-arg nil))
+     ;; Mock send-string to capture calls
+     (cl-letf (((symbol-function 'claude-code-emacs-send-string)
+                (lambda (str)
+                  (setq claude-code-emacs-send-string-called t
+                        claude-code-emacs-send-string-arg str)))
+               ;; Mock list-global-command-files
+               ((symbol-function 'claude-code-emacs-list-global-command-files)
+                (lambda () '("multi-cmd.txt")))
+               ;; Mock read-global-command-file
+               ((symbol-function 'claude-code-emacs-read-global-command-file)
+                (lambda (file) "Do $ARGUMENTS with $ARGUMENTS and $ARGUMENTS"))
+               ;; Mock completing-read
+               ((symbol-function 'completing-read)
+                (lambda (&rest _) "multi-cmd.txt"))
+               ;; Mock read-string to provide different arguments
+               ((symbol-function 'read-string)
+                (let ((args '("first" "second" "third")))
+                  (lambda (&rest _)
+                    (pop args)))))
+       
+       (claude-code-emacs-execute-global-command)
+       (should claude-code-emacs-send-string-called)
+       (should (equal "/user:multi-cmd.txt first second third" 
+                      claude-code-emacs-send-string-arg))))))
 
 (provide 'test-claude-code-emacs)
 ;;; test-claude-code-emacs.el ends here
