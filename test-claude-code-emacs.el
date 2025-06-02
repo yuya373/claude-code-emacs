@@ -499,11 +499,11 @@
   (with-claude-test-project
    ;; Test when directory doesn't exist
    (should (null (claude-code-emacs-list-custom-command-files)))
-   
+
    ;; Create commands directory and files
    (let ((commands-dir (claude-code-emacs-custom-commands-directory)))
      (make-directory commands-dir t)
-     
+
      ;; Create some test command files
      (with-temp-file (expand-file-name "test1.md" commands-dir)
        (insert "test command 1"))
@@ -511,7 +511,7 @@
        (insert "test command 2"))
      (with-temp-file (expand-file-name "not-markdown.txt" commands-dir)
        (insert "not a command"))
-     
+
      ;; Test listing
      (let ((files (claude-code-emacs-list-custom-command-files)))
        (should (= 2 (length files)))
@@ -524,15 +524,15 @@
   (with-claude-test-project
    (let ((commands-dir (claude-code-emacs-custom-commands-directory)))
      (make-directory commands-dir t)
-     
+
      ;; Create test file
      (with-temp-file (expand-file-name "test-command.md" commands-dir)
        (insert "  test command content  \n"))
-     
+
      ;; Test reading
      (should (equal "test command content"
                     (claude-code-emacs-read-custom-command-file "test-command.md")))
-     
+
      ;; Test non-existent file
      (should (null (claude-code-emacs-read-custom-command-file "non-existent.md"))))))
 
@@ -547,16 +547,16 @@
                 (lambda (str)
                   (setq claude-code-emacs-send-string-called t
                         claude-code-emacs-send-string-arg str))))
-       
+
        ;; Test with no commands directory
        (claude-code-emacs-execute-custom-command)
        (should-not claude-code-emacs-send-string-called)
-       
+
        ;; Create commands directory and file
        (make-directory commands-dir t)
        (with-temp-file (expand-file-name "test-cmd.md" commands-dir)
          (insert "execute this command"))
-       
+
        ;; Mock completing-read to select our test file
        (cl-letf (((symbol-function 'completing-read)
                   (lambda (&rest _) "test-cmd.md")))
@@ -575,9 +575,13 @@
 (ert-deftest test-claude-code-emacs-list-global-command-files ()
   "Test listing global command files."
   ;; This test is limited because we can't easily mock the home directory
-  ;; We'll just test that the function doesn't error
+  ;; We'll just test that the function doesn't error and returns a list
   (let ((result (claude-code-emacs-list-global-command-files)))
-    (should (or (null result) (listp result)))))
+    (should (or (null result) (listp result)))
+    ;; If there are results, they should all end with .md
+    (when result
+      (dolist (file result)
+        (should (string-suffix-p ".md" file))))))
 
 (ert-deftest test-claude-code-emacs-read-global-command-file ()
   "Test reading global command file contents."
@@ -597,14 +601,14 @@
                         claude-code-emacs-send-string-arg str)))
                ;; Mock list-global-command-files to return test data
                ((symbol-function 'claude-code-emacs-list-global-command-files)
-                (lambda () '("test-command.md" "another-command.txt")))
+                (lambda () '("test-command.md" "another-command.md")))
                ;; Mock read-global-command-file to return content without $ARGUMENTS
                ((symbol-function 'claude-code-emacs-read-global-command-file)
                 (lambda (file) "Simple command content"))
                ;; Mock completing-read to select a file
                ((symbol-function 'completing-read)
                 (lambda (&rest _) "test-command.md")))
-       
+
        (claude-code-emacs-execute-global-command)
        (should claude-code-emacs-send-string-called)
        (should (equal "/user:test-command.md" claude-code-emacs-send-string-arg))))))
@@ -630,12 +634,12 @@
                 (lambda (str)
                   (setq claude-code-emacs-send-string-called t
                         claude-code-emacs-send-string-arg str))))
-       
+
        ;; Create commands directory and test file
        (make-directory commands-dir t)
        (with-temp-file (expand-file-name "multi-arg.md" commands-dir)
          (insert "Command with $ARGUMENTS and $ARGUMENTS"))
-       
+
        ;; Mock user input
        (cl-letf (((symbol-function 'completing-read)
                   (lambda (&rest _) "multi-arg.md"))
@@ -644,7 +648,7 @@
                     (lambda (&rest _)
                       (setq counter (1+ counter))
                       (format "arg%d" counter)))))
-         
+
          (claude-code-emacs-execute-custom-command)
          (should claude-code-emacs-send-string-called)
          (should (equal "/project:multi-arg arg1 arg2" claude-code-emacs-send-string-arg)))))))
@@ -661,22 +665,22 @@
                         claude-code-emacs-send-string-arg str)))
                ;; Mock list-global-command-files
                ((symbol-function 'claude-code-emacs-list-global-command-files)
-                (lambda () '("multi-cmd.txt")))
+                (lambda () '("multi-cmd.md")))
                ;; Mock read-global-command-file
                ((symbol-function 'claude-code-emacs-read-global-command-file)
                 (lambda (file) "Do $ARGUMENTS with $ARGUMENTS and $ARGUMENTS"))
                ;; Mock completing-read
                ((symbol-function 'completing-read)
-                (lambda (&rest _) "multi-cmd.txt"))
+                (lambda (&rest _) "multi-cmd.md"))
                ;; Mock read-string to provide different arguments
                ((symbol-function 'read-string)
                 (let ((args '("first" "second" "third")))
                   (lambda (&rest _)
                     (pop args)))))
-       
+
        (claude-code-emacs-execute-global-command)
        (should claude-code-emacs-send-string-called)
-       (should (equal "/user:multi-cmd.txt first second third" 
+       (should (equal "/user:multi-cmd.md first second third"
                       claude-code-emacs-send-string-arg))))))
 
 (provide 'test-claude-code-emacs)

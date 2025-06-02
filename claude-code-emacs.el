@@ -401,7 +401,8 @@ Returns a list of arguments."
     (expand-file-name ".claude/commands" project-root)))
 
 (defun claude-code-emacs-list-custom-command-files ()
-  "List all .md files containing custom project commands in the .claude/commands directory."
+  "List all .md files containing custom project commands.
+Files are located in the .claude/commands directory."
   (let ((commands-dir (claude-code-emacs-custom-commands-directory)))
     (when (file-directory-p commands-dir)
       (directory-files commands-dir nil "\\.md$"))))
@@ -415,8 +416,9 @@ Returns a list of arguments."
         (string-trim (buffer-string))))))
 
 (defun claude-code-emacs-execute-custom-command ()
-  "Select and execute a custom project command from .claude/commands directory.
-If the command contains $ARGUMENTS, prompt for each argument and send as /project:command args."
+  "Select and execute a custom project command from .claude/commands.
+If the command contains $ARGUMENTS, prompt for each argument and
+send as /project:command args."
   (interactive)
   (let ((command-files (claude-code-emacs-list-custom-command-files)))
     (if command-files
@@ -426,13 +428,13 @@ If the command contains $ARGUMENTS, prompt for each argument and send as /projec
               (let ((arg-count (claude-code-emacs-count-arguments command-content)))
                 (if (> arg-count 0)
                     ;; Command contains $ARGUMENTS, prompt for arguments
-                    (let ((args (claude-code-emacs-prompt-for-arguments 
+                    (let ((args (claude-code-emacs-prompt-for-arguments
                                  (file-name-sans-extension selected-file) arg-count)))
                       (if (seq-some #'string-empty-p args)
                           (message "All arguments are required for this command")
                         ;; Send as /project:command arg1 arg2 ...
-                        (claude-code-emacs-send-string 
-                         (format "/project:%s %s" 
+                        (claude-code-emacs-send-string
+                         (format "/project:%s %s"
                                  (file-name-sans-extension selected-file)
                                  (mapconcat #'identity args " ")))))
                   ;; No $ARGUMENTS, send command content as is
@@ -447,10 +449,10 @@ If the command contains $ARGUMENTS, prompt for each argument and send as /projec
   (expand-file-name "~/.claude/commands"))
 
 (defun claude-code-emacs-list-global-command-files ()
-  "List all files in the ~/.claude/commands directory."
+  "List all .md files in the ~/.claude/commands directory."
   (let ((commands-dir (claude-code-emacs-global-commands-directory)))
     (when (file-directory-p commands-dir)
-      (directory-files commands-dir nil "^[^.].*$"))))
+      (directory-files commands-dir nil "\\.md$"))))
 
 (defun claude-code-emacs-read-global-command-file (filename)
   "Read the contents of a global command file."
@@ -468,7 +470,7 @@ If the command file contains $ARGUMENTS, prompt for each argument."
     (if command-files
         (let* ((selected-file (completing-read "Select global command: " command-files nil t))
                (file-content (claude-code-emacs-read-global-command-file selected-file))
-               (arg-count (if file-content 
+               (arg-count (if file-content
                               (claude-code-emacs-count-arguments file-content)
                             0)))
           (if (> arg-count 0)
@@ -476,7 +478,7 @@ If the command file contains $ARGUMENTS, prompt for each argument."
               (let ((args (claude-code-emacs-prompt-for-arguments selected-file arg-count)))
                 (if (seq-some #'string-empty-p args)
                     (message "All arguments are required for this command")
-                  (claude-code-emacs-send-string 
+                  (claude-code-emacs-send-string
                    (format "/user:%s %s" selected-file (mapconcat #'identity args " ")))))
             ;; No $ARGUMENTS, send as before
             (claude-code-emacs-send-string (format "/user:%s" selected-file))))
