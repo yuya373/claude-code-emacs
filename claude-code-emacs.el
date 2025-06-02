@@ -402,6 +402,28 @@ Each path is inserted on a new line with @ prefix."
             (message "Failed to read custom command file: %s" selected-file)))
       (message "No custom command files found in %s" (claude-code-emacs-custom-commands-directory)))))
 
+;;; Global command functions (from ~/.claude/commands)
+
+(defun claude-code-emacs-global-commands-directory ()
+  "Return the path to the ~/.claude/commands directory for global commands."
+  (expand-file-name "~/.claude/commands"))
+
+(defun claude-code-emacs-list-global-command-files ()
+  "List all files in the ~/.claude/commands directory."
+  (let ((commands-dir (claude-code-emacs-global-commands-directory)))
+    (when (file-directory-p commands-dir)
+      (directory-files commands-dir nil "^[^.].*$"))))
+
+(defun claude-code-emacs-execute-global-command ()
+  "Select and execute a global command from ~/.claude/commands using /user: prefix."
+  (interactive)
+  (let ((command-files (claude-code-emacs-list-global-command-files)))
+    (if command-files
+        (let* ((selected-file (completing-read "Select global command: " command-files nil t))
+               (command-string (format "/user:%s" selected-file)))
+          (claude-code-emacs-send-string command-string))
+      (message "No command files found in %s" (claude-code-emacs-global-commands-directory)))))
+
 ;;; Transient menus
 
 ;;;###autoload
@@ -427,7 +449,8 @@ Each path is inserted on a new line with @ prefix."
     ("i" "Init project" claude-code-emacs-init)
     ("k" "Clear conversation" claude-code-emacs-clear)
     ("h" "Help" claude-code-emacs-help)
-    ("x" "Execute custom project command" claude-code-emacs-execute-custom-command)]
+    ("x" "Execute custom project command" claude-code-emacs-execute-custom-command)
+    ("X" "Execute global command (/user:)" claude-code-emacs-execute-global-command)]
    ["Memory & Config"
     ("M" "Memory" claude-code-emacs-memory)
     ("C" "Config" claude-code-emacs-config)

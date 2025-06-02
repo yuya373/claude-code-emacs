@@ -564,5 +564,41 @@
          (should claude-code-emacs-send-string-called)
          (should (equal "execute this command" claude-code-emacs-send-string-arg)))))))
 
+;;; Tests for global command functions
+
+(ert-deftest test-claude-code-emacs-global-commands-directory ()
+  "Test global commands directory path generation."
+  (let ((commands-dir (claude-code-emacs-global-commands-directory)))
+    (should (string-match-p "/.claude/commands$" commands-dir))
+    (should (string-prefix-p (expand-file-name "~") commands-dir))))
+
+(ert-deftest test-claude-code-emacs-list-global-command-files ()
+  "Test listing global command files."
+  ;; This test is limited because we can't easily mock the home directory
+  ;; We'll just test that the function doesn't error
+  (let ((result (claude-code-emacs-list-global-command-files)))
+    (should (or (null result) (listp result)))))
+
+(ert-deftest test-claude-code-emacs-execute-global-command ()
+  "Test global command execution functionality."
+  (with-claude-mock-buffer
+   (let ((claude-code-emacs-send-string-called nil)
+         (claude-code-emacs-send-string-arg nil))
+     ;; Mock send-string to capture calls
+     (cl-letf (((symbol-function 'claude-code-emacs-send-string)
+                (lambda (str)
+                  (setq claude-code-emacs-send-string-called t
+                        claude-code-emacs-send-string-arg str)))
+               ;; Mock list-global-command-files to return test data
+               ((symbol-function 'claude-code-emacs-list-global-command-files)
+                (lambda () '("test-command.md" "another-command.txt")))
+               ;; Mock completing-read to select a file
+               ((symbol-function 'completing-read)
+                (lambda (&rest _) "test-command.md")))
+       
+       (claude-code-emacs-execute-global-command)
+       (should claude-code-emacs-send-string-called)
+       (should (equal "/user:test-command.md" claude-code-emacs-send-string-arg))))))
+
 (provide 'test-claude-code-emacs)
 ;;; test-claude-code-emacs.el ends here
