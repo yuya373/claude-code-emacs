@@ -11,7 +11,6 @@ An Emacs package to run Claude Code within Emacs.
 
 Include information about the open file, surrounding code (±3 lines), and diagnostic information.
 
-
 ### Register Emacs as an MCP server for Claude Code
 Set up TypeScript SDK server (stdio)
 Set up elnode server
@@ -25,16 +24,6 @@ File path, file name, whether active or not
 Selected text, start line, end line, start character, end character, file name
 #### Diagnostic information
 LSP workspace diagnostic information
-
-### Custom commands
-$ARGUMENTS can be used as placeholder
-
-#### Project-specific commands
-If `project-root/.claude/commands/optimize.md` exists, it can be executed from Claude as `/project:optimize`
-With arguments: `/project:optimize 123`
-#### User-specific commands
-If `~/.claude/commands/optimize.md` exists, it can be executed from Claude as `/user:optimize`
-With arguments: `/user:optimize 123`
 
 ## Starting and Closing Claude Code
 - `claude-code-emacs-run` - Start Claude Code in the current project
@@ -57,6 +46,15 @@ The buffer is opened with `switch-to-buffer-other-window`.
 ### Main Menu
 Display the main menu with `M-x claude-code-emacs-transient`
 
+For detailed documentation about Claude Code slash commands, see the [official Claude Code documentation](https://docs.anthropic.com/en/docs/claude-code/cli-usage#slash-commands).
+
+#### Session
+- `c`: Run Claude Code
+- `b`: Switch to Claude Code buffer
+- `q`: Close Claude Code window
+- `p`: Open Prompt File
+- `s`: Send Region
+
 #### Quick Send Keys
 - `1` or `y`: Send "1" (useful for "yes" responses)
 - `2`: Send "2"
@@ -64,9 +62,56 @@ Display the main menu with `M-x claude-code-emacs-transient`
 - `g`: Send "commit"
 - `e`: Send Escape
 - `m`: Send Return
+- `r`: Send Ctrl+R (toggle expand)
+
+#### Commands
+- `i`: /init
+- `k`: /clear
+- `h`: /help
+- `x`: Execute custom project command
+- `X`: Execute global command (/user:)
+
+#### Memory & Config
+- `M`: /memory
+- `C`: /config
+- `o`: /compact
+
+#### Review
+- `R`: /review
+- `P`: /pr_comments
+
+#### Info & Account
+- `$`: /cost
+- `S`: /status
+- `l`: /login
+- `L`: /logout
+- `B`: /bug
+- `D`: /doctor
 
 ### Prompt Buffer Menu
 In prompt buffers, display the menu with `C-c C-t` or `M-x claude-code-emacs-prompt-transient`
+
+## Custom Commands
+Claude Code Emacs supports custom commands that can be stored as markdown files and executed through the interface.
+
+### Project-specific Commands
+Store commands in `.claude/commands/*.md` within your project directory. These can be executed via `/project:command-name`.
+
+- Create markdown files in `.claude/commands/` directory
+- Use `$ARGUMENTS` as placeholders for user input
+- Execute with `M-x claude-code-emacs-execute-custom-command` or `x` in the transient menu
+- Example: `.claude/commands/deploy.md` can be run as `/project:deploy`
+
+### User-specific Commands
+Store global commands in `~/.claude/commands/*.md`. These can be executed via `/user:command-name`.
+
+- Create markdown files in `~/.claude/commands/` directory
+- Use `$ARGUMENTS` as placeholders for user input
+- Execute with `M-x claude-code-emacs-execute-global-command` or `X` in the transient menu
+- Example: `~/.claude/commands/format.md` can be run as `/user:format`
+
+### Using Arguments
+When a command contains `$ARGUMENTS` placeholders, you'll be prompted to provide values for each occurrence.
 
 ## Other Features
 ### Send Region

@@ -11,7 +11,6 @@ Claude CodeをEmacs内で実行するためのパッケージです。
 
 開いているファイルの情報、周辺コード（±3行）、diagnosticの情報を含める
 
-
 ### EmacsをMCPサーバーとしてClaude Codeに登録する
 TypeScript SDKでサーバーを構築（stdio通信）
 elnodeでHTTPサーバーを構築
@@ -25,16 +24,6 @@ Claude Code → TypeScript SDK → elnode → Emacsを操作
 選択しているテキスト、開始行、終了行、開始文字、終了文字、ファイル名
 #### 診断情報
 LSPワークスペースの診断情報
-
-### カスタムコマンド
-$ARGUMENTSをプレースホルダーとして使用可能
-
-#### プロジェクト固有のコマンド
-`project-root/.claude/commands/optimize.md`がある場合、Claudeからは`/project:optimize`で実行可能
-引数付きの場合：`/project:optimize 123`
-#### ユーザー固有のコマンド
-`~/.claude/commands/optimize.md`がある場合、Claudeからは`/user:optimize`で実行可能
-引数付きの場合：`/user:optimize 123`
 
 
 ## Claude Codeの起動と終了
@@ -58,6 +47,15 @@ $ARGUMENTSをプレースホルダーとして使用可能
 ### メインメニュー
 `M-x claude-code-emacs-transient`でメインメニューを表示
 
+Claude Codeのスラッシュコマンドの詳細については、[公式Claude Codeドキュメント](https://docs.anthropic.com/ja/docs/claude-code/cli-usage#%E3%82%B9%E3%83%A9%E3%83%83%E3%82%B7%E3%83%A5%E3%82%B3%E3%83%9E%E3%83%B3%E3%83%89)をご覧ください。
+
+#### セッション
+- `c`: Claude Codeを起動
+- `b`: Claude Codeバッファに切り替え
+- `q`: Claude Codeウィンドウを閉じる
+- `p`: プロンプトファイルを開く
+- `s`: リージョンを送信
+
 #### クイック送信キー
 - `1` または `y`: "1"を送信（「はい」の応答に便利）
 - `2`: "2"を送信
@@ -65,9 +63,56 @@ $ARGUMENTSをプレースホルダーとして使用可能
 - `g`: "commit"を送信
 - `e`: Escapeを送信
 - `m`: Returnを送信
+- `r`: Ctrl+Rを送信（展開の切り替え）
+
+#### コマンド
+- `i`: /init
+- `k`: /clear
+- `h`: /help
+- `x`: プロジェクトカスタムコマンドを実行
+- `X`: グローバルコマンドを実行（/user:）
+
+#### メモリと設定
+- `M`: /memory
+- `C`: /config
+- `o`: /compact
+
+#### レビュー
+- `R`: /review
+- `P`: /pr_comments
+
+#### 情報とアカウント
+- `$`: /cost
+- `S`: /status
+- `l`: /login
+- `L`: /logout
+- `B`: /bug
+- `D`: /doctor
 
 ### プロンプトバッファメニュー
 プロンプトバッファ内で`C-c C-t`または`M-x claude-code-emacs-prompt-transient`でメニューを表示
+
+## カスタムコマンド
+Claude Code Emacsはマークダウンファイルとして保存されたカスタムコマンドをサポートしています。
+
+### プロジェクト固有のコマンド
+プロジェクトディレクトリ内の`.claude/commands/*.md`にコマンドを保存します。これらは`/project:command-name`で実行できます。
+
+- `.claude/commands/`ディレクトリにマークダウンファイルを作成
+- ユーザー入力のプレースホルダーとして`$ARGUMENTS`を使用
+- `M-x claude-code-emacs-execute-custom-command`またはTransientメニューの`x`で実行
+- 例：`.claude/commands/deploy.md`は`/project:deploy`として実行可能
+
+### ユーザー固有のコマンド
+グローバルコマンドを`~/.claude/commands/*.md`に保存します。これらは`/user:command-name`で実行できます。
+
+- `~/.claude/commands/`ディレクトリにマークダウンファイルを作成
+- ユーザー入力のプレースホルダーとして`$ARGUMENTS`を使用
+- `M-x claude-code-emacs-execute-global-command`またはTransientメニューの`X`で実行
+- 例：`~/.claude/commands/format.md`は`/user:format`として実行可能
+
+### 引数の使用
+コマンドに`$ARGUMENTS`プレースホルダーが含まれている場合、各出現箇所に対して値の入力を求められます。
 
 ## その他の機能
 ### リージョン送信
