@@ -369,38 +369,38 @@ Each path is inserted on a new line with @ prefix."
     (add-to-list 'lsp-language-id-configuration
                  '(claude-code-emacs-prompt-mode . "markdown"))))
 
-;;; Command file functions
+;;; Custom project command functions
 
-(defun claude-code-emacs-commands-directory ()
-  "Return the path to the .claude/commands directory in the current project."
+(defun claude-code-emacs-custom-commands-directory ()
+  "Return the path to the .claude/commands directory for custom project commands."
   (let ((project-root (projectile-project-root)))
     (expand-file-name ".claude/commands" project-root)))
 
-(defun claude-code-emacs-list-command-files ()
-  "List all .md files in the .claude/commands directory."
-  (let ((commands-dir (claude-code-emacs-commands-directory)))
+(defun claude-code-emacs-list-custom-command-files ()
+  "List all .md files containing custom project commands in the .claude/commands directory."
+  (let ((commands-dir (claude-code-emacs-custom-commands-directory)))
     (when (file-directory-p commands-dir)
       (directory-files commands-dir nil "\\.md$"))))
 
-(defun claude-code-emacs-read-command-file (filename)
-  "Read the contents of a command file."
-  (let ((filepath (expand-file-name filename (claude-code-emacs-commands-directory))))
+(defun claude-code-emacs-read-custom-command-file (filename)
+  "Read the contents of a custom project command file."
+  (let ((filepath (expand-file-name filename (claude-code-emacs-custom-commands-directory))))
     (when (file-exists-p filepath)
       (with-temp-buffer
         (insert-file-contents filepath)
         (string-trim (buffer-string))))))
 
-(defun claude-code-emacs-execute-command ()
-  "Select and execute a command from .claude/commands directory."
+(defun claude-code-emacs-execute-custom-command ()
+  "Select and execute a custom project command from .claude/commands directory."
   (interactive)
-  (let ((command-files (claude-code-emacs-list-command-files)))
+  (let ((command-files (claude-code-emacs-list-custom-command-files)))
     (if command-files
-        (let* ((selected-file (completing-read "Select command: " command-files nil t))
-               (command-content (claude-code-emacs-read-command-file selected-file)))
+        (let* ((selected-file (completing-read "Select custom command: " command-files nil t))
+               (command-content (claude-code-emacs-read-custom-command-file selected-file)))
           (if command-content
               (claude-code-emacs-send-string command-content)
-            (message "Failed to read command file: %s" selected-file)))
-      (message "No command files found in %s" (claude-code-emacs-commands-directory)))))
+            (message "Failed to read custom command file: %s" selected-file)))
+      (message "No custom command files found in %s" (claude-code-emacs-custom-commands-directory)))))
 
 ;;; Transient menus
 
@@ -427,7 +427,7 @@ Each path is inserted on a new line with @ prefix."
     ("i" "Init project" claude-code-emacs-init)
     ("k" "Clear conversation" claude-code-emacs-clear)
     ("h" "Help" claude-code-emacs-help)
-    ("x" "Execute command from file" claude-code-emacs-execute-command)]
+    ("x" "Execute custom project command" claude-code-emacs-execute-custom-command)]
    ["Memory & Config"
     ("M" "Memory" claude-code-emacs-memory)
     ("C" "Config" claude-code-emacs-config)

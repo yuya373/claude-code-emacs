@@ -485,23 +485,23 @@
    (let ((kill-buffer-query-functions nil))
      (kill-buffer (current-buffer)))))
 
-;;; Tests for command file functions
+;;; Tests for custom project command functions
 
-(ert-deftest test-claude-code-emacs-commands-directory ()
-  "Test commands directory path generation."
+(ert-deftest test-claude-code-emacs-custom-commands-directory ()
+  "Test custom commands directory path generation."
   (with-claude-test-project
-   (let ((commands-dir (claude-code-emacs-commands-directory)))
+   (let ((commands-dir (claude-code-emacs-custom-commands-directory)))
      (should (string-match-p "\\.claude/commands$" commands-dir))
      (should (string-prefix-p temp-dir commands-dir)))))
 
-(ert-deftest test-claude-code-emacs-list-command-files ()
-  "Test listing command files."
+(ert-deftest test-claude-code-emacs-list-custom-command-files ()
+  "Test listing custom command files."
   (with-claude-test-project
    ;; Test when directory doesn't exist
-   (should (null (claude-code-emacs-list-command-files)))
+   (should (null (claude-code-emacs-list-custom-command-files)))
    
    ;; Create commands directory and files
-   (let ((commands-dir (claude-code-emacs-commands-directory)))
+   (let ((commands-dir (claude-code-emacs-custom-commands-directory)))
      (make-directory commands-dir t)
      
      ;; Create some test command files
@@ -513,16 +513,16 @@
        (insert "not a command"))
      
      ;; Test listing
-     (let ((files (claude-code-emacs-list-command-files)))
+     (let ((files (claude-code-emacs-list-custom-command-files)))
        (should (= 2 (length files)))
        (should (member "test1.md" files))
        (should (member "test2.md" files))
        (should-not (member "not-markdown.txt" files))))))
 
-(ert-deftest test-claude-code-emacs-read-command-file ()
-  "Test reading command file contents."
+(ert-deftest test-claude-code-emacs-read-custom-command-file ()
+  "Test reading custom command file contents."
   (with-claude-test-project
-   (let ((commands-dir (claude-code-emacs-commands-directory)))
+   (let ((commands-dir (claude-code-emacs-custom-commands-directory)))
      (make-directory commands-dir t)
      
      ;; Create test file
@@ -531,15 +531,15 @@
      
      ;; Test reading
      (should (equal "test command content"
-                    (claude-code-emacs-read-command-file "test-command.md")))
+                    (claude-code-emacs-read-custom-command-file "test-command.md")))
      
      ;; Test non-existent file
-     (should (null (claude-code-emacs-read-command-file "non-existent.md"))))))
+     (should (null (claude-code-emacs-read-custom-command-file "non-existent.md"))))))
 
-(ert-deftest test-claude-code-emacs-execute-command ()
-  "Test command execution functionality."
+(ert-deftest test-claude-code-emacs-execute-custom-command ()
+  "Test custom command execution functionality."
   (with-claude-mock-buffer
-   (let ((commands-dir (claude-code-emacs-commands-directory))
+   (let ((commands-dir (claude-code-emacs-custom-commands-directory))
          (claude-code-emacs-send-string-called nil)
          (claude-code-emacs-send-string-arg nil))
      ;; Mock send-string to capture calls
@@ -549,7 +549,7 @@
                         claude-code-emacs-send-string-arg str))))
        
        ;; Test with no commands directory
-       (claude-code-emacs-execute-command)
+       (claude-code-emacs-execute-custom-command)
        (should-not claude-code-emacs-send-string-called)
        
        ;; Create commands directory and file
@@ -560,7 +560,7 @@
        ;; Mock completing-read to select our test file
        (cl-letf (((symbol-function 'completing-read)
                   (lambda (&rest _) "test-cmd.md")))
-         (claude-code-emacs-execute-command)
+         (claude-code-emacs-execute-custom-command)
          (should claude-code-emacs-send-string-called)
          (should (equal "execute this command" claude-code-emacs-send-string-arg)))))))
 
