@@ -30,6 +30,10 @@
 (require 'projectile)
 (require 'markdown-mode)
 
+;; Load MCP integration if available
+(when (require 'claude-code-emacs-mcp nil t)
+  (message "Claude Code MCP integration loaded"))
+
 ;;;###autoload
 (defun claude-code-emacs-run ()
   (interactive)

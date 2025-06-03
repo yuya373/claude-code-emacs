@@ -11,19 +11,65 @@ Claude CodeをEmacs内で実行するためのパッケージです。
 
 開いているファイルの情報、周辺コード（±3行）、diagnosticの情報を含める
 
-### EmacsをMCPサーバーとしてClaude Codeに登録する
-TypeScript SDKでサーバーを構築（stdio通信）
-elnodeでHTTPサーバーを構築
-Claude Code → TypeScript SDK → elnode → Emacsを操作
+## MCP（Model Context Protocol）連携
+
+EmacsとClaude CodeがMCPサーバーを通して連携できるようになりました！
+
+### 機能
 
 #### ファイルを開く
-テキスト選択の機能 (startText, endText)
+- パスを指定してファイルを開く
+- テキスト選択機能（startText, endText）対応
+
 #### 開いているバッファを取得
-ファイルパス、ファイル名、アクティブかどうか
+- プロジェクト内の全開いているバッファ一覧
+- ファイルパス、ファイル名、アクティブ状態、変更状態
+
 #### 現在選択している範囲
-選択しているテキスト、開始行、終了行、開始文字、終了文字、ファイル名
+- 選択しているテキスト
+- 開始行、終了行、開始文字、終了文字
+- ファイル名
+
 #### 診断情報
-LSPワークスペースの診断情報
+- LSPワークスペースの診断情報を取得
+- エラー、警告、情報レベルの診断
+
+### セットアップ
+
+1. MCPサーバーをビルド：
+   ```bash
+   make mcp-build
+   ```
+
+2. Claude Code CLIの設定：
+   
+   方法1: CLIウィザードを使用
+   ```bash
+   claude mcp add
+   ```
+   
+   方法2: 設定ファイルを直接編集
+   
+   設定ファイルの場所：
+   - **ユーザー設定**: `~/.claude/settings.json`
+   - **プロジェクト設定**: `.claude/settings.json`
+   
+   以下の内容を追加：
+   ```json
+   {
+     "mcpServers": {
+       "emacs": {
+         "type": "stdio",
+         "command": "node",
+         "args": ["/path/to/claude-code-emacs/mcp-server/dist/index.js"]
+       }
+     }
+   }
+   ```
+   
+   ※ `/path/to/claude-code-emacs` は実際のパスに置き換えてください
+
+3. Emacsでclaude-code-emacsを読み込んで使用開始
 
 
 ## Claude Codeの起動と終了
