@@ -123,7 +123,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 // Start server
 async function main() {
-  const port = parseInt(process.argv[3] || '8765');
+  const port = parseInt(process.argv[2] || '8765');
   
   // Start Emacs bridge
   await bridge.start(port);

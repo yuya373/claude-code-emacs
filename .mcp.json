@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "emacs": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "mcp-server/dist/index.js",
+        "8766"
+      ]
+    }
+  }
+}

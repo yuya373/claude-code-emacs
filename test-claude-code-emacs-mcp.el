@@ -12,16 +12,9 @@
 
 ;;; Test utilities
 
-(defmacro claude-code-emacs-mcp-test-with-server (&rest body)
-  "Execute BODY with MCP server mocked."
-  `(cl-letf* ((claude-code-emacs-mcp-server-buffer "*test-mcp-server*")
-              (claude-code-emacs-mcp-process nil)
-              (claude-code-emacs-mcp-connection nil)
-              ((symbol-function 'make-process)
-               (lambda (&rest args)
-                 (let ((proc (make-process-mock)))
-                   (setq claude-code-emacs-mcp-process proc)
-                   proc)))
+(defmacro claude-code-emacs-mcp-test-with-connection (&rest body)
+  "Execute BODY with MCP connection mocked."
+  `(cl-letf* ((claude-code-emacs-mcp-connection nil)
               ((symbol-function 'open-network-stream)
                (lambda (&rest args)
                  (let ((conn (make-network-mock)))
@@ -29,7 +22,7 @@
                    conn)))
               ((symbol-function 'process-live-p)
                (lambda (proc)
-                 (and proc (consp proc) (eq (car proc) 'mock-process))))
+                 (and proc (consp proc) (member (car proc) '(mock-connection mock-process)))))
               ((symbol-function 'set-process-filter)
                (lambda (proc filter)
                  (when (consp proc)
@@ -42,10 +35,6 @@
                (lambda (proc string)
                  (when (consp proc)
                    (put proc 'sent-data string))))
-              ((symbol-function 'kill-process)
-               (lambda (proc)
-                 (when (consp proc)
-                   (setcar proc 'dead-process))))
               ((symbol-function 'delete-process)
                (lambda (proc)
                  (when (consp proc)
@@ -68,38 +57,32 @@
     (when filter
       (funcall filter connection (concat (json-encode response) "\n")))))
 
-;;; Server management tests
+;;; Connection tests
 
-(ert-deftest test-mcp-server-start ()
-  "Test starting the MCP server."
-  (claude-code-emacs-mcp-test-with-server
-   (cl-letf (((symbol-function 'sleep-for) (lambda (n))))
-     (claude-code-emacs-mcp-start-server)
-     (should (claude-code-emacs-mcp-server-running-p))
-     (should claude-code-emacs-mcp-process)
-     (should claude-code-emacs-mcp-connection))))
+(ert-deftest test-mcp-connect ()
+  "Test connecting to MCP server."
+  (claude-code-emacs-mcp-test-with-connection
+   (claude-code-emacs-mcp-connect)
+   (should claude-code-emacs-mcp-connection)
+   (should (process-live-p claude-code-emacs-mcp-connection))))
 
-(ert-deftest test-mcp-server-stop ()
-  "Test stopping the MCP server."
-  (claude-code-emacs-mcp-test-with-server
-   (cl-letf (((symbol-function 'sleep-for) (lambda (n))))
-     (claude-code-emacs-mcp-start-server)
-     (claude-code-emacs-mcp-stop-server)
-     (should-not (claude-code-emacs-mcp-server-running-p))
-     (should-not claude-code-emacs-mcp-process)
-     (should-not claude-code-emacs-mcp-connection))))
+(ert-deftest test-mcp-disconnect ()
+  "Test disconnecting from MCP server."
+  (claude-code-emacs-mcp-test-with-connection
+   (claude-code-emacs-mcp-connect)
+   (claude-code-emacs-mcp-disconnect)
+   (should-not (process-live-p claude-code-emacs-mcp-connection))))
 
 ;;; JSON-RPC communication tests
 
 (ert-deftest test-mcp-send-request ()
   "Test sending JSON-RPC request."
-  (claude-code-emacs-mcp-test-with-server
+  (claude-code-emacs-mcp-test-with-connection
    (cl-letf* ((sent-data nil)
               ((symbol-function 'process-send-string)
                (lambda (conn data)
-                 (setq sent-data data)))
-              ((symbol-function 'sleep-for) (lambda (n))))
-     (claude-code-emacs-mcp-start-server)
+                 (setq sent-data data))))
+     (claude-code-emacs-mcp-connect)
      
      (let ((callback-called nil)
            (callback-result nil))
@@ -142,17 +125,24 @@
   "Test getOpenBuffers handler."
   (cl-letf (((symbol-function 'projectile-project-root)
              (lambda () "/test/project/")))
-    (with-temp-buffer
-      (setq buffer-file-name "/test/project/file1.el")
-      (let ((result (claude-code-emacs-mcp-handle-getOpenBuffers '((includeHidden . nil)))))
-        (should (assoc 'buffers result))
-        (let ((buffers (cdr (assoc 'buffers result))))
-          (should (> (length buffers) 0))
-          (let ((buffer-info (car buffers)))
-            (should (assoc 'path buffer-info))
-            (should (assoc 'name buffer-info))
-            (should (assoc 'active buffer-info))
-            (should (assoc 'modified buffer-info))))))))
+    (let ((test-buffer (generate-new-buffer "test-file1.el")))
+      (unwind-protect
+          (with-current-buffer test-buffer
+            (setq buffer-file-name "/test/project/file1.el")
+            (let ((result (claude-code-emacs-mcp-handle-getOpenBuffers '((includeHidden . nil)))))
+              (should (assoc 'buffers result))
+              (let ((buffers (cdr (assoc 'buffers result))))
+                (should (> (length buffers) 0))
+                (let ((buffer-info (seq-find (lambda (b)
+                                               (equal (cdr (assoc 'path b))
+                                                      "/test/project/file1.el"))
+                                             buffers)))
+                  (should buffer-info)
+                  (should (assoc 'path buffer-info))
+                  (should (assoc 'name buffer-info))
+                  (should (assoc 'active buffer-info))
+                  (should (assoc 'modified buffer-info))))))
+        (kill-buffer test-buffer)))))
 
 (ert-deftest test-mcp-handle-getCurrentSelection ()
   "Test getCurrentSelection handler."
@@ -160,6 +150,7 @@
     (insert "Line 1\nLine 2\nLine 3")
     (goto-char (point-min))
     (push-mark (point-max) t t)
+    (activate-mark)
     (let ((result (claude-code-emacs-mcp-handle-getCurrentSelection nil)))
       (should (assoc 'text result))
       (should (equal (cdr (assoc 'text result)) "Line 1\nLine 2\nLine 3"))
@@ -178,13 +169,13 @@
 
 ;;; Integration tests
 
-(ert-deftest test-mcp-ensure-server ()
-  "Test server auto-start functionality."
-  (claude-code-emacs-mcp-test-with-server
-   (cl-letf (((symbol-function 'sleep-for) (lambda (n))))
-     (should-not (claude-code-emacs-mcp-server-running-p))
-     (claude-code-emacs-mcp-ensure-server)
-     (should (claude-code-emacs-mcp-server-running-p)))))
+(ert-deftest test-mcp-ensure-connection ()
+  "Test connection auto-establish functionality."
+  (claude-code-emacs-mcp-test-with-connection
+   (should-not claude-code-emacs-mcp-connection)
+   (claude-code-emacs-mcp-ensure-connection)
+   (should claude-code-emacs-mcp-connection)
+   (should (process-live-p claude-code-emacs-mcp-connection))))
 
 (provide 'test-claude-code-emacs-mcp)
 ;;; test-claude-code-emacs-mcp.el ends here

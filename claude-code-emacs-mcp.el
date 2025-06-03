@@ -29,8 +29,8 @@
 
 (require 'json)
 (require 'projectile)
-(require 'lsp-mode)
-(require 'claude-code-emacs)
+(require 'lsp-mode nil t)
+(require 'lsp-protocol nil t)
 
 ;;; Customization
 
@@ -39,7 +39,7 @@
   :group 'claude-code-emacs
   :prefix "claude-code-emacs-mcp-")
 
-(defcustom claude-code-emacs-mcp-port 8765
+(defcustom claude-code-emacs-mcp-port 8766
   "Port number for MCP server."
   :type 'integer
   :group 'claude-code-emacs-mcp)
@@ -49,16 +49,9 @@
   :type 'string
   :group 'claude-code-emacs-mcp)
 
-(defcustom claude-code-emacs-mcp-server-command
-  '("node" "mcp-server/dist/index.js")
-  "Command to start MCP server."
-  :type '(repeat string)
-  :group 'claude-code-emacs-mcp)
 
 ;;; Variables
 
-(defvar claude-code-emacs-mcp-process nil
-  "MCP server process.")
 
 (defvar claude-code-emacs-mcp-connection nil
   "Network connection to MCP server.")
@@ -69,105 +62,50 @@
 (defvar claude-code-emacs-mcp-pending-requests (make-hash-table :test 'equal)
   "Hash table of pending requests.")
 
-(defvar claude-code-emacs-mcp-server-buffer "*claude-code-emacs-mcp-server*"
-  "Buffer name for MCP server output.")
 
-;;; MCP Server Process Management
-
-(defun claude-code-emacs-mcp-server-running-p ()
-  "Check if MCP server is running."
-  (and claude-code-emacs-mcp-process
-       (process-live-p claude-code-emacs-mcp-process)))
-
-(defun claude-code-emacs-mcp-start-server ()
-  "Start MCP server process."
-  (interactive)
-  (when (claude-code-emacs-mcp-server-running-p)
-    (claude-code-emacs-mcp-stop-server))
-
-  (let* ((default-directory (projectile-project-root))
-         (process-connection-type nil)
-         (server-buffer (get-buffer-create claude-code-emacs-mcp-server-buffer))
-         (cmd (append claude-code-emacs-mcp-server-command
-                      (list "--port" (number-to-string claude-code-emacs-mcp-port)))))
-
-    (with-current-buffer server-buffer
-      (erase-buffer))
-
-    (setq claude-code-emacs-mcp-process
-          (make-process
-           :name "claude-code-emacs-mcp-server"
-           :buffer server-buffer
-           :command cmd
-           :sentinel #'claude-code-emacs-mcp-server-sentinel
-           :filter #'claude-code-emacs-mcp-server-filter))
-
-    ;; Wait for server to start
-    (sleep-for 0.5)
-
-    ;; Connect to server
-    (claude-code-emacs-mcp-connect)
-
-    (message "MCP server started on port %d" claude-code-emacs-mcp-port)))
-
-(defun claude-code-emacs-mcp-stop-server ()
-  "Stop MCP server process."
-  (interactive)
-  (when claude-code-emacs-mcp-connection
-    (delete-process claude-code-emacs-mcp-connection)
-    (setq claude-code-emacs-mcp-connection nil))
-
-  (when (claude-code-emacs-mcp-server-running-p)
-    (kill-process claude-code-emacs-mcp-process)
-    (setq claude-code-emacs-mcp-process nil))
-
-  (clrhash claude-code-emacs-mcp-pending-requests)
-  (message "MCP server stopped"))
-
-(defun claude-code-emacs-mcp-server-sentinel (process event)
-  "Handle MCP server process events."
-  (unless (process-live-p process)
-    (setq claude-code-emacs-mcp-process nil)
-    (setq claude-code-emacs-mcp-connection nil)
-    (message "MCP server exited: %s" (string-trim event))))
-
-(defun claude-code-emacs-mcp-server-filter (process output)
-  "Handle MCP server process output."
-  (with-current-buffer (process-buffer process)
-    (goto-char (point-max))
-    (insert output)))
+;;; Connection Management
 
 ;;; Network Connection
 
 (defun claude-code-emacs-mcp-connect ()
-  "Connect to MCP server."
+  "Connect to MCP server WebSocket."
   (condition-case err
-      (setq claude-code-emacs-mcp-connection
-            (open-network-stream "claude-code-emacs-mcp"
-                                 nil
-                                 claude-code-emacs-mcp-host
-                                 claude-code-emacs-mcp-port))
+      (progn
+        (setq claude-code-emacs-mcp-connection
+              (open-network-stream "claude-code-emacs-mcp"
+                                   nil
+                                   claude-code-emacs-mcp-host
+                                   claude-code-emacs-mcp-port))
+        (when claude-code-emacs-mcp-connection
+          (set-process-filter claude-code-emacs-mcp-connection
+                              #'claude-code-emacs-mcp-connection-filter)
+          (set-process-sentinel claude-code-emacs-mcp-connection
+                                #'claude-code-emacs-mcp-connection-sentinel)
+          (message "Connected to MCP server WebSocket on port %d" claude-code-emacs-mcp-port)
+          t))
     (error
-     (message "Failed to connect to MCP server: %s" err)
-     nil))
+     (message "Failed to connect to MCP server WebSocket: %s" err)
+     nil)))
 
+(defun claude-code-emacs-mcp-disconnect ()
+  "Disconnect from MCP server."
+  (interactive)
   (when claude-code-emacs-mcp-connection
-    (set-process-filter claude-code-emacs-mcp-connection
-                        #'claude-code-emacs-mcp-connection-filter)
-    (set-process-sentinel claude-code-emacs-mcp-connection
-                          #'claude-code-emacs-mcp-connection-sentinel)
-    (message "Connected to MCP server")))
+    (delete-process claude-code-emacs-mcp-connection)
+    (setq claude-code-emacs-mcp-connection nil))
+  (clrhash claude-code-emacs-mcp-pending-requests)
+  (message "Disconnected from MCP server"))
 
 (defun claude-code-emacs-mcp-connection-sentinel (process event)
   "Handle connection events."
   (unless (process-live-p process)
     (setq claude-code-emacs-mcp-connection nil)
-    (message "MCP connection closed: %s" (string-trim event))))
+    (message "MCP WebSocket connection closed: %s" (string-trim event))))
 
 (defvar claude-code-emacs-mcp-response-buffer ""
   "Buffer for accumulating partial responses.")
 
-(defun claude-code-emacs-mcp-connection-filter (process output)
+(defun claude-code-emacs-mcp-connection-filter (_process output)
   "Handle data from MCP server."
   (setq claude-code-emacs-mcp-response-buffer
         (concat claude-code-emacs-mcp-response-buffer output))
@@ -187,8 +125,11 @@
 
 (defun claude-code-emacs-mcp-send-request (method params callback)
   "Send JSON-RPC request with METHOD and PARAMS, call CALLBACK with result."
-  (unless claude-code-emacs-mcp-connection
-    (error "Not connected to MCP server"))
+  (unless (and claude-code-emacs-mcp-connection
+               (process-live-p claude-code-emacs-mcp-connection))
+    (claude-code-emacs-mcp-ensure-connection)
+    (unless claude-code-emacs-mcp-connection
+      (error "Cannot connect to MCP server")))
 
   (let* ((id (claude-code-emacs-mcp-next-request-id))
          (request (json-encode
@@ -203,8 +144,11 @@
 
 (defun claude-code-emacs-mcp-send-notification (method params)
   "Send JSON-RPC notification with METHOD and PARAMS."
-  (unless claude-code-emacs-mcp-connection
-    (error "Not connected to MCP server"))
+  (unless (and claude-code-emacs-mcp-connection
+               (process-live-p claude-code-emacs-mcp-connection))
+    (claude-code-emacs-mcp-ensure-connection)
+    (unless claude-code-emacs-mcp-connection
+      (error "Cannot connect to MCP server")))
 
   (let ((notification (json-encode
                        `((jsonrpc . "2.0")
@@ -319,7 +263,7 @@
 
     `((buffers . ,(nreverse buffers)))))
 
-(defun claude-code-emacs-mcp-handle-getCurrentSelection (params)
+(defun claude-code-emacs-mcp-handle-getCurrentSelection (_params)
   "Handle getCurrentSelection request."
   (if (use-region-p)
       (let* ((start (region-beginning))
@@ -351,7 +295,8 @@
   (let* ((buffer-path (cdr (assoc 'bufferPath params)))
          (diagnostics '()))
 
-    (when (fboundp 'lsp-diagnostics)
+    (when (and (fboundp 'lsp-diagnostics)
+               (fboundp 'lsp:diagnostic-message))
       (let ((lsp-diags (if buffer-path
                            (with-current-buffer (find-buffer-visiting buffer-path)
                              (lsp-diagnostics))
@@ -363,16 +308,24 @@
               (dolist (diag diags)
                 (push `((file . ,file)
                         (line . ,line)
-                        (column . ,(or (lsp:position-character
-                                         (lsp:range-start
-                                          (lsp:diagnostic-range diag)))
-                                        0))
-                        (severity . ,(pcase (lsp:diagnostic-severity diag)
-                                       (1 "error")
-                                       (2 "warning")
-                                       (_ "info")))
+                        (column . ,(if (and (fboundp 'lsp:position-character)
+                                            (fboundp 'lsp:range-start)
+                                            (fboundp 'lsp:diagnostic-range))
+                                       (or (lsp:position-character
+                                            (lsp:range-start
+                                             (lsp:diagnostic-range diag)))
+                                           0)
+                                     0))
+                        (severity . ,(if (fboundp 'lsp:diagnostic-severity)
+                                         (pcase (lsp:diagnostic-severity diag)
+                                           (1 "error")
+                                           (2 "warning")
+                                           (_ "info"))
+                                       "info"))
                         (message . ,(lsp:diagnostic-message diag))
-                        (source . ,(or (lsp:diagnostic-source diag) "lsp")))
+                        (source . ,(if (fboundp 'lsp:diagnostic-source)
+                                       (or (lsp:diagnostic-source diag) "lsp")
+                                     "lsp")))
                       diagnostics)))
             diags-by-line))
          lsp-diags)))
@@ -381,14 +334,15 @@
 
 ;;; Integration with main Claude Code Emacs
 
-(defun claude-code-emacs-mcp-ensure-server ()
-  "Ensure MCP server is running."
-  (unless (claude-code-emacs-mcp-server-running-p)
-    (claude-code-emacs-mcp-start-server)))
+(defun claude-code-emacs-mcp-ensure-connection ()
+  "Ensure connection to MCP server."
+  (unless (and claude-code-emacs-mcp-connection
+               (process-live-p claude-code-emacs-mcp-connection))
+    (claude-code-emacs-mcp-connect)))
 
-;; Hook into Claude Code session start
+;; Hook into Claude Code session start to ensure connection
 (add-hook 'claude-code-emacs-vterm-mode-hook
-          #'claude-code-emacs-mcp-ensure-server)
+          #'claude-code-emacs-mcp-ensure-connection)
 
 (provide 'claude-code-emacs-mcp)
 ;;; claude-code-emacs-mcp.el ends here
