@@ -18,24 +18,31 @@ This guide explains how to set up and use the MCP (Model Context Protocol) integ
 
 2. **Configure Claude Code**:
    
-   Create a `.mcp.json` file in your project root:
+   Method 1: Use the CLI wizard
+   ```bash
+   claude mcp add
+   ```
    
+   Method 2: Edit the settings file directly
+   
+   Settings file locations:
+   - **User settings**: `~/.claude/settings.json`
+   - **Project settings**: `.claude/settings.json`
+   
+   Add the following content:
    ```json
    {
      "mcpServers": {
        "emacs": {
          "type": "stdio",
          "command": "node",
-         "args": [
-           "/absolute/path/to/claude-code-emacs/mcp-server/dist/index.js",
-           "8766"
-         ]
+         "args": ["/path/to/claude-code-emacs/mcp-server/dist/index.js"]
        }
      }
    }
    ```
    
-   Note: The port number (8766) must match the `claude-code-emacs-mcp-port` setting in Emacs.
+   Note: Replace `/path/to/claude-code-emacs` with the actual path
 
 3. **Load the Emacs package**:
    
@@ -50,8 +57,8 @@ This guide explains how to set up and use the MCP (Model Context Protocol) integ
 
 1. Start Emacs and open a project
 2. Run `M-x claude-code-emacs-run` to start Claude Code
-3. Claude Code will automatically start the MCP server via .mcp.json
-4. Emacs will automatically connect to the MCP server WebSocket
+3. Type `/mcp` in the Claude Code session to enable MCP integration
+4. The MCP server will start and Emacs will automatically connect
 
 ## Available MCP Tools
 
@@ -81,10 +88,10 @@ Retrieves LSP diagnostics for the project.
 ## Troubleshooting
 
 ### MCP server not starting
-- Run `claude mcp` to check MCP server status
-- Use `claude --mcp-debug` to see detailed error logs
-- Ensure the port (default: 8766) is not in use
-- Verify Node.js is installed and accessible
+- Check MCP server logs: `tail -f /tmp/claude-code-emacs-mcp.log`
+- Ensure the port (default: 8766) is not in use: `lsof -i :8766`
+- Verify Node.js is installed and accessible: `node --version`
+- Check if the MCP server is running: `ps aux | grep mcp-server`
 
 ### Connection issues
 - Make sure the MCP server path in Claude Code config is absolute
@@ -93,9 +100,10 @@ Retrieves LSP diagnostics for the project.
 
 ### Testing the connection
 1. Start Claude Code: `M-x claude-code-emacs-run`
-2. Check the `*Messages*` buffer for "Connected to MCP server WebSocket on port 8766"
-3. In Claude Code, try using a tool like: "Show me all open buffers"
-4. To manually reconnect: `M-x claude-code-emacs-mcp-connect`
+2. Type `/mcp` to start the MCP server
+3. Check the `*Messages*` buffer for "Connected to MCP server WebSocket on port 8766"
+4. In Claude Code, try using a tool like: "Show me all open buffers"
+5. To manually reconnect: `M-x claude-code-emacs-mcp-connect`
 
 ## Development
 

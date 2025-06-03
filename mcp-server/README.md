@@ -60,3 +60,14 @@ npm test
 # Clean build artifacts
 npm run clean
 ```
+
+## Debugging
+
+The MCP server logs to a file for troubleshooting:
+- Log file: `/tmp/claude-code-emacs-mcp.log`
+- View logs: `tail -f /tmp/claude-code-emacs-mcp.log`
+- Logs include:
+  - Server startup and connection events
+  - Emacs WebSocket connection status
+  - Request/response debugging information
+  - Error messages and stack traces

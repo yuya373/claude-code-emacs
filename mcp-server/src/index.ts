@@ -2,11 +2,11 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { EmacsBridge } from './emacs-bridge.js';
-import { 
-  handleOpenFile, 
-  handleGetOpenBuffers, 
-  handleGetCurrentSelection, 
-  handleGetDiagnostics 
+import {
+  handleOpenFile,
+  handleGetOpenBuffers,
+  handleGetCurrentSelection,
+  handleGetDiagnostics
 } from './tools/index.js';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -110,16 +110,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     switch (name) {
       case 'openFile':
         return await handleOpenFile(bridge, args || {});
-      
+
       case 'getOpenBuffers':
         return await handleGetOpenBuffers(bridge, args || {});
-      
+
       case 'getCurrentSelection':
         return await handleGetCurrentSelection(bridge, args || {});
-      
+
       case 'getDiagnostics':
         return await handleGetDiagnostics(bridge, args || {});
-      
+
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -137,15 +137,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 // Start server
 async function main() {
-  const port = parseInt(process.argv[2] || '8765');
-  
+  const port = parseInt(process.argv[2] || '8766');
+
   // Start Emacs bridge
   await bridge.start(port);
-  
+
   // For MCP, use stdio transport
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  
+
   log(`MCP server running, Emacs bridge on port ${port}`);
 }
 

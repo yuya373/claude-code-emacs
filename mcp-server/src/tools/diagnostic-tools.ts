@@ -19,7 +19,7 @@ export async function handleGetDiagnostics(bridge: EmacsBridge, args: GetDiagnos
   }
 
   const result = await bridge.request('getDiagnostics', args);
-  const diagnostics: Diagnostic[] = result.diagnostics;
+  const diagnostics: Diagnostic[] = result?.diagnostics || [];
 
   if (diagnostics.length === 0) {
     return {

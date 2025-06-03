@@ -1,1 +1,2 @@
-make test mcp-test
+make test
+make mcp-test

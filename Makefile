@@ -54,8 +54,7 @@ mcp-build: mcp-install
 mcp-clean:
 	@if [ -d mcp-server ]; then \
 		echo "Cleaning MCP server..."; \
-		cd mcp-server && npm run clean; \
-		cd mcp-server && rm -rf node_modules; \
+		cd mcp-server && npm run clean && rm -rf node_modules; \
 	fi
 
 mcp-dev: mcp-install

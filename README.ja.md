@@ -4,77 +4,23 @@
 
 Claude CodeをEmacs内で実行するためのパッケージです。
 
-## TODO
-### LSPの診断情報を使ってClaude Codeに作業させる
-- 診断エラーの修正
-- 診断内容の説明
+## 機能
 
-開いているファイルの情報、周辺コード（±3行）、diagnosticの情報を含める
+### MCP（Model Context Protocol）統合
+Claude Code EmacsにはMCPサーバー統合が含まれており、Claude Codeが直接Emacs環境と対話できます。
 
-## MCP（Model Context Protocol）連携
+#### 利用可能なMCPツール
+- **ファイルを開く**: プロジェクト内の任意のファイルを開く（オプションでテキスト選択）
+- **開いているバッファを取得**: 現在のプロジェクトの全開いているバッファを一覧表示
+- **現在の選択範囲を取得**: Emacsで現在選択されているテキストを取得
+- **診断情報を取得**: プロジェクトファイルのLSP診断情報にアクセス
 
-EmacsとClaude CodeがMCPサーバーを通して連携できるようになりました！
-
-### 機能
-
-#### ファイルを開く
-- パスを指定してファイルを開く
-- テキスト選択機能（startText, endText）対応
-
-#### 開いているバッファを取得
-- プロジェクト内の全開いているバッファ一覧
-- ファイルパス、ファイル名、アクティブ状態、変更状態
-
-#### 現在選択している範囲
-- 選択しているテキスト
-- 開始行、終了行、開始文字、終了文字
-- ファイル名
-
-#### 診断情報
-- LSPワークスペースの診断情報を取得
-- エラー、警告、情報レベルの診断
-
-### セットアップ
-
-1. MCPサーバーをビルド：
-   ```bash
-   make mcp-build
-   ```
-
-2. Claude Code CLIの設定：
-   
-   方法1: CLIウィザードを使用
-   ```bash
-   claude mcp add
-   ```
-   
-   方法2: 設定ファイルを直接編集
-   
-   設定ファイルの場所：
-   - **ユーザー設定**: `~/.claude/settings.json`
-   - **プロジェクト設定**: `.claude/settings.json`
-   
-   以下の内容を追加：
-   ```json
-   {
-     "mcpServers": {
-       "emacs": {
-         "type": "stdio",
-         "command": "node",
-         "args": ["/path/to/claude-code-emacs/mcp-server/dist/index.js"]
-       }
-     }
-   }
-   ```
-   
-   ※ `/path/to/claude-code-emacs` は実際のパスに置き換えてください
-
-3. Emacsでclaude-code-emacsを読み込んで使用開始
-
+MCPサーバーはデフォルトでポート8766で動作し、Claude CodeとEmacs間の通信のためのWebSocketブリッジを提供します。
 
 ## Claude Codeの起動と終了
 - `claude-code-emacs-run` - 現在のプロジェクトでClaude Codeを起動
 - `claude-code-emacs-close` - Claude Codeバッファを表示しているウィンドウを閉じる
+- `claude-code-emacs-quit` - Claude Codeセッションを終了してバッファを削除
 
 ## プロンプト管理機能
 各プロジェクトのルートディレクトリに`.claude-code-emacs.prompt.md`ファイルが作成されます。
@@ -99,6 +45,7 @@ Claude Codeのスラッシュコマンドの詳細については、[公式Claud
 - `c`: Claude Codeを起動
 - `b`: Claude Codeバッファに切り替え
 - `q`: Claude Codeウィンドウを閉じる
+- `Q`: Claude Codeセッションを終了
 - `p`: プロンプトファイルを開く
 - `s`: リージョンを送信
 
@@ -184,6 +131,8 @@ make all
 - `vterm` - ターミナルエミュレーション用
 - `transient` - メニューシステム用
 - `markdown-mode` - プロンプトファイルのベースモード
+- `websocket` - MCPサーバー通信用
+- `lsp-mode`（オプション） - 診断情報用
 
 ## インストール
 このリポジトリをクローンして、Emacsの設定に追加してください：
@@ -192,14 +141,40 @@ make all
 (add-to-list 'load-path "/path/to/claude-code-emacs")
 (require 'claude-code-emacs)
 
+;; オプション: MCP統合を有効化
+(require 'claude-code-emacs-mcp)
+
 ;; オプション: メインメニューのグローバルキーバインドを設定
 (global-set-key (kbd "C-c c") 'claude-code-emacs-transient)
+```
+
+### MCPサーバーのセットアップ
+MCPサーバーにはNode.jsが必要です。依存関係のインストールとビルド：
+
+```bash
+# 全ての依存関係をインストール（MCPサーバーを含む）
+make install-deps
+
+# MCPサーバーをビルド
+make mcp-build
 ```
 
 ## 使い方
 1. `M-x claude-code-emacs-run`を実行して現在のプロジェクトでClaude Codeを起動
 2. `M-x claude-code-emacs-open-prompt-file`でプロジェクト固有のプロンプトを作成/編集
 3. `C-c c`でtransientメニューから全てのコマンドにアクセス
+4. `claude mcp add-json ...`でMCPサーバーとしてEmacsを追加
+
+### Claude Code に MCPサーバーを追加する方法
+```shell
+claude mcp add-json emacs '{
+  "type": "stdio",
+  "command": "node",
+  "args": [
+    "/path/to/claude-code-emacs/mcp-server/dist/index.js"
+  ]
+}'
+```
 
 ## ライセンス
 このプログラムはフリーソフトウェアです。Free Software Foundationが公開する

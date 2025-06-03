@@ -29,10 +29,7 @@
 (require 'transient)
 (require 'projectile)
 (require 'markdown-mode)
-
-;; Load MCP integration if available
-(when (require 'claude-code-emacs-mcp nil t)
-  (message "Claude Code MCP integration loaded"))
+(require 'claude-code-emacs-mcp)
 
 ;;;###autoload
 (defun claude-code-emacs-run ()
@@ -146,6 +143,11 @@
             (when (and (bound-and-true-p vterm--process)
                        (process-live-p vterm--process))
               (kill-process vterm--process)))
+          ;; Disconnect MCP WebSocket if connected
+          (when (and (fboundp 'claude-code-emacs-mcp-disconnect)
+                     (boundp 'claude-code-emacs-mcp-websocket)
+                     claude-code-emacs-mcp-websocket)
+            (claude-code-emacs-mcp-disconnect))
           ;; Kill the buffer
           (kill-buffer buffer)
           (message "Claude Code session ended for this project"))

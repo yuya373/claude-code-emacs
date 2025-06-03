@@ -4,30 +4,23 @@
 
 An Emacs package to run Claude Code within Emacs.
 
-## TODO
-### Use LSP diagnostics to make Claude Code work
-- fix diagnostic
-- explain diagnostic
+## Features
 
-Include information about the open file, surrounding code (±3 lines), and diagnostic information.
+### MCP (Model Context Protocol) Integration
+Claude Code Emacs includes MCP server integration, allowing Claude Code to interact directly with your Emacs environment.
 
-### Register Emacs as an MCP server for Claude Code
-Set up TypeScript SDK server (stdio)
-Set up elnode server
-claude code → typescript-sdk → elnode → control Emacs
+#### Available MCP Tools
+- **Open File**: Open any project file with optional text selection
+- **Get Open Buffers**: List all open buffers in the current project
+- **Get Current Selection**: Retrieve the currently selected text in Emacs
+- **Get Diagnostics**: Access LSP diagnostics for project files
 
-#### Open files
-Text selection functionality (startText, endText)
-#### Get open buffers
-File path, file name, whether active or not
-#### Currently selected range
-Selected text, start line, end line, start character, end character, file name
-#### Diagnostic information
-LSP workspace diagnostic information
+The MCP server runs on port 8766 by default and provides a WebSocket bridge for communication between Claude Code and Emacs.
 
 ## Starting and Closing Claude Code
 - `claude-code-emacs-run` - Start Claude Code in the current project
 - `claude-code-emacs-close` - Close the window displaying Claude Code buffer
+- `claude-code-emacs-quit` - Quit Claude Code session and kill the buffer
 
 ## Prompt Management Features
 A `.claude-code-emacs.prompt.md` file is created in each project root.
@@ -52,6 +45,7 @@ For detailed documentation about Claude Code slash commands, see the [official C
 - `c`: Run Claude Code
 - `b`: Switch to Claude Code buffer
 - `q`: Close Claude Code window
+- `Q`: Quit Claude Code session
 - `p`: Open Prompt File
 - `s`: Send Region
 
@@ -137,6 +131,8 @@ make all
 - `vterm` - For terminal emulation
 - `transient` - For menu system
 - `markdown-mode` - Base mode for prompt files
+- `websocket` - For MCP server communication
+- `lsp-mode` (optional) - For diagnostic information
 
 ## Installation
 Clone this repository and add to your Emacs configuration:
@@ -145,14 +141,40 @@ Clone this repository and add to your Emacs configuration:
 (add-to-list 'load-path "/path/to/claude-code-emacs")
 (require 'claude-code-emacs)
 
+;; Optional: Enable MCP integration
+(require 'claude-code-emacs-mcp)
+
 ;; Optional: Set global keybinding for the main menu
 (global-set-key (kbd "C-c c") 'claude-code-emacs-transient)
+```
+
+### MCP Server Setup
+The MCP server requires Node.js. To install dependencies and build:
+
+```bash
+# Install all dependencies (including MCP server)
+make install-deps
+
+# Build MCP server
+make mcp-build
 ```
 
 ## Usage
 1. Run `M-x claude-code-emacs-run` to start Claude Code in the current project
 2. Use `M-x claude-code-emacs-open-prompt-file` to create/edit project-specific prompts
 3. Access all commands through the transient menu with `C-c c`
+4. Add Emacs as an MCP server with `claude mcp add-json ...`
+
+### Adding Emacs as an MCP Server to Claude Code
+```shell
+claude mcp add-json emacs '{
+  "type": "stdio",
+  "command": "node",
+  "args": [
+    "/path/to/claude-code-emacs/mcp-server/dist/index.js"
+  ]
+}'
+```
 
 ## License
 This program is free software: you can redistribute it and/or modify

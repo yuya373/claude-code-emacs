@@ -10,14 +10,17 @@ This is an Emacs package that provides integration with Claude Code CLI. The pac
 
 ### Testing
 ```bash
-# Run all tests
+# Run all tests (Emacs Lisp and TypeScript)
 make test
 
-# Run tests directly
+# Run Emacs Lisp tests only
 emacs -batch -l run-tests.el
 
-# Run a specific test
+# Run a specific Emacs test
 emacs -batch -l run-tests.el -f ert-run-tests-batch-and-exit 'test-name-pattern'
+
+# Run MCP server tests
+npm test --prefix mcp-server
 ```
 
 ### Building
@@ -33,6 +36,9 @@ make clean
 
 # Install dependencies
 make install-deps
+
+# Build MCP server
+make mcp-build
 ```
 
 ### Linting and Type Checking
@@ -41,7 +47,10 @@ When completing tasks, run these commands to ensure code quality:
 # For Emacs Lisp files, byte-compilation serves as linting
 make compile
 
-# Run tests to ensure functionality
+# For TypeScript files in MCP server
+cd mcp-server && npm run build
+
+# Run all tests to ensure functionality
 make test
 ```
 
@@ -120,11 +129,42 @@ Tests use mock implementations to avoid vterm dependencies:
 - `y` as alias for `1` (yes responses)
 
 ### Dependencies
-- **Required**: projectile, vterm, transient, markdown-mode
-- **Optional**: lsp-mode (for language ID configuration)
+- **Required**: projectile, vterm, transient, markdown-mode, websocket
+- **Optional**: lsp-mode (for diagnostics and language ID configuration)
 
 When modifying this package:
 1. Add tests for new functionality
 2. Use the established macro patterns for new commands
 3. Maintain project isolation in buffer naming
 4. Follow the chunking pattern for long strings
+
+## MCP Server
+
+### Architecture
+The MCP server provides a bridge between Claude Code and Emacs:
+- WebSocket server on port 8766 for Emacs connection
+- stdio interface for Claude Code MCP protocol
+- Implements tools: openFile, getOpenBuffers, getCurrentSelection, getDiagnostics
+
+### Setup
+Claude Code needs to be configured to use the MCP server:
+```bash
+claude mcp add-json emacs '{
+  "type": "stdio",
+  "command": "node",
+  "args": ["/path/to/claude-code-emacs/mcp-server/dist/index.js"]
+}'
+```
+
+### Logging
+The MCP server logs to a file for debugging purposes:
+- Log file location: `/tmp/claude-code-emacs-mcp.log`
+- Logs include timestamps and connection status
+- Useful for troubleshooting MCP integration issues
+
+### Development
+When working on the MCP server:
+1. Build with `make mcp-build`
+2. Check logs for debugging: `tail -f /tmp/claude-code-emacs-mcp.log`
+3. Test TypeScript code: `npm test --prefix mcp-server`
+4. The server auto-starts when Claude Code requests MCP tools

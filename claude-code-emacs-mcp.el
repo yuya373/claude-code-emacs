@@ -5,7 +5,7 @@
 ;; Author: DESKTOP2 <yuya373@DESKTOP2>
 ;; Keywords: tools, convenience
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "28.1") (projectile "2.9.1") (lsp-mode "9.0.0") (json-rpc "0.0.2"))
+;; Package-Requires: ((emacs "28.1") (projectile "2.9.1") (lsp-mode "9.0.0") (websocket "1.15"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
 (require 'projectile)
 (require 'lsp-mode nil t)
 (require 'lsp-protocol nil t)
+(require 'websocket)
 
 ;;; Customization
 
@@ -53,8 +54,8 @@
 ;;; Variables
 
 
-(defvar claude-code-emacs-mcp-connection nil
-  "Network connection to MCP server.")
+(defvar claude-code-emacs-mcp-websocket nil
+  "WebSocket connection to MCP server.")
 
 (defvar claude-code-emacs-mcp-request-id 0
   "Counter for JSON-RPC request IDs.")
@@ -62,27 +63,60 @@
 (defvar claude-code-emacs-mcp-pending-requests (make-hash-table :test 'equal)
   "Hash table of pending requests.")
 
+(defvar claude-code-emacs-mcp-connection-attempts 0
+  "Number of connection attempts.")
+
+(defcustom claude-code-emacs-mcp-max-connection-attempts 10
+  "Maximum number of connection attempts."
+  :type 'integer
+  :group 'claude-code-emacs-mcp)
+
+(defcustom claude-code-emacs-mcp-connection-retry-delay 1
+  "Delay in seconds between connection attempts."
+  :type 'number
+  :group 'claude-code-emacs-mcp)
+
 
 ;;; Connection Management
 
 ;;; Network Connection
 
+(defun claude-code-emacs-mcp-connect-with-retry ()
+  "Connect to MCP server with retry logic."
+  (setq claude-code-emacs-mcp-connection-attempts 0)
+  (claude-code-emacs-mcp-try-connect))
+
+(defun claude-code-emacs-mcp-try-connect ()
+  "Try to connect to MCP server."
+  (if (>= claude-code-emacs-mcp-connection-attempts
+          claude-code-emacs-mcp-max-connection-attempts)
+      (progn
+        (message "Failed to connect to MCP server after %d attempts"
+                 claude-code-emacs-mcp-max-connection-attempts)
+        nil)
+    (setq claude-code-emacs-mcp-connection-attempts
+          (1+ claude-code-emacs-mcp-connection-attempts))
+    (message "Attempting to connect to MCP server (attempt %d/%d)..."
+             claude-code-emacs-mcp-connection-attempts
+             claude-code-emacs-mcp-max-connection-attempts)
+    (if (claude-code-emacs-mcp-connect)
+        t
+      (run-at-time claude-code-emacs-mcp-connection-retry-delay nil
+                   #'claude-code-emacs-mcp-try-connect))))
+
 (defun claude-code-emacs-mcp-connect ()
   "Connect to MCP server WebSocket."
+  (interactive)
   (condition-case err
       (progn
-        (setq claude-code-emacs-mcp-connection
-              (open-network-stream "claude-code-emacs-mcp"
-                                   nil
-                                   claude-code-emacs-mcp-host
-                                   claude-code-emacs-mcp-port))
-        (when claude-code-emacs-mcp-connection
-          (set-process-filter claude-code-emacs-mcp-connection
-                              #'claude-code-emacs-mcp-connection-filter)
-          (set-process-sentinel claude-code-emacs-mcp-connection
-                                #'claude-code-emacs-mcp-connection-sentinel)
-          (message "Connected to MCP server WebSocket on port %d" claude-code-emacs-mcp-port)
-          t))
+        (setq claude-code-emacs-mcp-websocket
+              (websocket-open
+               (format "ws://%s:%d" claude-code-emacs-mcp-host claude-code-emacs-mcp-port)
+               :on-message #'claude-code-emacs-mcp-on-message
+               :on-error #'claude-code-emacs-mcp-on-error
+               :on-close #'claude-code-emacs-mcp-on-close))
+        (message "Connected to MCP server WebSocket on port %d" claude-code-emacs-mcp-port)
+        t)
     (error
      (message "Failed to connect to MCP server WebSocket: %s" err)
      nil)))
@@ -90,32 +124,27 @@
 (defun claude-code-emacs-mcp-disconnect ()
   "Disconnect from MCP server."
   (interactive)
-  (when claude-code-emacs-mcp-connection
-    (delete-process claude-code-emacs-mcp-connection)
-    (setq claude-code-emacs-mcp-connection nil))
+  (when claude-code-emacs-mcp-websocket
+    (websocket-close claude-code-emacs-mcp-websocket)
+    (setq claude-code-emacs-mcp-websocket nil))
   (clrhash claude-code-emacs-mcp-pending-requests)
   (message "Disconnected from MCP server"))
 
-(defun claude-code-emacs-mcp-connection-sentinel (process event)
-  "Handle connection events."
-  (unless (process-live-p process)
-    (setq claude-code-emacs-mcp-connection nil)
-    (message "MCP WebSocket connection closed: %s" (string-trim event))))
+(defun claude-code-emacs-mcp-on-message (_websocket frame)
+  "Handle incoming WebSocket message."
+  (let ((payload (websocket-frame-text frame)))
+    (message "Payload: %s" payload)
+    (when payload
+      (claude-code-emacs-mcp-handle-message payload))))
 
-(defvar claude-code-emacs-mcp-response-buffer ""
-  "Buffer for accumulating partial responses.")
+(defun claude-code-emacs-mcp-on-error (_websocket type error)
+  "Handle WebSocket error."
+  (message "MCP WebSocket error (%s): %s" type error))
 
-(defun claude-code-emacs-mcp-connection-filter (_process output)
-  "Handle data from MCP server."
-  (setq claude-code-emacs-mcp-response-buffer
-        (concat claude-code-emacs-mcp-response-buffer output))
-
-  ;; Process complete messages (delimited by newlines)
-  (let ((messages (split-string claude-code-emacs-mcp-response-buffer "\n")))
-    (setq claude-code-emacs-mcp-response-buffer (car (last messages)))
-    (dolist (msg (butlast messages))
-      (when (> (length msg) 0)
-        (claude-code-emacs-mcp-handle-message msg)))))
+(defun claude-code-emacs-mcp-on-close (_websocket)
+  "Handle WebSocket close."
+  (setq claude-code-emacs-mcp-websocket nil)
+  (message "MCP WebSocket connection closed"))
 
 ;;; JSON-RPC Communication
 
@@ -125,10 +154,10 @@
 
 (defun claude-code-emacs-mcp-send-request (method params callback)
   "Send JSON-RPC request with METHOD and PARAMS, call CALLBACK with result."
-  (unless (and claude-code-emacs-mcp-connection
-               (process-live-p claude-code-emacs-mcp-connection))
+  (unless (and claude-code-emacs-mcp-websocket
+               (websocket-openp claude-code-emacs-mcp-websocket))
     (claude-code-emacs-mcp-ensure-connection)
-    (unless claude-code-emacs-mcp-connection
+    (unless claude-code-emacs-mcp-websocket
       (error "Cannot connect to MCP server")))
 
   (let* ((id (claude-code-emacs-mcp-next-request-id))
@@ -139,23 +168,21 @@
                      (params . ,params)))))
 
     (puthash id callback claude-code-emacs-mcp-pending-requests)
-    (process-send-string claude-code-emacs-mcp-connection
-                         (concat request "\n"))))
+    (websocket-send-text claude-code-emacs-mcp-websocket request)))
 
 (defun claude-code-emacs-mcp-send-notification (method params)
   "Send JSON-RPC notification with METHOD and PARAMS."
-  (unless (and claude-code-emacs-mcp-connection
-               (process-live-p claude-code-emacs-mcp-connection))
+  (unless (and claude-code-emacs-mcp-websocket
+               (websocket-openp claude-code-emacs-mcp-websocket))
     (claude-code-emacs-mcp-ensure-connection)
-    (unless claude-code-emacs-mcp-connection
+    (unless claude-code-emacs-mcp-websocket
       (error "Cannot connect to MCP server")))
 
   (let ((notification (json-encode
                        `((jsonrpc . "2.0")
                          (method . ,method)
                          (params . ,params)))))
-    (process-send-string claude-code-emacs-mcp-connection
-                         (concat notification "\n"))))
+    (websocket-send-text claude-code-emacs-mcp-websocket notification)))
 
 (defun claude-code-emacs-mcp-handle-message (message)
   "Handle incoming JSON-RPC message."
@@ -164,6 +191,10 @@
              (json-array-type 'list)
              (msg (json-read-from-string message)))
         (cond
+         ;; Request from server (check method first)
+         ((assoc 'method msg)
+          (claude-code-emacs-mcp-handle-request msg))
+
          ;; Response to our request
          ((assoc 'id msg)
           (let* ((id (cdr (assoc 'id msg)))
@@ -173,10 +204,6 @@
               (if (assoc 'error msg)
                   (funcall callback nil (cdr (assoc 'error msg)))
                 (funcall callback (cdr (assoc 'result msg)) nil)))))
-
-         ;; Request from server
-         ((assoc 'method msg)
-          (claude-code-emacs-mcp-handle-request msg))
 
          ;; Invalid message
          (t
@@ -191,11 +218,15 @@
          (params (cdr (assoc 'params request)))
          (handler (intern (format "claude-code-emacs-mcp-handle-%s" method))))
 
+    (message "MCP Request: method=%s, handler=%s, fboundp=%s"
+             method handler (fboundp handler))
+
     (if (fboundp handler)
         (condition-case err
             (let ((result (funcall handler params)))
               (claude-code-emacs-mcp-send-response id result nil))
           (error
+           (message "Error in handler %s: %s" handler err)
            (claude-code-emacs-mcp-send-response id nil
                                                 `((code . -32603)
                                                   (message . ,(error-message-string err))))))
@@ -212,8 +243,8 @@
                     `((jsonrpc . "2.0")
                       (id . ,id)
                       (result . ,result)))))
-    (process-send-string claude-code-emacs-mcp-connection
-                         (concat (json-encode response) "\n"))))
+    (websocket-send-text claude-code-emacs-mcp-websocket
+                         (json-encode response))))
 
 ;;; MCP Tool Handlers
 
@@ -223,11 +254,12 @@
          (start-text (cdr (assoc 'startText params)))
          (end-text (cdr (assoc 'endText params)))
          (full-path (expand-file-name path (projectile-project-root))))
+    (message "Params: %s" params)
 
     (unless (file-exists-p full-path)
       (signal 'file-missing (list "File not found" full-path)))
 
-    (find-file full-path)
+    (find-file-other-window full-path)
 
     ;; Handle text selection if specified
     (when (and start-text end-text)
@@ -292,53 +324,64 @@
 
 (defun claude-code-emacs-mcp-handle-getDiagnostics (params)
   "Handle getDiagnostics request."
-  (let* ((buffer-path (cdr (assoc 'bufferPath params)))
-         (diagnostics '()))
+  (condition-case nil
+      (let* ((buffer-path (cdr (assoc 'bufferPath params)))
+             (diagnostics '()))
 
-    (when (and (fboundp 'lsp-diagnostics)
-               (fboundp 'lsp:diagnostic-message))
-      (let ((lsp-diags (if buffer-path
-                           (with-current-buffer (find-buffer-visiting buffer-path)
-                             (lsp-diagnostics))
-                         (lsp-diagnostics))))
-        (maphash
-         (lambda (file diags-by-line)
-           (maphash
-            (lambda (line diags)
-              (dolist (diag diags)
-                (push `((file . ,file)
-                        (line . ,line)
-                        (column . ,(if (and (fboundp 'lsp:position-character)
-                                            (fboundp 'lsp:range-start)
-                                            (fboundp 'lsp:diagnostic-range))
-                                       (or (lsp:position-character
-                                            (lsp:range-start
-                                             (lsp:diagnostic-range diag)))
-                                           0)
-                                     0))
-                        (severity . ,(if (fboundp 'lsp:diagnostic-severity)
-                                         (pcase (lsp:diagnostic-severity diag)
-                                           (1 "error")
-                                           (2 "warning")
-                                           (_ "info"))
-                                       "info"))
-                        (message . ,(lsp:diagnostic-message diag))
-                        (source . ,(if (fboundp 'lsp:diagnostic-source)
-                                       (or (lsp:diagnostic-source diag) "lsp")
-                                     "lsp")))
-                      diagnostics)))
-            diags-by-line))
-         lsp-diags)))
+        (when (and (fboundp 'lsp-diagnostics)
+                   (fboundp 'lsp:diagnostic-message))
+          (let ((lsp-diags (condition-case nil
+                               (if buffer-path
+                                   (let ((buffer (find-buffer-visiting buffer-path)))
+                                     (when buffer
+                                       (with-current-buffer buffer
+                                         (lsp-diagnostics))))
+                                 (lsp-diagnostics))
+                             (error nil))))
+            (when lsp-diags
+              (maphash
+               (lambda (file diags-by-line)
+                 (maphash
+                  (lambda (line diags)
+                    (dolist (diag diags)
+                      (push `((file . ,file)
+                              (line . ,line)
+                              (column . ,(if (and (fboundp 'lsp:position-character)
+                                                  (fboundp 'lsp:range-start)
+                                                  (fboundp 'lsp:diagnostic-range))
+                                             (or (lsp:position-character
+                                                  (lsp:range-start
+                                                   (lsp:diagnostic-range diag)))
+                                                 0)
+                                           0))
+                              (severity . ,(if (fboundp 'lsp:diagnostic-severity)
+                                               (pcase (lsp:diagnostic-severity diag)
+                                                 (1 "error")
+                                                 (2 "warning")
+                                                 (_ "info"))
+                                             "info"))
+                              (message . ,(lsp:diagnostic-message diag))
+                              (source . ,(if (fboundp 'lsp:diagnostic-source)
+                                             (or (lsp:diagnostic-source diag) "lsp")
+                                           "lsp")))
+                            diagnostics)))
+                  diags-by-line))
+               lsp-diags))))
 
-    `((diagnostics . ,(nreverse diagnostics)))))
+        `((diagnostics . ,(nreverse diagnostics))))
+    (error
+     ;; Return empty diagnostics list on any error
+     `((diagnostics . ())))))
 
 ;;; Integration with main Claude Code Emacs
 
 (defun claude-code-emacs-mcp-ensure-connection ()
   "Ensure connection to MCP server."
-  (unless (and claude-code-emacs-mcp-connection
-               (process-live-p claude-code-emacs-mcp-connection))
-    (claude-code-emacs-mcp-connect)))
+  (interactive)
+  (unless (and claude-code-emacs-mcp-websocket
+               (websocket-openp claude-code-emacs-mcp-websocket))
+    ;; Connect with retry
+    (claude-code-emacs-mcp-connect-with-retry)))
 
 ;; Hook into Claude Code session start to ensure connection
 (add-hook 'claude-code-emacs-vterm-mode-hook
