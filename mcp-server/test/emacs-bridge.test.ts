@@ -6,7 +6,8 @@ describe('EmacsBridge', () => {
   let mockWss: any;
 
   beforeEach(() => {
-    bridge = new EmacsBridge();
+    const mockLogger = jest.fn();
+    bridge = new EmacsBridge(mockLogger);
     mockWss = {
       on: jest.fn(),
       close: jest.fn((cb) => cb && cb())

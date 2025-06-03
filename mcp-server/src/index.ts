@@ -8,8 +8,22 @@ import {
   handleGetCurrentSelection, 
   handleGetDiagnostics 
 } from './tools/index.js';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 
-const bridge = new EmacsBridge();
+// Create log file
+const logFile = path.join(os.tmpdir(), 'claude-code-emacs-mcp.log');
+const logStream = fs.createWriteStream(logFile, { flags: 'a' });
+
+function log(message: string) {
+  const timestamp = new Date().toISOString();
+  logStream.write(`[${timestamp}] ${message}\n`);
+}
+
+log('Starting MCP server...');
+
+const bridge = new EmacsBridge(log);
 const server = new Server(
   {
     name: 'claude-code-emacs-mcp',
@@ -132,10 +146,10 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   
-  console.error(`MCP server running, Emacs bridge on port ${port}`);
+  log(`MCP server running, Emacs bridge on port ${port}`);
 }
 
 main().catch((error) => {
-  console.error('Server error:', error);
+  log(`Server error: ${error}`);
   process.exit(1);
 });

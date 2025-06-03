@@ -123,6 +123,49 @@
      ;; Should not error when no buffer exists
      (should t))))
 
+(ert-deftest test-claude-code-emacs-quit ()
+  "Test quitting Claude Code session."
+  (with-claude-test-project
+   (let ((buffer-name (claude-code-emacs-buffer-name)))
+     ;; Create a Claude Code buffer with mock vterm process
+     (with-current-buffer (get-buffer-create buffer-name)
+       ;; Set up the mode and mock process
+       (setq major-mode 'claude-code-emacs-vterm-mode)
+       (setq mode-name "Claude Code Session")
+       ;; Mock vterm process
+       (setq-local vterm--process 'dummy-process))
+
+     ;; Display the buffer in a window
+     (save-window-excursion
+       (split-window)
+       (switch-to-buffer buffer-name)
+       (should (get-buffer-window buffer-name))
+       
+       ;; Mock the process functions
+       (cl-letf* ((process-killed nil)
+                  ((symbol-function 'process-live-p)
+                   (lambda (proc) (eq proc 'dummy-process)))
+                  ((symbol-function 'kill-process)
+                   (lambda (proc)
+                     (setq process-killed t))))
+         
+         ;; Test quit function
+         (let ((inhibit-message t))
+           (claude-code-emacs-quit))
+         
+         ;; Process should be killed
+         (should process-killed)
+         ;; Buffer should be killed
+         (should-not (get-buffer buffer-name))
+         ;; Window should be closed
+         (should-not (get-buffer-window buffer-name))))
+     
+     ;; Test quitting when no buffer exists
+     (let ((inhibit-message t))
+       (claude-code-emacs-quit))
+     ;; Should not error when no buffer exists
+     (should t))))
+
 ;;; Tests for prompt file functions
 
 (ert-deftest test-claude-code-emacs-open-prompt-file ()

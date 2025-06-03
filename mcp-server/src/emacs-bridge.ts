@@ -27,13 +27,19 @@ export class EmacsBridge extends EventEmitter {
     reject: (error: any) => void;
   }> = new Map();
   private requestId = 0;
+  private log: (message: string) => void;
+
+  constructor(logger?: (message: string) => void) {
+    super();
+    this.log = logger || (() => {});
+  }
 
   async start(port: number): Promise<void> {
     return new Promise((resolve, reject) => {
       this.wss = new WebSocketServer({ port });
 
       this.wss.on('connection', (ws) => {
-        console.error('Emacs connected');
+        this.log('Emacs connected');
         this.clients.add(ws);
 
         ws.on('message', (data) => {
@@ -41,22 +47,22 @@ export class EmacsBridge extends EventEmitter {
             const message = JSON.parse(data.toString());
             this.handleMessage(ws, message);
           } catch (error) {
-            console.error('Invalid message:', error);
+            this.log(`Invalid message: ${error}`);
           }
         });
 
         ws.on('close', () => {
-          console.error('Emacs disconnected');
+          this.log('Emacs disconnected');
           this.clients.delete(ws);
         });
 
         ws.on('error', (error) => {
-          console.error('WebSocket error:', error);
+          this.log(`WebSocket error: ${error}`);
         });
       });
 
       this.wss.on('listening', () => {
-        console.error(`Emacs bridge listening on port ${port}`);
+        this.log(`Emacs bridge listening on port ${port}`);
         resolve();
       });
 
@@ -117,6 +123,7 @@ export class EmacsBridge extends EventEmitter {
 
   async request(method: string, params?: any): Promise<any> {
     if (this.clients.size === 0) {
+      this.log('Request failed: No Emacs client connected');
       throw new Error('No Emacs client connected');
     }
 

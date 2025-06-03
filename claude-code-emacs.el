@@ -130,6 +130,27 @@
             (message "Claude Code buffer is not displayed in any window")))
       (message "No Claude Code buffer found for this project"))))
 
+;;;###autoload
+(defun claude-code-emacs-quit ()
+  "Quit the Claude Code session for the current project and kill the buffer."
+  (interactive)
+  (let* ((buffer-name (claude-code-emacs-buffer-name))
+         (buffer (get-buffer buffer-name)))
+    (if buffer
+        (progn
+          ;; First close any windows showing the buffer
+          (dolist (window (get-buffer-window-list buffer nil t))
+            (delete-window window))
+          ;; Kill the vterm process if it exists
+          (with-current-buffer buffer
+            (when (and (bound-and-true-p vterm--process)
+                       (process-live-p vterm--process))
+              (kill-process vterm--process)))
+          ;; Kill the buffer
+          (kill-buffer buffer)
+          (message "Claude Code session ended for this project"))
+      (message "No Claude Code buffer found for this project"))))
+
 ;;; Key sending functions
 
 (defun claude-code-emacs-with-vterm-buffer (body-fn)
@@ -496,7 +517,8 @@ If the command file contains $ARGUMENTS, prompt for each argument."
    ["Session"
     ("c" "Run Claude Code" claude-code-emacs-run)
     ("b" "Switch to Claude Code buffer" claude-code-emacs-switch-to-buffer)
-    ("q" "Close Claude Code" claude-code-emacs-close)
+    ("q" "Close Claude Code window" claude-code-emacs-close)
+    ("Q" "Quit Claude Code session" claude-code-emacs-quit)
     ("p" "Open Prompt File" claude-code-emacs-open-prompt-file)
     ("s" "Send Region" claude-code-emacs-send-region)]
    ["Quick Send"
