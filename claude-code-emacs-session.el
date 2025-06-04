@@ -63,7 +63,7 @@
 (defun claude-code-emacs-switch-to-buffer ()
   "Switch to Claude Code buffer for current project."
   (interactive)
-  (if-let ((buffer (claude-code-emacs-get-buffer)))
+  (if-let* ((buffer (claude-code-emacs-get-buffer)))
       (switch-to-buffer buffer)
     (if (y-or-n-p "No Claude Code session for current project. Start one? ")
         (claude-code-emacs)
@@ -72,7 +72,7 @@
 (defun claude-code-emacs-close ()
   "Close the Claude Code window for current project."
   (interactive)
-  (when-let ((buffer (claude-code-emacs-get-buffer)))
+  (when-let* ((buffer (claude-code-emacs-get-buffer)))
     (let ((windows (get-buffer-window-list buffer)))
       (dolist (window windows)
         (delete-window window)))))
@@ -80,7 +80,7 @@
 (defun claude-code-emacs-quit ()
   "Send /quit command to Claude Code and kill the session."
   (interactive)
-  (when-let ((buffer (claude-code-emacs-get-buffer)))
+  (when-let* ((buffer (claude-code-emacs-get-buffer)))
     (with-current-buffer buffer
       ;; Send /quit command
       (vterm-send-string "/quit")

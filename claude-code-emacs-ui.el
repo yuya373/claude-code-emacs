@@ -117,7 +117,7 @@ Buffers without files or outside projects are excluded."
         (paths '()))
     (when project-root
       (dolist (buffer (buffer-list))
-        (when-let ((file-path (buffer-file-name buffer)))
+        (when-let* ((file-path (buffer-file-name buffer)))
           (when (string-prefix-p project-root file-path)
             (let ((relative-path (file-relative-name file-path project-root)))
               (push (concat "@" relative-path) paths))))))
@@ -126,8 +126,8 @@ Buffers without files or outside projects are excluded."
 (defun claude-code-emacs-format-buffer-path (buffer)
   "Format BUFFER's file path with project root replaced by @.
 Returns nil if buffer has no file or is outside project."
-  (when-let ((file-path (buffer-file-name buffer))
-             (project-root (projectile-project-root)))
+  (when-let* ((file-path (buffer-file-name buffer))
+              (project-root (projectile-project-root)))
     (when (string-prefix-p project-root file-path)
       (let ((relative-path (file-relative-name file-path project-root)))
         (concat "@" relative-path)))))

@@ -107,7 +107,7 @@
         (paths '()))
     (when project-root
       (dolist (buffer (buffer-list))
-        (when-let ((file-path (buffer-file-name buffer)))
+        (when-let* ((file-path (buffer-file-name buffer)))
           (when (string-prefix-p project-root file-path)
             (push file-path paths)))))
     (sort paths #'string<)))

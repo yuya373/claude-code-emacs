@@ -116,7 +116,7 @@
                       ws))))
                ((symbol-function 'run-at-time)
                 (lambda (time repeat func &rest args)
-                  ;; Execute immediately for testing
+                  ;; Execute the function immediately for testing
                   (apply func args))))
        (claude-code-emacs-mcp-connect-with-retry project-root nil)
        (should (= attempt-count 3))
