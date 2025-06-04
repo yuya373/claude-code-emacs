@@ -2,9 +2,17 @@
 
 [![CI Tests](https://github.com/yuya373/claude-code-emacs/actions/workflows/test.yml/badge.svg)](https://github.com/yuya373/claude-code-emacs/actions/workflows/test.yml)
 
-An Emacs package to run Claude Code within Emacs.
+An Emacs package to run Claude Code CLI within Emacs. This package provides seamless integration with Claude Code, allowing you to run AI-powered coding sessions directly in your Emacs environment.
 
 ## Features
+
+- **Project-specific sessions**: Each project gets its own isolated Claude Code session
+- **Seamless buffer management**: Automatic buffer creation and switching
+- **Smart file completion**: Type `@` to quickly reference project files
+- **Custom commands**: Support for project-specific and global commands
+- **Transient menus**: Intuitive menu system for all operations
+- **Prompt management**: Dedicated mode for managing Claude Code prompts
+- **MCP integration**: Direct interaction between Claude Code and Emacs
 
 ### MCP (Model Context Protocol) Integration
 Claude Code Emacs includes MCP server integration, allowing Claude Code to interact directly with your Emacs environment.
@@ -135,6 +143,15 @@ make all
 - `lsp-mode` (optional) - For diagnostic information
 
 ## Installation
+
+### Prerequisites
+- Emacs 28.1 or later
+- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) installed and configured
+- Node.js v16+ (for MCP server)
+- Required Emacs packages: `projectile`, `vterm`, `transient`, `markdown-mode`, `websocket`
+- Optional: `lsp-mode` (for enhanced diagnostics)
+
+### Basic Setup
 Clone this repository and add to your Emacs configuration:
 
 ```elisp
@@ -149,7 +166,7 @@ Clone this repository and add to your Emacs configuration:
 ```
 
 ### MCP Server Setup
-The MCP server requires Node.js. To install dependencies and build:
+The MCP server enables Claude Code to interact with your Emacs environment:
 
 ```bash
 # Install all dependencies (including MCP server)
@@ -159,13 +176,17 @@ make install-deps
 make mcp-build
 ```
 
-## Usage
-1. Run `M-x claude-code-emacs-run` to start Claude Code in the current project
-2. Use `M-x claude-code-emacs-open-prompt-file` to create/edit project-specific prompts
-3. Access all commands through the transient menu with `C-c c`
-4. Add Emacs as an MCP server with `claude mcp add-json ...`
+For detailed MCP setup instructions, see [docs/MCP-SETUP.md](docs/MCP-SETUP.md).
 
-### Adding Emacs as an MCP Server to Claude Code
+## Quick Start
+
+1. **Start Claude Code**: `M-x claude-code-emacs-run` (or `C-c c c` with recommended keybinding)
+2. **Open transient menu**: `C-c c` to see all available commands
+3. **Create prompts**: `M-x claude-code-emacs-open-prompt-file` to manage project prompts
+
+### Adding Emacs as an MCP Server
+To enable MCP integration, configure Claude Code:
+
 ```shell
 claude mcp add-json emacs '{
   "type": "stdio",
@@ -176,46 +197,28 @@ claude mcp add-json emacs '{
 }'
 ```
 
-## TODO
-### Additional MCP Server Features
-### openDiff
-Opens a diff view for files (similar to Git diff display).
+Then type `/mcp` in your Claude Code session to activate MCP tools.
 
-```javascript
-mcpServer.tool("openDiff", "Open a git diff for the file", {
-  old_file_path: z.string().describe("Path to the file to show diff for"),
-  new_file_path: z.string().describe("Path to the file to show diff for"),
-  new_file_contents: z.string().describe("Contents of the new file"),
-  tab_name: z.string().describe("Path to the file to show diff for")
-});
-```
-### getWorkspaceFolders
-Gets information about currently open workspace folders.
+## Contributing
 
-```javascript
-mcpServer.tool("getWorkspaceFolders", "Get all workspace folders currently open in the IDE", {});
-```
+Contributions are welcome! Please:
+1. Fork the repository
+2. Create a feature branch
+3. Add tests for new functionality
+4. Ensure all tests pass with `make test`
+5. Submit a pull request
 
-Returns:
-- Folder path
-- Folder name
-- Index
-#### checkDocumentDirty
-Checks if a document has unsaved changes.
+## Roadmap
 
-```javascript
-mcpServer.tool("checkDocumentDirty", "Check if a document has unsaved changes (is dirty)", {
-  filePath: z.string().describe("Path to the file to check")
-});
-```
-### saveDocument
-Saves a document with unsaved changes.
+### Planned MCP Server Features
+- **openDiff**: Display file diffs in Emacs
+- **getWorkspaceFolders**: List all project folders
+- **checkDocumentDirty**: Check for unsaved changes
+- **saveDocument**: Save files with unsaved changes
+- **runCommand**: Execute Emacs commands from Claude Code
+- **getSymbols**: Access code symbols and definitions
 
-```javascript
-mcpServer.tool("saveDocument", "Save a document with unsaved changes", {
-  filePath: z.string().describe("Path to the file to save")
-});
-```
+See [TODO](#) section in code for implementation details.
 
 
 ## License

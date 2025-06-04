@@ -2,9 +2,17 @@
 
 [![CI Tests](https://github.com/yuya373/claude-code-emacs/actions/workflows/test.yml/badge.svg)](https://github.com/yuya373/claude-code-emacs/actions/workflows/test.yml)
 
-Claude CodeをEmacs内で実行するためのパッケージです。
+Claude Code CLIをEmacs内で実行するためのパッケージです。このパッケージはClaude Codeとのシームレスな統合を提供し、AI駆動のコーディングセッションをEmacsで直接実行できます。
 
 ## 機能
+
+- **プロジェクト固有のセッション**: 各プロジェクトが独自の独立したClaude Codeセッションを持ちます
+- **シームレスなバッファ管理**: 自動的なバッファ作成と切り替え
+- **スマートなファイル補完**: `@`を入力してプロジェクトファイルを素早く参照
+- **カスタムコマンド**: プロジェクト固有およびグローバルコマンドのサポート
+- **Transientメニュー**: 全操作のための直感的なメニューシステム
+- **プロンプト管理**: Claude Codeプロンプト管理用の専用モード
+- **MCP統合**: Claude CodeとEmacs間の直接的な相互作用
 
 ### MCP（Model Context Protocol）統合
 Claude Code EmacsにはMCPサーバー統合が含まれており、Claude Codeが直接Emacs環境と対話できます。
@@ -135,6 +143,15 @@ make all
 - `lsp-mode`（オプション） - 診断情報用
 
 ## インストール
+
+### 前提条件
+- Emacs 28.1以降
+- [Claude Code CLI](https://docs.anthropic.com/ja/docs/claude-code)がインストール済みで設定済み
+- Node.js v16以降（MCPサーバー用）
+- 必須Emacsパッケージ: `projectile`、`vterm`、`transient`、`markdown-mode`、`websocket`
+- オプション: `lsp-mode`（拡張診断機能用）
+
+### 基本セットアップ
 このリポジトリをクローンして、Emacsの設定に追加してください：
 
 ```elisp
@@ -149,7 +166,7 @@ make all
 ```
 
 ### MCPサーバーのセットアップ
-MCPサーバーにはNode.jsが必要です。依存関係のインストールとビルド：
+MCPサーバーを使用すると、Claude CodeがEmacs環境と対話できるようになります：
 
 ```bash
 # 全ての依存関係をインストール（MCPサーバーを含む）
@@ -159,13 +176,17 @@ make install-deps
 make mcp-build
 ```
 
-## 使い方
-1. `M-x claude-code-emacs-run`を実行して現在のプロジェクトでClaude Codeを起動
-2. `M-x claude-code-emacs-open-prompt-file`でプロジェクト固有のプロンプトを作成/編集
-3. `C-c c`でtransientメニューから全てのコマンドにアクセス
-4. `claude mcp add-json ...`でMCPサーバーとしてEmacsを追加
+詳しいMCPセットアップ手順については、[docs/MCP-SETUP.md](docs/MCP-SETUP.md)を参照してください。
 
-### Claude Code に MCPサーバーを追加する方法
+## クイックスタート
+
+1. **Claude Codeを起動**: `M-x claude-code-emacs-run`（推奨キーバインドでは`C-c c c`）
+2. **Transientメニューを開く**: `C-c c`で利用可能な全コマンドを表示
+3. **プロンプトを作成**: `M-x claude-code-emacs-open-prompt-file`でプロジェクトプロンプトを管理
+
+### EmacsをMCPサーバーとして追加
+MCP統合を有効にするには、Claude Codeを設定します：
+
 ```shell
 claude mcp add-json emacs '{
   "type": "stdio",
@@ -176,47 +197,28 @@ claude mcp add-json emacs '{
 }'
 ```
 
-## TODO
-### MCPサーバーの機能追加
-### openDiff
-ファイルの差分表示を開きます（Git diffのような表示）。
+その後、Claude Codeセッションで `/mcp` と入力してMCPツールを有効化します。
 
-```javascript
-mcpServer.tool("openDiff", "Open a git diff for the file", {
-  old_file_path: z.string().describe("Path to the file to show diff for"),
-  new_file_path: z.string().describe("Path to the file to show diff for"),
-  new_file_contents: z.string().describe("Contents of the new file"),
-  tab_name: z.string().describe("Path to the file to show diff for")
-});
-```
-### getWorkspaceFolders
-現在開いているワークスペースフォルダの情報を取得します。
+## コントリビューション
 
-```javascript
-mcpServer.tool("getWorkspaceFolders", "Get all workspace folders currently open in the IDE", {});
-```
+コントリビューションを歓迎します！以下の手順に従ってください：
+1. リポジトリをフォーク
+2. 機能ブランチを作成
+3. 新機能のテストを追加
+4. `make test`で全テストが通ることを確認
+5. プルリクエストを送信
 
-返される情報：
-- フォルダのパス
-- フォルダ名
-- インデックス
-#### checkDocumentDirty
-ドキュメントに未保存の変更があるかチェックします。
+## ロードマップ
 
-```javascript
-mcpServer.tool("checkDocumentDirty", "Check if a document has unsaved changes (is dirty)", {
-  filePath: z.string().describe("Path to the file to check")
-});
-```
-### saveDocument
-未保存の変更があるドキュメントを保存します。
+### 計画中のMCPサーバー機能
+- **openDiff**: Emacsでファイル差分を表示
+- **getWorkspaceFolders**: 全プロジェクトフォルダを一覧表示
+- **checkDocumentDirty**: 未保存の変更をチェック
+- **saveDocument**: 未保存の変更があるファイルを保存
+- **runCommand**: Claude CodeからEmacsコマンドを実行
+- **getSymbols**: コードシンボルと定義にアクセス
 
-```javascript
-mcpServer.tool("saveDocument", "Save a document with unsaved changes", {
-  filePath: z.string().describe("Path to the file to save")
-});
-```
-
+実装の詳細についてはコード内の[TODO](#)セクションを参照してください。
 
 ## ライセンス
 このプログラムはフリーソフトウェアです。Free Software Foundationが公開する

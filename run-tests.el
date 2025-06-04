@@ -10,23 +10,33 @@
 ;; Add current directory to load path
 (add-to-list 'load-path (file-name-directory load-file-name))
 
-;; Load dependencies
-(require 'ert)
-(require 'projectile)
-(require 'vterm)
-(require 'transient)
-(require 'markdown-mode)
+;; Initialize package system
+(require 'package)
+(package-initialize)
 
-;; Load the package
+;; Disable MCP auto-connect for tests before loading anything
+(setq claude-code-emacs-mcp-auto-connect nil)
+
+;; Load all modules
 (require 'claude-code-emacs)
 
-;; Load tests
-(load-file "test-claude-code-emacs.el")
+;; Load test files in order
+;; Core module tests
+(load-file "test-claude-code-emacs-core.el")
+(load-file "test-claude-code-emacs-buffer.el")
+(load-file "test-claude-code-emacs-session.el")
+(load-file "test-claude-code-emacs-commands.el")
+(load-file "test-claude-code-emacs-ui.el")
+(load-file "test-claude-code-emacs-prompt.el")
 
-;; Load MCP tests if available
-(when (file-exists-p "test-claude-code-emacs-mcp.el")
-  (when (require 'claude-code-emacs-mcp nil t)
-    (load-file "test-claude-code-emacs-mcp.el")))
+;; MCP module tests (if available)
+(when (file-exists-p "test-claude-code-emacs-mcp-connection.el")
+  (load-file "test-claude-code-emacs-mcp-connection.el")
+  (load-file "test-claude-code-emacs-mcp-protocol.el")
+  (load-file "test-claude-code-emacs-mcp-tools.el"))
+
+;; Note: Old test files are no longer loaded to avoid duplicate test definitions
+;; The tests have been split into module-specific files above
 
 ;; Run all tests
 (ert-run-tests-batch-and-exit)

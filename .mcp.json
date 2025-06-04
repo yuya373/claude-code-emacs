@@ -4,7 +4,7 @@
       "type": "stdio",
       "command": "node",
       "args": [
-        "mcp-server/dist/index.js"
+        "/home/yuya373/dev/claude-code-emacs/mcp-server/dist/index.js"
       ]
     }
   }

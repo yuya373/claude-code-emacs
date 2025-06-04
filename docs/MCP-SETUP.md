@@ -79,11 +79,13 @@ Retrieves LSP diagnostics for the project.
 - Ensure the port (default: 8766) is not in use: `lsof -i :8766`
 - Verify Node.js is installed and accessible: `node --version`
 - Check if the MCP server is running: `ps aux | grep mcp-server`
+- Ensure the MCP server is built: `make mcp-build`
 
 ### Connection issues
 - Make sure the MCP server path in Claude Code config is absolute
 - Check that the Emacs package is loaded correctly
-- Verify `lsp-mode` is installed for diagnostics functionality
+- Verify `lsp-mode` is installed for diagnostics functionality (optional)
+- Check the WebSocket server is listening: `netstat -an | grep 8766`
 
 ### Testing the connection
 1. Start Claude Code: `M-x claude-code-emacs-run`
@@ -91,6 +93,12 @@ Retrieves LSP diagnostics for the project.
 3. Check the `*Messages*` buffer for "Connected to MCP server WebSocket on port 8766"
 4. In Claude Code, try using a tool like: "Show me all open buffers"
 5. To manually reconnect: `M-x claude-code-emacs-mcp-connect`
+
+### Common issues and solutions
+- **"WebSocket connection failed"**: Ensure no firewall is blocking port 8766
+- **"MCP tools not available"**: Make sure you typed `/mcp` in Claude Code
+- **"Cannot find module"**: Rebuild the MCP server with `make mcp-build`
+- **"Permission denied"**: Check file permissions on the MCP server directory
 
 ## Development
 

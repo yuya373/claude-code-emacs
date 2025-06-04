@@ -4,9 +4,31 @@ EMACS ?= emacs
 BATCH = $(EMACS) -batch -Q -L .
 
 # Files
-EL_FILES = claude-code-emacs.el
-MCP_EL_FILES = claude-code-emacs-mcp.el
-TEST_FILES = test-claude-code-emacs.el test-claude-code-emacs-mcp.el
+CORE_FILES = claude-code-emacs-core.el \
+	     claude-code-emacs-buffer.el \
+	     claude-code-emacs-session.el \
+	     claude-code-emacs-commands.el \
+	     claude-code-emacs-ui.el \
+	     claude-code-emacs-prompt.el
+
+MCP_MODULES = claude-code-emacs-mcp-connection.el \
+	      claude-code-emacs-mcp-protocol.el \
+	      claude-code-emacs-mcp-tools.el
+
+TEST_CORE_FILES = test-claude-code-emacs-core.el \
+		  test-claude-code-emacs-buffer.el \
+		  test-claude-code-emacs-session.el \
+		  test-claude-code-emacs-commands.el \
+		  test-claude-code-emacs-ui.el \
+		  test-claude-code-emacs-prompt.el
+
+TEST_MCP_FILES = test-claude-code-emacs-mcp-connection.el \
+		 test-claude-code-emacs-mcp-protocol.el \
+		 test-claude-code-emacs-mcp-tools.el
+
+EL_FILES = $(CORE_FILES) claude-code-emacs.el
+MCP_EL_FILES = $(MCP_MODULES) claude-code-emacs-mcp.el
+TEST_FILES = $(TEST_CORE_FILES) $(TEST_MCP_FILES)
 
 .PHONY: test clean compile install-deps all mcp-build mcp-clean mcp-install mcp-dev mcp-start mcp-test
 
@@ -21,14 +43,12 @@ compile: install-deps
 	@$(BATCH) -l package \
 		--eval "(package-initialize)" \
 		-f batch-byte-compile $(EL_FILES)
-	@if [ -f $(MCP_EL_FILES) ]; then \
-		echo "Compiling MCP integration..."; \
-		$(BATCH) -l package \
-			--eval "(package-initialize)" \
-			-f batch-byte-compile $(MCP_EL_FILES); \
-	fi
+	@echo "Compiling MCP integration..."
+	@$(BATCH) -l package \
+		--eval "(package-initialize)" \
+		-f batch-byte-compile $(MCP_EL_FILES)
 
-test: install-deps
+test: compile
 	@echo "Running tests..."
 	@$(BATCH) -l package \
 		--eval "(package-initialize)" \

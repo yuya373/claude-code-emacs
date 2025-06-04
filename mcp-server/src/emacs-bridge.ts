@@ -21,7 +21,8 @@ interface JsonRpcResponse {
 
 export class EmacsBridge extends EventEmitter {
   private wss?: WebSocketServer;
-  private clients: Set<WebSocket> = new Set();
+  private clients: Map<string, WebSocket> = new Map();
+  private sessionId?: string;
   private pendingRequests: Map<number | string, {
     resolve: (result: any) => void;
     reject: (error: any) => void;
@@ -34,47 +35,82 @@ export class EmacsBridge extends EventEmitter {
     this.log = logger || (() => {});
   }
 
-  async start(port: number): Promise<void> {
+  async start(port: number = 0, sessionId?: string): Promise<number> {
+    this.sessionId = sessionId;
     return new Promise((resolve, reject) => {
-      this.wss = new WebSocketServer({ port });
-
-      this.wss.on('connection', (ws) => {
-        this.log('Emacs connected');
-        this.clients.add(ws);
-
-        ws.on('message', (data) => {
-          try {
-            const message = JSON.parse(data.toString());
-            this.handleMessage(ws, message);
-          } catch (error) {
-            this.log(`Invalid message: ${error}`);
+      try {
+        this.wss = new WebSocketServer({ 
+          port,
+          verifyClient: (info, cb) => {
+            try {
+              this.log(`WebSocket upgrade request - origin: ${info.origin}, url: ${info.req.url}, headers: ${JSON.stringify(info.req.headers)}`);
+              // Accept all connections for now
+              cb(true);
+            } catch (error) {
+              this.log(`Error in verifyClient: ${error}`);
+              cb(false, 400, 'Bad Request');
+            }
           }
         });
 
-        ws.on('close', () => {
-          this.log('Emacs disconnected');
-          this.clients.delete(ws);
-        });
+        this.wss.on('connection', (ws, req) => {
+          this.log(`WebSocket connection attempt - URL: ${req.url}, headers: ${JSON.stringify(req.headers)}`);
+          
+          try {
+            const url = new URL(req.url || '', `http://${req.headers.host}`);
+            const clientSessionId = decodeURIComponent(url.searchParams.get('session') || 'default');
 
-        ws.on('error', (error) => {
-          this.log(`WebSocket error: ${error}`);
+            this.log(`Emacs connected for session: ${clientSessionId}`);
+            this.clients.set(clientSessionId, ws);
+
+            ws.on('message', (data) => {
+              try {
+                const message = JSON.parse(data.toString());
+                this.handleMessage(ws, message);
+              } catch (error) {
+                this.log(`Invalid message: ${error}`);
+              }
+            });
+
+            ws.on('close', () => {
+              this.log(`Emacs disconnected for session: ${clientSessionId}`);
+              this.clients.delete(clientSessionId);
+            });
+
+            ws.on('error', (error) => {
+              this.log(`WebSocket error: ${error}`);
+            });
+          } catch (error) {
+            this.log(`Error handling WebSocket connection: ${error}`);
+            ws.close(1002, 'Invalid request');
+          }
         });
-      });
 
       this.wss.on('listening', () => {
-        this.log(`Emacs bridge listening on port ${port}`);
-        resolve();
+        const assignedPort = (this.wss!.address() as any).port;
+        this.log(`Emacs bridge listening on port ${assignedPort}`);
+        resolve(assignedPort);
       });
 
       this.wss.on('error', (error) => {
+        this.log(`WebSocketServer error: ${error}`);
         reject(error);
       });
+
+      // Add additional error handling
+      this.wss.on('headers', (headers, req) => {
+        this.log(`WebSocket headers event - URL: ${req.url}`);
+      });
+      } catch (error) {
+        this.log(`Failed to create WebSocketServer: ${error}`);
+        reject(error);
+      }
     });
   }
 
   async stop(): Promise<void> {
     if (this.wss) {
-      this.clients.forEach(client => client.close());
+      this.clients.forEach((client) => client.close());
       this.clients.clear();
 
       return new Promise((resolve) => {
@@ -122,13 +158,13 @@ export class EmacsBridge extends EventEmitter {
   }
 
   async request(method: string, params?: any): Promise<any> {
-    if (this.clients.size === 0) {
-      this.log('Request failed: No Emacs client connected');
+    const sessionClient = this.sessionId ? this.clients.get(this.sessionId) : null;
+    const client = sessionClient || Array.from(this.clients.values())[0];
+
+    if (!client) {
+      this.log(`Request failed: No Emacs client connected for session ${this.sessionId}`);
       throw new Error('No Emacs client connected');
     }
-
-    // Use first connected client
-    const client = Array.from(this.clients)[0];
     const id = ++this.requestId;
 
     const request: JsonRpcRequest = {
