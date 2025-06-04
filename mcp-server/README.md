@@ -19,34 +19,34 @@ This MCP (Model Context Protocol) server enables Claude Code to interact with Em
    ```
 
 2. Configure Claude Code to use this MCP server:
-   - Copy `claude_desktop_config.json` to your Claude Code configuration directory
-   - Or add the following to your existing config:
-   ```json
-   {
-     "mcpServers": {
-       "emacs": {
-         "command": "node",
-         "args": ["path/to/mcp-server/dist/index.js"]
-       }
-     }
-   }
+   
+   Method 1: Use the CLI wizard
+   ```bash
+   claude mcp add-json emacs '{
+     "type": "stdio",
+     "command": "node",
+     "args": ["/absolute/path/to/claude-code-emacs/mcp-server/dist/index.js"]
+   }'
    ```
+   
+   Note: Replace `/absolute/path/to/claude-code-emacs` with the actual path
 
 3. Start Emacs with the claude-code-emacs package loaded
 
-4. Run Claude Code - the MCP server will start automatically when needed
+4. Start Claude Code and the MCP server will automatically start when Claude requests MCP tools
 
 ## Architecture
 
 The MCP server acts as a bridge between Claude Code and Emacs:
 
 ```
-Claude Code <-> MCP Server <-> WebSocket <-> Emacs
+Claude Code <--(stdio/JSON-RPC)--> MCP Server <--(WebSocket:8766)--> Emacs
 ```
 
-- Claude Code communicates with the MCP server using stdio (JSON-RPC)
-- The MCP server maintains a WebSocket connection to Emacs
+- Claude Code communicates with the MCP server using stdio (JSON-RPC protocol)
+- The MCP server maintains a WebSocket connection to Emacs on port 8766
 - Emacs handles the actual file operations and provides editor state
+- The server automatically starts when Claude Code needs to use Emacs tools
 
 ## Development
 
@@ -71,3 +71,17 @@ The MCP server logs to a file for troubleshooting:
   - Emacs WebSocket connection status
   - Request/response debugging information
   - Error messages and stack traces
+
+## Port Configuration
+
+The default WebSocket port is 8766. To use a different port:
+
+1. In Emacs, set `claude-code-emacs-mcp-port`:
+   ```elisp
+   (setq claude-code-emacs-mcp-port 8767)
+   ```
+
+2. Pass the port as an argument in the MCP configuration:
+   ```json
+   "args": ["/path/to/mcp-server/dist/index.js", "8767"]
+   ```

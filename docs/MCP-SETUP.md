@@ -18,28 +18,15 @@ This guide explains how to set up and use the MCP (Model Context Protocol) integ
 
 2. **Configure Claude Code**:
    
-   Method 1: Use the CLI wizard
-   ```bash
-   claude mcp add
-   ```
-   
-   Method 2: Edit the settings file directly
-   
-   Settings file locations:
-   - **User settings**: `~/.claude/settings.json`
-   - **Project settings**: `.claude/settings.json`
-   
-   Add the following content:
-   ```json
-   {
-     "mcpServers": {
-       "emacs": {
-         "type": "stdio",
-         "command": "node",
-         "args": ["/path/to/claude-code-emacs/mcp-server/dist/index.js"]
-       }
-     }
-   }
+   Use the CLI wizard
+   ```shell
+   claude mcp add-json emacs '{
+     "type": "stdio",
+     "command": "node",
+     "args": [
+       "/path/to/claude-code-emacs/mcp-server/dist/index.js"
+     ]
+   }'
    ```
    
    Note: Replace `/path/to/claude-code-emacs` with the actual path
