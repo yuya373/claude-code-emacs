@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an Emacs package that provides integration with Claude Code CLI. The package allows running Claude Code sessions within Emacs using vterm mode, with each project getting its own isolated session.
+This is an Emacs package that provides integration with Claude Code CLI. The package allows running Claude Code sessions within Emacs using vterm mode, with each project getting its own isolated session. Additionally, it includes an MCP (Model Context Protocol) server that enables Claude Code to interact directly with the Emacs environment.
 
 ## Development Commands
 
@@ -21,6 +21,9 @@ emacs -batch -l run-tests.el -f ert-run-tests-batch-and-exit 'test-name-pattern'
 
 # Run MCP server tests
 npm test --prefix mcp-server
+
+# Run specific MCP server test
+npm test --prefix mcp-server -- --testNamePattern="test-pattern"
 ```
 
 ### Building
@@ -39,6 +42,9 @@ make install-deps
 
 # Build MCP server
 make mcp-build
+
+# Start MCP server in development mode (with hot-reload)
+make mcp-dev
 ```
 
 ### Linting and Type Checking
@@ -53,6 +59,18 @@ cd mcp-server && npm run build
 # Run all tests to ensure functionality
 make test
 ```
+
+## Key Files and Entry Points
+
+### Emacs Lisp
+- `claude-code-emacs.el` - Main package entry point
+- `claude-code-emacs-mcp.el` - MCP integration (WebSocket client)
+- `test-*.el` - Test files using ERT framework
+
+### MCP Server (TypeScript)
+- `mcp-server/src/index.ts` - Main server entry point
+- `mcp-server/src/emacs-bridge.ts` - WebSocket server for Emacs communication
+- `mcp-server/src/tools/*.ts` - Individual MCP tool implementations
 
 ## Architecture
 
@@ -168,3 +186,10 @@ When working on the MCP server:
 2. Check logs for debugging: `tail -f /tmp/claude-code-emacs-mcp.log`
 3. Test TypeScript code: `npm test --prefix mcp-server`
 4. The server auto-starts when Claude Code requests MCP tools
+5. For development with hot-reload: `make mcp-dev`
+
+### MCP Communication Flow
+1. Claude Code connects to MCP server via stdio
+2. MCP server establishes WebSocket connection to Emacs (port 8766)
+3. MCP tools translate requests into Emacs Lisp commands
+4. Results are sent back through the same chain
