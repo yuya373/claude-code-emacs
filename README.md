@@ -158,12 +158,11 @@ Clone this repository and add to your Emacs configuration:
 (add-to-list 'load-path "/path/to/claude-code-emacs")
 (require 'claude-code-emacs)
 
-;; Optional: Enable MCP integration
-(require 'claude-code-emacs-mcp)
-
 ;; Optional: Set global keybinding for the main menu
 (global-set-key (kbd "C-c c") 'claude-code-emacs-transient)
 ```
+
+Note: The package is now modularized. All modules are loaded automatically when you require `claude-code-emacs`.
 
 ### MCP Server Setup
 The MCP server enables Claude Code to interact with your Emacs environment:
@@ -198,6 +197,22 @@ claude mcp add-json emacs '{
 ```
 
 Then type `/mcp` in your Claude Code session to activate MCP tools.
+
+## Architecture
+
+The package is organized into focused modules:
+
+- **claude-code-emacs.el** - Main entry point, loads all modules
+- **claude-code-emacs-core.el** - Core utilities (chunking, error handling)
+- **claude-code-emacs-buffer.el** - Buffer naming and management
+- **claude-code-emacs-session.el** - Session lifecycle management
+- **claude-code-emacs-commands.el** - Command execution and slash commands
+- **claude-code-emacs-ui.el** - Transient menu interfaces
+- **claude-code-emacs-prompt.el** - Prompt file mode and operations
+- **claude-code-emacs-mcp.el** - MCP WebSocket client integration
+- **claude-code-emacs-mcp-connection.el** - WebSocket connection management
+- **claude-code-emacs-mcp-protocol.el** - MCP protocol implementation
+- **claude-code-emacs-mcp-tools.el** - MCP tool handlers
 
 ## Contributing
 

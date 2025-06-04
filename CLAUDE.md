@@ -205,9 +205,10 @@ When modifying this package:
 
 ### Architecture
 The MCP server provides a bridge between Claude Code and Emacs:
-- WebSocket server on port 8766 for Emacs connection
+- WebSocket server on dynamic port for Emacs connection
 - stdio interface for Claude Code MCP protocol
 - Implements tools: openFile, getOpenBuffers, getCurrentSelection, getDiagnostics
+- Per-project WebSocket connections for session isolation
 
 ### Setup
 Claude Code needs to be configured to use the MCP server:
@@ -235,6 +236,10 @@ When working on the MCP server:
 
 ### MCP Communication Flow
 1. Claude Code connects to MCP server via stdio
-2. MCP server establishes WebSocket connection to Emacs (port 8766)
+2. MCP server establishes WebSocket connection to Emacs (dynamic port)
 3. MCP tools translate requests into Emacs Lisp commands
 4. Results are sent back through the same chain
+
+### Known Issues and Solutions
+- **WebSocket 400 error**: Fixed by ensuring the WebSocket URL includes a leading slash (e.g., `ws://localhost:port/?session=...`)
+- **Connection timing**: WebSocket connections are established asynchronously; the `on-open` callback is used to ensure proper initialization

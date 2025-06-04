@@ -158,12 +158,11 @@ make all
 (add-to-list 'load-path "/path/to/claude-code-emacs")
 (require 'claude-code-emacs)
 
-;; オプション: MCP統合を有効化
-(require 'claude-code-emacs-mcp)
-
 ;; オプション: メインメニューのグローバルキーバインドを設定
 (global-set-key (kbd "C-c c") 'claude-code-emacs-transient)
 ```
+
+注意: パッケージはモジュール化されました。`claude-code-emacs`をrequireすると、全てのモジュールが自動的に読み込まれます。
 
 ### MCPサーバーのセットアップ
 MCPサーバーを使用すると、Claude CodeがEmacs環境と対話できるようになります：
@@ -198,6 +197,22 @@ claude mcp add-json emacs '{
 ```
 
 その後、Claude Codeセッションで `/mcp` と入力してMCPツールを有効化します。
+
+## アーキテクチャ
+
+パッケージは以下のモジュールに整理されています：
+
+- **claude-code-emacs.el** - メインエントリーポイント、全モジュールを読み込み
+- **claude-code-emacs-core.el** - コアユーティリティ（チャンキング、エラーハンドリング）
+- **claude-code-emacs-buffer.el** - バッファ名前付けと管理
+- **claude-code-emacs-session.el** - セッションライフサイクル管理
+- **claude-code-emacs-commands.el** - コマンド実行とスラッシュコマンド
+- **claude-code-emacs-ui.el** - Transientメニューインターフェース
+- **claude-code-emacs-prompt.el** - プロンプトファイルモードと操作
+- **claude-code-emacs-mcp.el** - MCP WebSocketクライアント統合
+- **claude-code-emacs-mcp-connection.el** - WebSocket接続管理
+- **claude-code-emacs-mcp-protocol.el** - MCPプロトコル実装
+- **claude-code-emacs-mcp-tools.el** - MCPツールハンドラー
 
 ## コントリビューション
 
