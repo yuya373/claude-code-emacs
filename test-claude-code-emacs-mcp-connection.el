@@ -24,8 +24,12 @@
      ;; Register default port for test project
      (puthash (projectile-project-root) 8766 claude-code-emacs-mcp-project-ports)
      (cl-letf* (((symbol-function 'websocket-open)
-                 (lambda (&rest args)
-                   (let ((ws (cons 'mock-websocket nil)))
+                 (lambda (url &rest args)
+                   (let ((ws (cons 'mock-websocket nil))
+                         (on-open (plist-get args :on-open)))
+                     ;; Call on-open callback immediately
+                     (when on-open
+                       (funcall on-open ws))
                      ws)))
                 ((symbol-function 'websocket-openp)
                  (lambda (ws)
@@ -100,11 +104,15 @@
    (let ((attempt-count 0)
          (project-root (projectile-project-root)))
      (cl-letf (((symbol-function 'websocket-open)
-                (lambda (&rest args)
+                (lambda (url &rest args)
                   (setq attempt-count (1+ attempt-count))
                   (if (< attempt-count 3)
                       (signal 'error '("Connection failed"))
-                    (let ((ws (cons 'mock-websocket nil)))
+                    (let ((ws (cons 'mock-websocket nil))
+                          (on-open (plist-get args :on-open)))
+                      ;; Call on-open callback for successful connection
+                      (when on-open
+                        (funcall on-open ws))
                       ws))))
                ((symbol-function 'run-at-time)
                 (lambda (time repeat func &rest args)
