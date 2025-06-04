@@ -176,6 +176,48 @@ claude mcp add-json emacs '{
 }'
 ```
 
+## TODO
+### Additional MCP Server Features
+### openDiff
+Opens a diff view for files (similar to Git diff display).
+
+```javascript
+mcpServer.tool("openDiff", "Open a git diff for the file", {
+  old_file_path: z.string().describe("Path to the file to show diff for"),
+  new_file_path: z.string().describe("Path to the file to show diff for"),
+  new_file_contents: z.string().describe("Contents of the new file"),
+  tab_name: z.string().describe("Path to the file to show diff for")
+});
+```
+### getWorkspaceFolders
+Gets information about currently open workspace folders.
+
+```javascript
+mcpServer.tool("getWorkspaceFolders", "Get all workspace folders currently open in the IDE", {});
+```
+
+Returns:
+- Folder path
+- Folder name
+- Index
+#### checkDocumentDirty
+Checks if a document has unsaved changes.
+
+```javascript
+mcpServer.tool("checkDocumentDirty", "Check if a document has unsaved changes (is dirty)", {
+  filePath: z.string().describe("Path to the file to check")
+});
+```
+### saveDocument
+Saves a document with unsaved changes.
+
+```javascript
+mcpServer.tool("saveDocument", "Save a document with unsaved changes", {
+  filePath: z.string().describe("Path to the file to save")
+});
+```
+
+
 ## License
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

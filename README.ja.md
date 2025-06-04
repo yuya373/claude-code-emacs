@@ -176,6 +176,48 @@ claude mcp add-json emacs '{
 }'
 ```
 
+## TODO
+### MCPサーバーの機能追加
+### openDiff
+ファイルの差分表示を開きます（Git diffのような表示）。
+
+```javascript
+mcpServer.tool("openDiff", "Open a git diff for the file", {
+  old_file_path: z.string().describe("Path to the file to show diff for"),
+  new_file_path: z.string().describe("Path to the file to show diff for"),
+  new_file_contents: z.string().describe("Contents of the new file"),
+  tab_name: z.string().describe("Path to the file to show diff for")
+});
+```
+### getWorkspaceFolders
+現在開いているワークスペースフォルダの情報を取得します。
+
+```javascript
+mcpServer.tool("getWorkspaceFolders", "Get all workspace folders currently open in the IDE", {});
+```
+
+返される情報：
+- フォルダのパス
+- フォルダ名
+- インデックス
+#### checkDocumentDirty
+ドキュメントに未保存の変更があるかチェックします。
+
+```javascript
+mcpServer.tool("checkDocumentDirty", "Check if a document has unsaved changes (is dirty)", {
+  filePath: z.string().describe("Path to the file to check")
+});
+```
+### saveDocument
+未保存の変更があるドキュメントを保存します。
+
+```javascript
+mcpServer.tool("saveDocument", "Save a document with unsaved changes", {
+  filePath: z.string().describe("Path to the file to save")
+});
+```
+
+
 ## ライセンス
 このプログラムはフリーソフトウェアです。Free Software Foundationが公開する
 GNU General Public License（バージョン3またはそれ以降のバージョン）の
