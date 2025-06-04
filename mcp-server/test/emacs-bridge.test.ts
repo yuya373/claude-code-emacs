@@ -40,10 +40,14 @@ describe('EmacsBridge', () => {
       const assignedPort = await bridge.start(port, testSessionId);
 
       expect(assignedPort).toBe(9999);
-      expect(WebSocketServer).toHaveBeenCalledWith({ port });
+      expect(WebSocketServer).toHaveBeenCalledWith({ 
+        port,
+        verifyClient: expect.any(Function)
+      });
       expect(mockWss.on).toHaveBeenCalledWith('connection', expect.any(Function));
       expect(mockWss.on).toHaveBeenCalledWith('listening', expect.any(Function));
       expect(mockWss.on).toHaveBeenCalledWith('error', expect.any(Function));
+      expect(mockWss.on).toHaveBeenCalledWith('headers', expect.any(Function));
     });
   });
 
