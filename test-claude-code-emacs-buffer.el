@@ -97,8 +97,15 @@
              ((symbol-function 'vterm-send-return)
               (lambda () (setq return-sent t)))
              ((symbol-function 'vterm-send-key)
-              (lambda (key) (when (equal key (kbd "C-r"))
-                              (setq ctrl-r-sent t)))))
+              (lambda (key &optional shift)
+                ;; Check if the key is Ctrl-R (character code 18)
+                (when (and (stringp key) (= (aref key 0) ?\C-r))
+                  (setq ctrl-r-sent t))))
+             ((symbol-function 'kbd)
+              (lambda (key-string)
+                (cond ((string= key-string "C-r") "\C-r")
+                      ((string= key-string "<backtab>") "<backtab>")
+                      (t key-string)))))
 
     (with-claude-mock-buffer
      ;; Test escape sending

@@ -51,6 +51,7 @@
 (declare-function claude-code-emacs-send-escape "claude-code-emacs-commands" ())
 (declare-function claude-code-emacs-send-return "claude-code-emacs-commands" ())
 (declare-function claude-code-emacs-send-ctrl-r "claude-code-emacs-commands" ())
+(declare-function claude-code-emacs-send-shift-tab "claude-code-emacs-commands" ())
 (declare-function claude-code-emacs-init "claude-code-emacs-commands" ())
 (declare-function claude-code-emacs-clear "claude-code-emacs-commands" ())
 (declare-function claude-code-emacs-help "claude-code-emacs-commands" ())
@@ -191,7 +192,8 @@ Each path is inserted on a new line with @ prefix."
     ("g" "Send commit" claude-code-emacs-send-commit)
     ("e" "Send Escape" claude-code-emacs-send-escape)
     ("m" "Send Return" claude-code-emacs-send-return)
-    ("r" "Send Ctrl+R (toggle expand)" claude-code-emacs-send-ctrl-r)]
+    ("r" "Send Ctrl+R (toggle expand)" claude-code-emacs-send-ctrl-r)
+    ("TAB" "Toggle auto accept (Shift+Tab)" claude-code-emacs-send-shift-tab)]
    ["Commands"
     ("i" "Init project" claude-code-emacs-init)
     ("k" "Clear conversation" claude-code-emacs-clear)

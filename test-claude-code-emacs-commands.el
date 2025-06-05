@@ -69,6 +69,34 @@
     (claude-code-emacs-compact "focus on tests")
     (should (member "/compact focus on tests" sent-commands))))
 
+(ert-deftest test-claude-code-emacs-key-sending-commands ()
+  "Test key sending commands."
+  (with-claude-mock-buffer
+   (let ((keys-sent nil))
+     ;; Mock vterm functions
+     (cl-letf (((symbol-function 'vterm-send-escape)
+                (lambda () (push 'escape keys-sent)))
+               ((symbol-function 'vterm-send-return)
+                (lambda () (push 'return keys-sent)))
+               ((symbol-function 'vterm-send-key)
+                (lambda (key &optional shift) (push (list 'key key 'shift shift) keys-sent)))
+               ((symbol-function 'kbd)
+                (lambda (key-string) key-string)))
+
+       (claude-code-emacs-send-escape)
+       (should (member 'escape keys-sent))
+
+       (claude-code-emacs-send-return)
+       (should (member 'return keys-sent))
+
+       (claude-code-emacs-send-ctrl-r)
+       ;; kbd actually returns "\C-r" (ASCII 22)
+       (should (member '(key "\C-r" shift nil) keys-sent))
+
+       ;; Test shift-tab sending
+       (claude-code-emacs-send-shift-tab)
+       (should (member '(key "<tab>" shift t) keys-sent))))))
+
 ;;; Tests for custom project command functions
 
 (ert-deftest test-claude-code-emacs-custom-commands-directory ()

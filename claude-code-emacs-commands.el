@@ -128,6 +128,14 @@
   (claude-code-emacs-with-vterm-buffer
    (lambda () (vterm-send-key (kbd "C-r")))))
 
+;;;###autoload
+(defun claude-code-emacs-send-shift-tab ()
+  "Send Shift+Tab to Claude Code buffer to toggle auto accept."
+  (interactive)
+  (claude-code-emacs-with-vterm-buffer
+   (lambda ()
+     (vterm-send-key "<tab>" t))))
+
 ;;; Helper functions for command argument handling
 
 (defun claude-code-emacs-count-arguments (template)
