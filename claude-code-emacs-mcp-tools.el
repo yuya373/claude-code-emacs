@@ -161,5 +161,135 @@
      ;; Return empty diagnostics list on any error
      `((diagnostics . ())))))
 
+;;; Diff Tool Handlers
+
+(defun claude-code-emacs-mcp-handle-openDiff (params)
+  "Handle openDiff request with PARAMS."
+  (let ((mode (or (cdr (assoc 'mode params)) "files"))
+        (file-a (cdr (assoc 'fileA params)))
+        (file-b (cdr (assoc 'fileB params)))
+        (buffer-a (cdr (assoc 'bufferA params)))
+        (buffer-b (cdr (assoc 'bufferB params))))
+    (condition-case err
+        (progn
+          (cond
+           ((string= mode "files")
+            (unless (and file-a file-b)
+              (error "Missing required parameters: fileA and fileB"))
+            (let ((path-a (expand-file-name file-a (projectile-project-root)))
+                  (path-b (expand-file-name file-b (projectile-project-root))))
+              (unless (file-exists-p path-a)
+                (error "File not found: %s" path-a))
+              (unless (file-exists-p path-b)
+                (error "File not found: %s" path-b))
+              (ediff-files path-a path-b)))
+           ((string= mode "buffers")
+            (unless (and buffer-a buffer-b)
+              (error "Missing required parameters: bufferA and bufferB"))
+            (unless (get-buffer buffer-a)
+              (error "Buffer not found: %s" buffer-a))
+            (unless (get-buffer buffer-b)
+              (error "Buffer not found: %s" buffer-b))
+            (ediff-buffers buffer-a buffer-b))
+           (t
+            (error "Unsupported diff mode: %s" mode)))
+          `((status . "success")
+            (message . "Opened ediff session")))
+      (error
+       `((status . "error")
+         (message . ,(error-message-string err)))))))
+
+(defun claude-code-emacs-mcp-handle-openDiff3 (params)
+  "Handle openDiff3 request with PARAMS."
+  (let ((file-a (cdr (assoc 'fileA params)))
+        (file-b (cdr (assoc 'fileB params)))
+        (file-c (cdr (assoc 'fileC params)))
+        (ancestor (cdr (assoc 'ancestor params))))
+    (condition-case err
+        (progn
+          (unless (and file-a file-b file-c)
+            (error "Missing required parameters: fileA, fileB, and fileC"))
+          (let ((path-a (expand-file-name file-a (projectile-project-root)))
+                (path-b (expand-file-name file-b (projectile-project-root)))
+                (path-c (expand-file-name file-c (projectile-project-root))))
+            (unless (file-exists-p path-a)
+              (error "File not found: %s" path-a))
+            (unless (file-exists-p path-b)
+              (error "File not found: %s" path-b))
+            (unless (file-exists-p path-c)
+              (error "File not found: %s" path-c))
+            (if ancestor
+                (let ((ancestor-path (expand-file-name ancestor (projectile-project-root))))
+                  (unless (file-exists-p ancestor-path)
+                    (error "Ancestor file not found: %s" ancestor-path))
+                  (ediff-merge-files-with-ancestor path-a path-b ancestor-path nil path-c))
+              (ediff-files3 path-a path-b path-c)))
+          `((status . "success")
+            (message . ,(if ancestor "Opened merge session" "Opened ediff3 session"))))
+      (error
+       `((status . "error")
+         (message . ,(error-message-string err)))))))
+
+(defun claude-code-emacs-mcp-handle-openRevisionDiff (params)
+  "Handle openRevisionDiff request with PARAMS."
+  (let ((file (cdr (assoc 'file params)))
+        (revision (or (cdr (assoc 'revision params)) "HEAD")))
+    (condition-case err
+        (progn
+          (unless file
+            (error "Missing required parameter: file"))
+          (let ((full-path (expand-file-name file (projectile-project-root))))
+            (unless (file-exists-p full-path)
+              (error "File not found: %s" full-path))
+            (with-current-buffer (find-file-noselect full-path)
+              (ediff-revision nil nil revision)))
+          `((status . "success")
+            (message . "Opened revision diff")))
+      (error
+       `((status . "error")
+         (message . ,(error-message-string err)))))))
+
+(defun claude-code-emacs-mcp-handle-openCurrentChanges (params)
+  "Handle openCurrentChanges request with PARAMS."
+  (let ((file (cdr (assoc 'file params))))
+    (condition-case err
+        (let ((target-file (if file
+                               (expand-file-name file (projectile-project-root))
+                             (buffer-file-name))))
+          (unless target-file
+            (error "No file specified and current buffer has no file"))
+          (unless (file-exists-p target-file)
+            (error "File not found: %s" target-file))
+          ;; Use vc-diff for showing uncommitted changes
+          (with-current-buffer (find-file-noselect target-file)
+            (vc-diff nil t))
+          `((status . "success")
+            (message . "Showing changes")
+            (file . ,(file-name-nondirectory target-file))))
+      (error
+       `((status . "error")
+         (message . ,(error-message-string err)))))))
+
+(defun claude-code-emacs-mcp-handle-applyPatch (params)
+  "Handle applyPatch request with PARAMS."
+  (let ((patch-file (cdr (assoc 'patchFile params)))
+        (target-file (cdr (assoc 'targetFile params))))
+    (condition-case err
+        (progn
+          (unless (and patch-file target-file)
+            (error "Missing required parameters: patchFile and targetFile"))
+          (let ((patch-path (expand-file-name patch-file (projectile-project-root)))
+                (target-path (expand-file-name target-file (projectile-project-root))))
+            (unless (file-exists-p patch-path)
+              (error "Patch file not found: %s" patch-path))
+            (unless (file-exists-p target-path)
+              (error "Target file not found: %s" target-path))
+            (ediff-patch-file patch-path target-path))
+          `((status . "success")
+            (message . "Patch session started")))
+      (error
+       `((status . "error")
+         (message . ,(error-message-string err)))))))
+
 (provide 'claude-code-emacs-mcp-tools)
 ;;; claude-code-emacs-mcp-tools.el ends here

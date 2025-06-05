@@ -75,5 +75,142 @@
       (should (assoc 'diagnostics result))
       (should (listp (cdr (assoc 'diagnostics result)))))))
 
+;;; Diff tool handler tests
+
+(ert-deftest test-mcp-handle-openDiff ()
+  "Test openDiff handler."
+  (let* ((test-file-a (make-temp-file "test-diff-a"))
+         (test-file-b (make-temp-file "test-diff-b"))
+         (params `((mode . "files")
+                   (fileA . ,(file-name-nondirectory test-file-a))
+                   (fileB . ,(file-name-nondirectory test-file-b)))))
+    (unwind-protect
+        (progn
+          (with-temp-file test-file-a
+            (insert "Line 1\nLine 2\nLine 3\n"))
+          (with-temp-file test-file-b
+            (insert "Line 1\nLine 2 modified\nLine 3\n"))
+          (cl-letf (((symbol-function 'projectile-project-root)
+                     (lambda () (file-name-directory test-file-a)))
+                    ((symbol-function 'ediff-files)
+                     (lambda (file-a file-b)
+                       (should (file-exists-p file-a))
+                       (should (file-exists-p file-b)))))
+            (let ((result (claude-code-emacs-mcp-handle-openDiff params)))
+              (should (assoc 'status result))
+              (should (equal (cdr (assoc 'status result)) "success")))))
+      (delete-file test-file-a)
+      (delete-file test-file-b))))
+
+(ert-deftest test-mcp-handle-openDiff-buffers ()
+  "Test openDiff handler with buffers."
+  (let ((buffer-a (generate-new-buffer "*test-buffer-a*"))
+        (buffer-b (generate-new-buffer "*test-buffer-b*")))
+    (unwind-protect
+        (progn
+          (with-current-buffer buffer-a
+            (insert "Buffer A content"))
+          (with-current-buffer buffer-b
+            (insert "Buffer B content"))
+          (cl-letf (((symbol-function 'ediff-buffers)
+                     (lambda (buf-a buf-b)
+                       (should (get-buffer buf-a))
+                       (should (get-buffer buf-b)))))
+            (let* ((params `((mode . "buffers")
+                            (bufferA . ,(buffer-name buffer-a))
+                            (bufferB . ,(buffer-name buffer-b))))
+                   (result (claude-code-emacs-mcp-handle-openDiff params)))
+              (should (assoc 'status result))
+              (should (equal (cdr (assoc 'status result)) "success")))))
+      (kill-buffer buffer-a)
+      (kill-buffer buffer-b))))
+
+(ert-deftest test-mcp-handle-openDiff3 ()
+  "Test openDiff3 handler."
+  (let* ((test-file-a (make-temp-file "test-diff3-a"))
+         (test-file-b (make-temp-file "test-diff3-b"))
+         (test-file-c (make-temp-file "test-diff3-c"))
+         (params `((fileA . ,(file-name-nondirectory test-file-a))
+                   (fileB . ,(file-name-nondirectory test-file-b))
+                   (fileC . ,(file-name-nondirectory test-file-c)))))
+    (unwind-protect
+        (progn
+          (dolist (file (list test-file-a test-file-b test-file-c))
+            (with-temp-file file
+              (insert "Test content")))
+          (cl-letf (((symbol-function 'projectile-project-root)
+                     (lambda () (file-name-directory test-file-a)))
+                    ((symbol-function 'ediff-files3)
+                     (lambda (file-a file-b file-c)
+                       (should (file-exists-p file-a))
+                       (should (file-exists-p file-b))
+                       (should (file-exists-p file-c)))))
+            (let ((result (claude-code-emacs-mcp-handle-openDiff3 params)))
+              (should (assoc 'status result))
+              (should (equal (cdr (assoc 'status result)) "success")))))
+      (delete-file test-file-a)
+      (delete-file test-file-b)
+      (delete-file test-file-c))))
+
+(ert-deftest test-mcp-handle-openRevisionDiff ()
+  "Test openRevisionDiff handler."
+  (let* ((test-file (make-temp-file "test-revision"))
+         (params `((file . ,(file-name-nondirectory test-file))
+                   (revision . "HEAD"))))
+    (unwind-protect
+        (progn
+          (with-temp-file test-file
+            (insert "Test content"))
+          (cl-letf (((symbol-function 'projectile-project-root)
+                     (lambda () (file-name-directory test-file)))
+                    ((symbol-function 'ediff-revision)
+                     (lambda (&rest args)
+                       (should (equal (nth 2 args) "HEAD")))))
+            (let ((result (claude-code-emacs-mcp-handle-openRevisionDiff params)))
+              (should (assoc 'status result))
+              (should (equal (cdr (assoc 'status result)) "success")))))
+      (delete-file test-file))))
+
+(ert-deftest test-mcp-handle-openCurrentChanges ()
+  "Test openCurrentChanges handler."
+  (let* ((test-file (make-temp-file "test-changes"))
+         (params `((file . ,(file-name-nondirectory test-file)))))
+    (unwind-protect
+        (progn
+          (with-temp-file test-file
+            (insert "Test content"))
+          (cl-letf (((symbol-function 'projectile-project-root)
+                     (lambda () (file-name-directory test-file)))
+                    ((symbol-function 'vc-diff)
+                     (lambda (&rest args) t)))
+            (let ((result (claude-code-emacs-mcp-handle-openCurrentChanges params)))
+              (should (assoc 'status result))
+              (should (equal (cdr (assoc 'status result)) "success")))))
+      (delete-file test-file))))
+
+(ert-deftest test-mcp-handle-applyPatch ()
+  "Test applyPatch handler."
+  (let* ((patch-file (make-temp-file "test-patch" nil ".patch"))
+         (target-file (make-temp-file "test-target"))
+         (params `((patchFile . ,(file-name-nondirectory patch-file))
+                   (targetFile . ,(file-name-nondirectory target-file)))))
+    (unwind-protect
+        (progn
+          (with-temp-file patch-file
+            (insert "--- a/file\n+++ b/file\n@@ -1 +1 @@\n-old\n+new\n"))
+          (with-temp-file target-file
+            (insert "old content"))
+          (cl-letf (((symbol-function 'projectile-project-root)
+                     (lambda () (file-name-directory patch-file)))
+                    ((symbol-function 'ediff-patch-file)
+                     (lambda (patch target)
+                       (should (file-exists-p patch))
+                       (should (file-exists-p target)))))
+            (let ((result (claude-code-emacs-mcp-handle-applyPatch params)))
+              (should (assoc 'status result))
+              (should (equal (cdr (assoc 'status result)) "success")))))
+      (delete-file patch-file)
+      (delete-file target-file))))
+
 (provide 'test-claude-code-emacs-mcp-tools)
 ;;; test-claude-code-emacs-mcp-tools.el ends here

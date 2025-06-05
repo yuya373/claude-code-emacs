@@ -6,7 +6,8 @@ import {
   handleOpenFile,
   handleGetOpenBuffers,
   handleGetCurrentSelection,
-  handleGetDiagnostics
+  handleGetDiagnostics,
+  diffTools
 } from './tools/index.js';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -102,7 +103,13 @@ const TOOLS = [
         }
       }
     }
-  }
+  },
+  // Add diff tools
+  ...Object.values(diffTools).map(tool => ({
+    name: tool.name,
+    description: tool.description,
+    inputSchema: tool.inputSchema
+  }))
 ];
 
 // Handle list tools request
@@ -129,6 +136,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return await handleGetDiagnostics(bridge, args || {});
 
       default:
+        // Check if it's a diff tool
+        const diffTool = diffTools[name as keyof typeof diffTools];
+        if (diffTool && diffTool.handler) {
+          return await diffTool.handler(args || {});
+        }
         throw new Error(`Unknown tool: ${name}`);
     }
   } catch (error) {
