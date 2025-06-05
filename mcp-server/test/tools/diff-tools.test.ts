@@ -111,6 +111,28 @@ describe('diff-tools', () => {
         content: [{ type: 'text', text: 'Error: File not found' }]
       });
     });
+
+    it('should validate missing parameters', async () => {
+      const handler = diffTools.openDiff.handler;
+      
+      // Test missing all parameters
+      let result = await handler({});
+      expect(result).toEqual({
+        content: [{ type: 'text', text: 'Error: Either fileA/fileB or bufferA/bufferB must be provided' }]
+      });
+      
+      // Test missing fileB
+      result = await handler({ fileA: 'test.js' });
+      expect(result).toEqual({
+        content: [{ type: 'text', text: 'Error: fileB is required when fileA is provided' }]
+      });
+      
+      // Test missing bufferB
+      result = await handler({ bufferA: '*scratch*' });
+      expect(result).toEqual({
+        content: [{ type: 'text', text: 'Error: bufferB is required when bufferA is provided' }]
+      });
+    });
   });
 
   describe('openDiff3', () => {

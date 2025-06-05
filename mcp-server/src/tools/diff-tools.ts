@@ -29,31 +29,47 @@ export const diffTools = {
           type: 'string',
           description: 'Name of second buffer (alternative to fileB)'
         }
-      },
-      oneOf: [
-        { required: ['fileA', 'fileB'] },
-        { required: ['bufferA', 'bufferB'] }
-      ]
+      }
     },
     handler: async (params: any) => {
       const bridge = new EmacsBridge();
-      const mode = params.fileA ? 'files' : 'buffers';
       
+      // Validate parameters
+      if (!params.fileA && !params.bufferA) {
+        return {
+          content: [{ type: 'text', text: 'Error: Either fileA/fileB or bufferA/bufferB must be provided' }]
+        };
+      }
+      
+      if (params.fileA && !params.fileB) {
+        return {
+          content: [{ type: 'text', text: 'Error: fileB is required when fileA is provided' }]
+        };
+      }
+      
+      if (params.bufferA && !params.bufferB) {
+        return {
+          content: [{ type: 'text', text: 'Error: bufferB is required when bufferA is provided' }]
+        };
+      }
+      
+      const mode = params.fileA ? 'files' : 'buffers';
+
       const response = await bridge.request('openDiff', {
         ...params,
         mode
       }) as DiffToolResponse;
-      
+
       if (response.status === 'error') {
         return {
           content: [{ type: 'text', text: `Error: ${response.message}` }]
         };
       }
-      
-      const items = mode === 'files' 
+
+      const items = mode === 'files'
         ? `files: ${params.fileA} and ${params.fileB}`
         : `buffers: ${params.bufferA} and ${params.bufferB}`;
-      
+
       return {
         content: [{ type: 'text', text: `Opened ediff session for ${items}` }]
       };
@@ -88,19 +104,19 @@ export const diffTools = {
     handler: async (params: any) => {
       const bridge = new EmacsBridge();
       const response = await bridge.request('openDiff3', params) as DiffToolResponse;
-      
+
       if (response.status === 'error') {
         return {
           content: [{ type: 'text', text: `Error: ${response.message}` }]
         };
       }
-      
+
       if (params.ancestor) {
         return {
           content: [{ type: 'text', text: `Opened merge session with ancestor: ${params.ancestor}` }]
         };
       }
-      
+
       return {
         content: [{ type: 'text', text: `Opened 3-way diff for: ${params.fileA}, ${params.fileB}, ${params.fileC}` }]
       };
@@ -128,18 +144,18 @@ export const diffTools = {
     handler: async (params: any) => {
       const bridge = new EmacsBridge();
       const revision = params.revision || 'HEAD';
-      
+
       const response = await bridge.request('openRevisionDiff', {
         file: params.file,
         revision
       }) as DiffToolResponse;
-      
+
       if (response.status === 'error') {
         return {
           content: [{ type: 'text', text: `Error: ${response.message}` }]
         };
       }
-      
+
       return {
         content: [{ type: 'text', text: `Comparing ${params.file} with revision ${revision}` }]
       };
@@ -161,13 +177,13 @@ export const diffTools = {
     handler: async (params: any) => {
       const bridge = new EmacsBridge();
       const response = await bridge.request('openCurrentChanges', params) as DiffToolResponse;
-      
+
       if (response.status === 'error') {
         return {
           content: [{ type: 'text', text: `Error: ${response.message}` }]
         };
       }
-      
+
       const fileName = response.file || params.file || 'current file';
       return {
         content: [{ type: 'text', text: `Showing uncommitted changes for ${fileName}` }]
@@ -195,13 +211,13 @@ export const diffTools = {
     handler: async (params: any) => {
       const bridge = new EmacsBridge();
       const response = await bridge.request('applyPatch', params) as DiffToolResponse;
-      
+
       if (response.status === 'error') {
         return {
           content: [{ type: 'text', text: `Error: ${response.message}` }]
         };
       }
-      
+
       return {
         content: [{ type: 'text', text: `Applying patch ${params.patchFile} to ${params.targetFile}` }]
       };
