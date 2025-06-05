@@ -1,6 +1,6 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolRequestSchema, ClientNotificationSchema, ListResourcesRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { EmacsBridge } from './emacs-bridge.js';
 import {
   handleOpenFile,
@@ -49,6 +49,7 @@ const server = new Server(
     },
   }
 );
+
 
 // Tool definitions
 const TOOLS = [
@@ -206,26 +207,30 @@ async function main() {
   // Notify Emacs about the assigned port
   await notifyEmacsPort(port);
 
-  // For MCP, use stdio transport
-  const transport = new StdioServerTransport();
-
-  await server.connect(transport)
-
-  log(`MCP server running for session ${sessionId}, Emacs bridge on port ${port}`);
-
   const ping = async () => {
     try {
       await server.ping()
       log(`Ping successful for session ${sessionId}`);
       setTimeout(ping, 30000)
+
     } catch (error) {
       log(`Ping failed for session ${sessionId}, Emacs bridge on port ${port}. Exitting...`);
       await cleanup();
       process.exit(1)
     }
   }
-  log(`Starting ping monitoring for session ${sessionId}`);
-  ping();
+  server.oninitialized = () => {
+    log(`MCP server initialized for session ${sessionId}, Emacs bridge on port ${port}`);
+    log(`Starting ping monitoring for session ${sessionId}`);
+    ping()
+    const cap = server.getClientCapabilities()
+    log(`Client capabilities: ${JSON.stringify(cap)}`)
+  }
+
+  // For MCP, use stdio transport
+  const transport = new StdioServerTransport();
+  await server.connect(transport)
+  log(`MCP server running for session ${sessionId}, Emacs bridge on port ${port}`);
 }
 
 // Cleanup on exit
