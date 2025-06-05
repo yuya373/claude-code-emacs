@@ -49,56 +49,6 @@
            (sit-for claude-code-emacs-chunk-delay)))
        (vterm-send-return)))))
 
-(defun claude-code-emacs-send-return ()
-  "Send a return key to Claude Code session."
-  (interactive)
-  (claude-code-emacs-with-vterm-buffer
-   #'vterm-send-return))
-
-(defun claude-code-emacs-send-escape ()
-  "Send an escape key to Claude Code session."
-  (interactive)
-  (claude-code-emacs-with-vterm-buffer
-   #'vterm-send-escape))
-
-(defun claude-code-emacs-send-ctrl-r ()
-  "Send Ctrl-R to Claude Code session for retry."
-  (interactive)
-  (claude-code-emacs-with-vterm-buffer
-    (vterm-send-key "r" nil nil t)))
-
-(defun claude-code-emacs-send-number (n)
-  "Send number N to Claude Code session."
-  (interactive "nEnter number: ")
-  (claude-code-emacs-send-string (number-to-string n)))
-
-(defun claude-code-emacs-send-yes ()
-  "Send \\='y\\=' to Claude Code session."
-  (interactive)
-  (claude-code-emacs-send-string "y"))
-
-(defun claude-code-emacs-send-1 ()
-  "Send '1' to Claude Code session."
-  (interactive)
-  (claude-code-emacs-send-string "1"))
-
-(defun claude-code-emacs-send-2 ()
-  "Send '2' to Claude Code session."
-  (interactive)
-  (claude-code-emacs-send-string "2"))
-
-(defun claude-code-emacs-send-3 ()
-  "Send '3' to Claude Code session."
-  (interactive)
-  (claude-code-emacs-send-string "3"))
-
-(defun claude-code-emacs-send-region ()
-  "Send the selected region to Claude Code session."
-  (interactive)
-  (if (use-region-p)
-      (claude-code-emacs-send-string (buffer-substring-no-properties (region-beginning) (region-end)))
-    (error "No region selected")))
-
 ;;; File Path Utilities
 
 (defun claude-code-emacs-get-buffer-paths ()

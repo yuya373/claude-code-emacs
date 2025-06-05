@@ -64,7 +64,7 @@
   "Switch to Claude Code buffer for current project."
   (interactive)
   (if-let* ((buffer (claude-code-emacs-get-buffer)))
-      (switch-to-buffer buffer)
+      (switch-to-buffer-other-window buffer)
     (if (y-or-n-p "No Claude Code session for current project. Start one? ")
         (claude-code-emacs)
       (message "Cancelled"))))
