@@ -7,7 +7,12 @@ import {
   handleGetOpenBuffers,
   handleGetCurrentSelection,
   handleGetDiagnostics,
-  diffTools
+  diffTools,
+  handleOpenDiff,
+  handleOpenDiff3,
+  handleOpenRevisionDiff,
+  handleOpenCurrentChanges,
+  handleApplyPatch
 } from './tools/index.js';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -135,12 +140,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'getDiagnostics':
         return await handleGetDiagnostics(bridge, args || {});
 
+      case 'openDiff':
+        return await handleOpenDiff(bridge, args || {});
+
+      case 'openDiff3':
+        return await handleOpenDiff3(bridge, args || {});
+
+      case 'openRevisionDiff':
+        return await handleOpenRevisionDiff(bridge, args || {});
+
+      case 'openCurrentChanges':
+        return await handleOpenCurrentChanges(bridge, args || {});
+
+      case 'applyPatch':
+        return await handleApplyPatch(bridge, args || {});
+
       default:
-        // Check if it's a diff tool
-        const diffTool = diffTools[name as keyof typeof diffTools];
-        if (diffTool && diffTool.handler) {
-          return await diffTool.handler(args || {});
-        }
         throw new Error(`Unknown tool: ${name}`);
     }
   } catch (error) {

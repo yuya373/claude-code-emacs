@@ -161,14 +161,39 @@
         (progn
           (with-temp-file test-file
             (insert "Test content"))
+          ;; Test case 1: File under version control (uses vc-version-ediff)
           (cl-letf (((symbol-function 'projectile-project-root)
                      (lambda () (file-name-directory test-file)))
-                    ((symbol-function 'ediff-revision)
-                     (lambda (&rest args)
-                       (should (equal (nth 2 args) "HEAD")))))
+                    ((symbol-function 'find-file-noselect)
+                     (lambda (file &optional nowarn rawfile wildcards)
+                       (with-current-buffer (get-buffer-create "*test-buffer*")
+                         (setq buffer-file-name file)
+                         (current-buffer))))
+                    ((symbol-function 'vc-backend)
+                     (lambda (file) 'git))  ;; Pretend file is under git
+                    ;; Mock vc-version-ediff completely
+                    ((symbol-function 'vc-version-ediff)
+                     (lambda (files &optional rev1 rev2)
+                       (should (listp files))
+                       (should (equal rev1 "HEAD"))
+                       (should (null rev2))
+                       ;; Just message and return to avoid calling real VC
+                       (message "Mock vc-version-ediff called")
+                       t)))
             (let ((result (claude-code-emacs-mcp-handle-openRevisionDiff params)))
               (should (assoc 'status result))
-              (should (equal (cdr (assoc 'status result)) "success")))))
+              (should (equal (cdr (assoc 'status result)) "success"))))
+
+          ;; Test case 2: File NOT under version control (should return error)
+          (cl-letf (((symbol-function 'projectile-project-root)
+                     (lambda () (file-name-directory test-file)))
+                    ((symbol-function 'vc-backend)
+                     (lambda (file) nil)))  ;; File not under version control
+            (let ((result (claude-code-emacs-mcp-handle-openRevisionDiff params)))
+              (should (assoc 'status result))
+              (should (equal (cdr (assoc 'status result)) "error"))
+              (should (assoc 'message result))
+              (should (string-match "not under version control" (cdr (assoc 'message result)))))))
       (delete-file test-file))))
 
 (ert-deftest test-mcp-handle-openCurrentChanges ()

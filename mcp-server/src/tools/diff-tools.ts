@@ -6,6 +6,121 @@ interface DiffToolResponse {
   file?: string;
 }
 
+// Helper function for openDiff
+export async function handleOpenDiff(bridge: EmacsBridge, params: any) {
+  // Validate parameters
+  if (!params.fileA && !params.bufferA) {
+    return {
+      content: [{ type: 'text', text: 'Error: Either fileA/fileB or bufferA/bufferB must be provided' }]
+    };
+  }
+  
+  if (params.fileA && !params.fileB) {
+    return {
+      content: [{ type: 'text', text: 'Error: fileB is required when fileA is provided' }]
+    };
+  }
+  
+  if (params.bufferA && !params.bufferB) {
+    return {
+      content: [{ type: 'text', text: 'Error: bufferB is required when bufferA is provided' }]
+    };
+  }
+  
+  const mode = params.fileA ? 'files' : 'buffers';
+
+  const response = await bridge.request('openDiff', {
+    ...params,
+    mode
+  }) as DiffToolResponse;
+
+  if (response.status === 'error') {
+    return {
+      content: [{ type: 'text', text: `Error: ${response.message}` }]
+    };
+  }
+
+  const items = mode === 'files'
+    ? `files: ${params.fileA} and ${params.fileB}`
+    : `buffers: ${params.bufferA} and ${params.bufferB}`;
+
+  return {
+    content: [{ type: 'text', text: `Opened ediff session for ${items}` }]
+  };
+}
+
+// Helper function for openDiff3
+export async function handleOpenDiff3(bridge: EmacsBridge, params: any) {
+  const response = await bridge.request('openDiff3', params) as DiffToolResponse;
+
+  if (response.status === 'error') {
+    return {
+      content: [{ type: 'text', text: `Error: ${response.message}` }]
+    };
+  }
+
+  if (params.ancestor) {
+    return {
+      content: [{ type: 'text', text: `Opened merge session with ancestor: ${params.ancestor}` }]
+    };
+  }
+
+  return {
+    content: [{ type: 'text', text: `Opened 3-way diff for: ${params.fileA}, ${params.fileB}, ${params.fileC}` }]
+  };
+}
+
+// Helper function for openRevisionDiff
+export async function handleOpenRevisionDiff(bridge: EmacsBridge, params: any) {
+  const revision = params.revision || 'HEAD';
+
+  const response = await bridge.request('openRevisionDiff', {
+    file: params.file,
+    revision
+  }) as DiffToolResponse;
+
+  if (response.status === 'error') {
+    return {
+      content: [{ type: 'text', text: `Error: ${response.message}` }]
+    };
+  }
+
+  return {
+    content: [{ type: 'text', text: `Comparing ${params.file} with revision ${revision}` }]
+  };
+}
+
+// Helper function for openCurrentChanges
+export async function handleOpenCurrentChanges(bridge: EmacsBridge, params: any) {
+  const response = await bridge.request('openCurrentChanges', params) as DiffToolResponse;
+
+  if (response.status === 'error') {
+    return {
+      content: [{ type: 'text', text: `Error: ${response.message}` }]
+    };
+  }
+
+  const fileName = response.file || params.file || 'current file';
+  return {
+    content: [{ type: 'text', text: `Showing uncommitted changes for ${fileName}` }]
+  };
+}
+
+// Helper function for applyPatch
+export async function handleApplyPatch(bridge: EmacsBridge, params: any) {
+  const response = await bridge.request('applyPatch', params) as DiffToolResponse;
+
+  if (response.status === 'error') {
+    return {
+      content: [{ type: 'text', text: `Error: ${response.message}` }]
+    };
+  }
+
+  return {
+    content: [{ type: 'text', text: `Applying patch ${params.patchFile} to ${params.targetFile}` }]
+  };
+}
+
 export const diffTools = {
   openDiff: {
     name: 'openDiff',
@@ -31,49 +146,7 @@ export const diffTools = {
         }
       }
     },
-    handler: async (params: any) => {
-      const bridge = new EmacsBridge();
-      
-      // Validate parameters
-      if (!params.fileA && !params.bufferA) {
-        return {
-          content: [{ type: 'text', text: 'Error: Either fileA/fileB or bufferA/bufferB must be provided' }]
-        };
-      }
-      
-      if (params.fileA && !params.fileB) {
-        return {
-          content: [{ type: 'text', text: 'Error: fileB is required when fileA is provided' }]
-        };
-      }
-      
-      if (params.bufferA && !params.bufferB) {
-        return {
-          content: [{ type: 'text', text: 'Error: bufferB is required when bufferA is provided' }]
-        };
-      }
-      
-      const mode = params.fileA ? 'files' : 'buffers';
-
-      const response = await bridge.request('openDiff', {
-        ...params,
-        mode
-      }) as DiffToolResponse;
-
-      if (response.status === 'error') {
-        return {
-          content: [{ type: 'text', text: `Error: ${response.message}` }]
-        };
-      }
-
-      const items = mode === 'files'
-        ? `files: ${params.fileA} and ${params.fileB}`
-        : `buffers: ${params.bufferA} and ${params.bufferB}`;
-
-      return {
-        content: [{ type: 'text', text: `Opened ediff session for ${items}` }]
-      };
-    }
+    handler: handleOpenDiff
   },
 
   openDiff3: {
@@ -101,26 +174,7 @@ export const diffTools = {
       },
       required: ['fileA', 'fileB', 'fileC']
     },
-    handler: async (params: any) => {
-      const bridge = new EmacsBridge();
-      const response = await bridge.request('openDiff3', params) as DiffToolResponse;
-
-      if (response.status === 'error') {
-        return {
-          content: [{ type: 'text', text: `Error: ${response.message}` }]
-        };
-      }
-
-      if (params.ancestor) {
-        return {
-          content: [{ type: 'text', text: `Opened merge session with ancestor: ${params.ancestor}` }]
-        };
-      }
-
-      return {
-        content: [{ type: 'text', text: `Opened 3-way diff for: ${params.fileA}, ${params.fileB}, ${params.fileC}` }]
-      };
-    }
+    handler: handleOpenDiff3
   },
 
   openRevisionDiff: {
@@ -141,25 +195,7 @@ export const diffTools = {
       },
       required: ['file']
     },
-    handler: async (params: any) => {
-      const bridge = new EmacsBridge();
-      const revision = params.revision || 'HEAD';
-
-      const response = await bridge.request('openRevisionDiff', {
-        file: params.file,
-        revision
-      }) as DiffToolResponse;
-
-      if (response.status === 'error') {
-        return {
-          content: [{ type: 'text', text: `Error: ${response.message}` }]
-        };
-      }
-
-      return {
-        content: [{ type: 'text', text: `Comparing ${params.file} with revision ${revision}` }]
-      };
-    }
+    handler: handleOpenRevisionDiff
   },
 
   openCurrentChanges: {
@@ -174,21 +210,7 @@ export const diffTools = {
         }
       }
     },
-    handler: async (params: any) => {
-      const bridge = new EmacsBridge();
-      const response = await bridge.request('openCurrentChanges', params) as DiffToolResponse;
-
-      if (response.status === 'error') {
-        return {
-          content: [{ type: 'text', text: `Error: ${response.message}` }]
-        };
-      }
-
-      const fileName = response.file || params.file || 'current file';
-      return {
-        content: [{ type: 'text', text: `Showing uncommitted changes for ${fileName}` }]
-      };
-    }
+    handler: handleOpenCurrentChanges
   },
 
   applyPatch: {
@@ -208,19 +230,6 @@ export const diffTools = {
       },
       required: ['patchFile', 'targetFile']
     },
-    handler: async (params: any) => {
-      const bridge = new EmacsBridge();
-      const response = await bridge.request('applyPatch', params) as DiffToolResponse;
-
-      if (response.status === 'error') {
-        return {
-          content: [{ type: 'text', text: `Error: ${response.message}` }]
-        };
-      }
-
-      return {
-        content: [{ type: 'text', text: `Applying patch ${params.patchFile} to ${params.targetFile}` }]
-      };
-    }
+    handler: handleApplyPatch
   }
 };

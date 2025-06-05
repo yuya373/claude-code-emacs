@@ -33,6 +33,8 @@
 (require 'projectile)
 (require 'lsp-mode nil t)
 (require 'lsp-protocol nil t)
+(require 'vc)
+(require 'ediff)
 
 ;;; MCP Tool Handlers
 
@@ -241,11 +243,22 @@
           (let ((full-path (expand-file-name file (projectile-project-root))))
             (unless (file-exists-p full-path)
               (error "File not found: %s" full-path))
-            (with-current-buffer (find-file-noselect full-path)
-              (ediff-revision nil nil revision)))
+            ;; Open the file and compare with revision
+            (condition-case inner-err
+                (with-current-buffer (find-file-noselect full-path)
+                  ;; Check if file is under version control
+                  (let ((backend (vc-backend buffer-file-name)))
+                    (unless backend
+                      (error "File is not under version control: %s" file))
+                    ;; Use vc-version-ediff for version-controlled files
+                    (vc-version-ediff (list buffer-file-name) revision nil)))
+              (error
+               (message "Inner error in openRevisionDiff: %s" (error-message-string inner-err))
+               (signal (car inner-err) (cdr inner-err)))))
           `((status . "success")
             (message . "Opened revision diff")))
       (error
+       (message "Error in openRevisionDiff: %s" (error-message-string err))
        `((status . "error")
          (message . ,(error-message-string err)))))))
 
