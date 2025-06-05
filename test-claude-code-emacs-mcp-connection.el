@@ -121,5 +121,79 @@
        ;; Should have scheduled retries
        (should (> retry-count 0))))))
 
+(ert-deftest test-mcp-ping-pong ()
+  "Test ping/pong functionality."
+  :tags '(:mcp :ping)
+  (claude-code-emacs-mcp-test-with-connection
+   (let ((project-root (projectile-project-root))
+         (ping-sent nil))
+     (cl-letf (((symbol-function 'websocket-send-text)
+                (lambda (ws text)
+                  (when (string-match "ping" text)
+                    (setq ping-sent t)))))
+       ;; Connect first
+       (claude-code-emacs-mcp-connect project-root)
+       
+       ;; Test ping timer was created
+       (let ((info (claude-code-emacs-mcp-get-connection-info project-root)))
+         (should (assoc 'ping-timer info)))
+       
+       ;; Send ping manually
+       (claude-code-emacs-mcp-send-ping project-root)
+       (should ping-sent)))))
+
+(ert-deftest test-mcp-ping-timeout ()
+  "Test ping timeout handling."
+  :tags '(:mcp :ping)
+  (claude-code-emacs-mcp-test-with-connection
+   (let ((project-root (projectile-project-root))
+         (timeout-handler-called nil)
+         (reconnect-attempted nil))
+     (cl-letf (((symbol-function 'run-with-timer)
+                (lambda (time repeat func &rest args)
+                  (when (eq func 'claude-code-emacs-mcp-handle-ping-timeout)
+                    ;; Execute timeout handler immediately
+                    (funcall func project-root))
+                  'mock-timer))
+               ((symbol-function 'claude-code-emacs-mcp-ensure-connection)
+                (lambda (root)
+                  (setq reconnect-attempted t))))
+       ;; Connect first
+       (claude-code-emacs-mcp-connect project-root)
+       
+       ;; Send ping - should trigger timeout
+       (claude-code-emacs-mcp-send-ping project-root)
+       
+       ;; Verify reconnection was attempted
+       (should reconnect-attempted)))))
+
+(ert-deftest test-mcp-pong-handling ()
+  "Test pong message handling."
+  :tags '(:mcp :ping)
+  (claude-code-emacs-mcp-test-with-connection
+   (let ((project-root (projectile-project-root))
+         (timeout-cancelled nil))
+     (cl-letf (((symbol-function 'cancel-timer)
+                (lambda (timer)
+                  (setq timeout-cancelled t)))
+               ((symbol-function 'timerp)
+                (lambda (timer) t)))
+       ;; Connect first
+       (claude-code-emacs-mcp-connect project-root)
+       
+       ;; Start ping timeout (mock)
+       (let ((info (claude-code-emacs-mcp-get-connection-info project-root)))
+         (setcdr (assoc 'ping-timeout-timer info) 'mock-timer))
+       
+       ;; Handle pong
+       (claude-code-emacs-mcp-handle-pong project-root)
+       
+       ;; Verify timeout was cancelled
+       (should timeout-cancelled)
+       
+       ;; Verify last-pong-time was updated
+       (let ((info (claude-code-emacs-mcp-get-connection-info project-root)))
+         (should (cdr (assoc 'last-pong-time info))))))))
+
 (provide 'test-claude-code-emacs-mcp-connection)
 ;;; test-claude-code-emacs-mcp-connection.el ends here

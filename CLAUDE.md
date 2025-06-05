@@ -245,6 +245,14 @@ When working on the MCP server:
 3. MCP tools translate requests into Emacs Lisp commands
 4. Results are sent back through the same chain
 
+### Connection Health Monitoring
+The MCP connection includes automatic health monitoring:
+- **Ping/Pong mechanism**: Emacs sends ping messages every 30 seconds (configurable via `claude-code-emacs-mcp-ping-interval`)
+- **Timeout detection**: If no pong is received within 10 seconds (configurable via `claude-code-emacs-mcp-ping-timeout`), the connection is considered lost
+- **Automatic reconnection**: On connection loss, the system automatically attempts to reconnect
+- **Session persistence**: Each project maintains its own WebSocket connection for isolation
+
 ### Known Issues and Solutions
 - **WebSocket 400 error**: Fixed by ensuring the WebSocket URL includes a leading slash (e.g., `ws://localhost:port/?session=...`)
 - **Connection timing**: WebSocket connections are established asynchronously; the `on-open` callback is used to ensure proper initialization
+- **Timer management**: Ping timers are properly cleaned up on disconnect to prevent resource leaks

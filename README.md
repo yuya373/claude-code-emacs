@@ -204,16 +204,15 @@ Then type `/mcp` in your Claude Code session to activate MCP tools.
 The package is organized into focused modules:
 
 - **claude-code-emacs.el** - Main entry point, loads all modules
-- **claude-code-emacs-core.el** - Core utilities (chunking, error handling)
+- **claude-code-emacs-core.el** - Core utilities (chunking, error handling, session management)
 - **claude-code-emacs-buffer.el** - Buffer naming and management
-- **claude-code-emacs-session.el** - Session lifecycle management
 - **claude-code-emacs-commands.el** - Command execution and slash commands
 - **claude-code-emacs-ui.el** - Transient menu interfaces
 - **claude-code-emacs-prompt.el** - Prompt file mode and operations
 - **claude-code-emacs-mcp.el** - MCP WebSocket client integration
-- **claude-code-emacs-mcp-connection.el** - WebSocket connection management
+- **claude-code-emacs-mcp-connection.el** - WebSocket connection management with automatic reconnection
 - **claude-code-emacs-mcp-protocol.el** - MCP protocol implementation
-- **claude-code-emacs-mcp-tools.el** - MCP tool handlers
+- **claude-code-emacs-mcp-tools.el** - MCP tool handlers (file operations, diagnostics, diff tools)
 
 ## Contributing
 
@@ -224,17 +223,31 @@ Contributions are welcome! Please:
 4. Ensure all tests pass with `make test`
 5. Submit a pull request
 
-## Roadmap
+## MCP Server Features
 
-### Planned MCP Server Features
-- **openDiff**: Display file diffs in Emacs
+### Connection Management
+The MCP server maintains a stable WebSocket connection with automatic health monitoring:
+- **Ping/Pong heartbeat**: Sends periodic ping messages (default 30s interval) to detect connection issues
+- **Automatic reconnection**: Reconnects automatically if the connection is lost
+- **Configurable timeouts**: Customize ping interval and timeout via `claude-code-emacs-mcp-ping-interval` and `claude-code-emacs-mcp-ping-timeout`
+
+### Available MCP Tools
+- **openFile**: Open files with optional text selection
+- **getOpenBuffers**: List all open buffers in the current project
+- **getCurrentSelection**: Get currently selected text
+- **getDiagnostics**: Access LSP diagnostics (requires `lsp-mode`)
+- **openDiff**: Compare two files or buffers using ediff
+- **openDiff3**: Three-way file comparison
+- **openRevisionDiff**: Compare file with git revision
+- **openCurrentChanges**: Show uncommitted changes
+- **applyPatch**: Apply patch files using ediff
+
+### Planned Features
 - **getWorkspaceFolders**: List all project folders
 - **checkDocumentDirty**: Check for unsaved changes
 - **saveDocument**: Save files with unsaved changes
 - **runCommand**: Execute Emacs commands from Claude Code
 - **getSymbols**: Access code symbols and definitions
-
-See [TODO](#) section in code for implementation details.
 
 
 ## License

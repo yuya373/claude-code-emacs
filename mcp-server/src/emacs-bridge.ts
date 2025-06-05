@@ -120,6 +120,13 @@ export class EmacsBridge extends EventEmitter {
   }
 
   private handleMessage(ws: WebSocket, message: any): void {
+    // Handle ping message
+    if ('type' in message && message.type === 'ping') {
+      // Respond with pong
+      ws.send(JSON.stringify({ type: 'pong' }));
+      return;
+    }
+    
     // Handle JSON-RPC response
     if ('id' in message && ('result' in message || 'error' in message)) {
       const pending = this.pendingRequests.get(message.id);

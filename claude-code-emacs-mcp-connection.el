@@ -25,8 +25,10 @@
 ;; This module handles MCP WebSocket connection management including:
 ;; - Per-project connection tracking
 ;; - Port discovery and registration
-;; - Connection retry logic
+;; - Connection retry logic with exponential backoff
 ;; - WebSocket lifecycle management
+;; - Health monitoring via ping/pong heartbeat
+;; - Automatic reconnection on connection loss
 
 ;;; Code:
 
@@ -71,6 +73,16 @@
   :type 'boolean
   :group 'claude-code-emacs-mcp)
 
+(defcustom claude-code-emacs-mcp-ping-interval 30
+  "Interval in seconds between WebSocket ping messages."
+  :type 'integer
+  :group 'claude-code-emacs-mcp)
+
+(defcustom claude-code-emacs-mcp-ping-timeout 10
+  "Timeout in seconds to wait for pong response."
+  :type 'integer
+  :group 'claude-code-emacs-mcp)
+
 ;;; Variables
 
 (defvar claude-code-emacs-mcp-project-ports (make-hash-table :test 'equal)
@@ -82,7 +94,10 @@ Each value is an alist with keys:
   - websocket: The WebSocket connection
   - request-id: Counter for JSON-RPC request IDs
   - pending-requests: Hash table of pending requests
-  - connection-attempts: Number of connection attempts")
+  - connection-attempts: Number of connection attempts
+  - ping-timer: Timer for periodic ping messages
+  - ping-timeout-timer: Timer for ping timeout detection
+  - last-pong-time: Time of last received pong")
 
 (defvar claude-code-emacs-mcp-connection-callbacks (make-hash-table :test 'equal)
   "Hash table mapping project roots to lists of callbacks.")
@@ -95,7 +110,10 @@ Each value is an alist with keys:
       (let ((info `((websocket . nil)
                     (request-id . 0)
                     (pending-requests . ,(make-hash-table :test 'equal))
-                    (connection-attempts . 0))))
+                    (connection-attempts . 0)
+                    (ping-timer . nil)
+                    (ping-timeout-timer . nil)
+                    (last-pong-time . nil))))
         (puthash project-root info claude-code-emacs-mcp-project-connections)
         info)))
 
@@ -231,6 +249,8 @@ If CALLBACK is provided, call it with connection result."
                                 :on-open (lambda (websocket)
                                            (message "MCP WebSocket opened for project %s" project-root)
                                            (claude-code-emacs-mcp-set-websocket websocket project-root)
+                                           ;; Start ping timer
+                                           (claude-code-emacs-mcp-start-ping-timer project-root)
                                            (when callback (funcall callback t)))
                                 :on-message (lambda (websocket frame)
                                               (claude-code-emacs-mcp-on-message websocket frame project-root))
@@ -284,6 +304,10 @@ If CALLBACK is provided, call it with connection result."
 
 (defun claude-code-emacs-mcp-disconnect (project-root)
   "Disconnect from MCP server for PROJECT-ROOT."
+  ;; Stop ping timers
+  (claude-code-emacs-mcp-stop-ping-timer project-root)
+  (claude-code-emacs-mcp-stop-ping-timeout project-root)
+  ;; Close websocket
   (let ((websocket (claude-code-emacs-mcp-get-websocket project-root)))
     (when websocket
       (websocket-close websocket)
@@ -317,6 +341,81 @@ If CALLBACK is provided, call it with connection result."
             (claude-code-emacs-mcp-ensure-connection project-root)))
       (error
        (message "Failed to connect to MCP server: %s" err)))))
+
+;;; Ping/Pong functionality
+
+(defun claude-code-emacs-mcp-send-ping (project-root)
+  "Send ping message to MCP server for PROJECT-ROOT."
+  (let ((websocket (claude-code-emacs-mcp-get-websocket project-root)))
+    (when (and websocket (websocket-openp websocket))
+      (condition-case err
+          (progn
+            (websocket-send-text websocket "{\"type\":\"ping\"}")
+            ;; Set up timeout timer
+            (claude-code-emacs-mcp-start-ping-timeout project-root))
+        (error
+         (message "Error sending ping to MCP server: %s" err)
+         (claude-code-emacs-mcp-handle-connection-lost project-root))))))
+
+(defun claude-code-emacs-mcp-start-ping-timer (project-root)
+  "Start periodic ping timer for PROJECT-ROOT."
+  (claude-code-emacs-mcp-stop-ping-timer project-root)
+  (let* ((info (claude-code-emacs-mcp-get-connection-info project-root))
+         (timer (run-with-timer claude-code-emacs-mcp-ping-interval
+                                claude-code-emacs-mcp-ping-interval
+                                #'claude-code-emacs-mcp-send-ping
+                                project-root)))
+    (setcdr (assoc 'ping-timer info) timer)))
+
+(defun claude-code-emacs-mcp-stop-ping-timer (project-root)
+  "Stop ping timer for PROJECT-ROOT."
+  (let* ((info (claude-code-emacs-mcp-get-connection-info project-root))
+         (timer (cdr (assoc 'ping-timer info))))
+    (when (timerp timer)
+      (cancel-timer timer))
+    (setcdr (assoc 'ping-timer info) nil)))
+
+(defun claude-code-emacs-mcp-start-ping-timeout (project-root)
+  "Start ping timeout timer for PROJECT-ROOT."
+  (claude-code-emacs-mcp-stop-ping-timeout project-root)
+  (let* ((info (claude-code-emacs-mcp-get-connection-info project-root))
+         (timer (run-with-timer claude-code-emacs-mcp-ping-timeout
+                                nil
+                                #'claude-code-emacs-mcp-handle-ping-timeout
+                                project-root)))
+    (setcdr (assoc 'ping-timeout-timer info) timer)))
+
+(defun claude-code-emacs-mcp-stop-ping-timeout (project-root)
+  "Stop ping timeout timer for PROJECT-ROOT."
+  (let* ((info (claude-code-emacs-mcp-get-connection-info project-root))
+         (timer (cdr (assoc 'ping-timeout-timer info))))
+    (when (timerp timer)
+      (cancel-timer timer))
+    (setcdr (assoc 'ping-timeout-timer info) nil)))
+
+(defun claude-code-emacs-mcp-handle-ping-timeout (project-root)
+  "Handle ping timeout for PROJECT-ROOT."
+  (message "MCP WebSocket ping timeout for project %s" project-root)
+  (claude-code-emacs-mcp-handle-connection-lost project-root))
+
+(defun claude-code-emacs-mcp-handle-pong (project-root)
+  "Handle pong response for PROJECT-ROOT."
+  ;; Cancel timeout timer
+  (claude-code-emacs-mcp-stop-ping-timeout project-root)
+  ;; Update last pong time
+  (let ((info (claude-code-emacs-mcp-get-connection-info project-root)))
+    (setcdr (assoc 'last-pong-time info) (current-time))))
+
+(defun claude-code-emacs-mcp-handle-connection-lost (project-root)
+  "Handle lost connection for PROJECT-ROOT."
+  (message "MCP WebSocket connection lost for project %s, attempting reconnect..." project-root)
+  ;; Stop timers
+  (claude-code-emacs-mcp-stop-ping-timer project-root)
+  (claude-code-emacs-mcp-stop-ping-timeout project-root)
+  ;; Close existing connection
+  (claude-code-emacs-mcp-disconnect project-root)
+  ;; Attempt reconnection
+  (claude-code-emacs-mcp-ensure-connection project-root))
 
 ;; Hook into Claude Code session start to ensure connection
 (add-hook 'claude-code-emacs-vterm-mode-hook

@@ -39,6 +39,7 @@
 (declare-function claude-code-emacs-mcp-get-websocket "claude-code-emacs-mcp-connection" (project-root))
 (declare-function claude-code-emacs-mcp-set-websocket "claude-code-emacs-mcp-connection" (websocket project-root))
 (declare-function claude-code-emacs-mcp-ensure-connection "claude-code-emacs-mcp-connection" (project-root &optional callback))
+(declare-function claude-code-emacs-mcp-handle-pong "claude-code-emacs-mcp-connection" (project-root))
 
 ;; Tool handler forward declarations
 (declare-function claude-code-emacs-mcp-handle-openFile "claude-code-emacs-mcp-tools" (params))
@@ -119,6 +120,10 @@ Call CALLBACK with result or error."
              (json-array-type 'list)
              (msg (json-read-from-string message)))
         (cond
+         ;; Handle ping/pong messages
+         ((equal (cdr (assoc 'type msg)) "pong")
+          (claude-code-emacs-mcp-handle-pong project-root))
+
          ;; Request from server (check method first)
          ((assoc 'method msg)
           (claude-code-emacs-mcp-handle-request msg project-root))
