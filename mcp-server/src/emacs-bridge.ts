@@ -39,7 +39,7 @@ export class EmacsBridge extends EventEmitter {
     this.sessionId = sessionId;
     return new Promise((resolve, reject) => {
       try {
-        this.wss = new WebSocketServer({ 
+        this.wss = new WebSocketServer({
           port,
           verifyClient: (info, cb) => {
             try {
@@ -55,7 +55,7 @@ export class EmacsBridge extends EventEmitter {
 
         this.wss.on('connection', (ws, req) => {
           this.log(`WebSocket connection attempt - URL: ${req.url}, headers: ${JSON.stringify(req.headers)}`);
-          
+
           try {
             const url = new URL(req.url || '', `http://${req.headers.host}`);
             const clientSessionId = decodeURIComponent(url.searchParams.get('session') || 'default');
@@ -126,7 +126,7 @@ export class EmacsBridge extends EventEmitter {
       ws.send(JSON.stringify({ type: 'pong' }));
       return;
     }
-    
+
     // Handle JSON-RPC response
     if ('id' in message && ('result' in message || 'error' in message)) {
       const pending = this.pendingRequests.get(message.id);

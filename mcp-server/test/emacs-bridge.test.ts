@@ -103,4 +103,95 @@ describe('EmacsBridge', () => {
       expect(mockWs.on).toHaveBeenCalledWith('error', expect.any(Function));
     });
   });
+
+  describe('ping/pong', () => {
+    it('should respond to ping with pong', async () => {
+      const port = 9999;
+      const mockWs = {
+        on: jest.fn(),
+        send: jest.fn(),
+        close: jest.fn()
+      };
+      const mockReq = {
+        url: `/?session=${encodeURIComponent(testSessionId)}`,
+        headers: { host: 'localhost:9999' }
+      };
+      
+      // Mock WebSocketServer constructor
+      (WebSocketServer as any) = jest.fn().mockImplementation(() => {
+        const wss = mockWss;
+        // Simulate successful start
+        setTimeout(() => {
+          const listeningCallback = wss.on.mock.calls.find((call: any) => call[0] === 'listening');
+          if (listeningCallback) {
+            listeningCallback[1]();
+          }
+        }, 0);
+        return wss;
+      });
+
+      await bridge.start(port, testSessionId);
+
+      // Simulate connection
+      const connectionCallback = mockWss.on.mock.calls.find((call: any) => call[0] === 'connection');
+      connectionCallback[1](mockWs, mockReq);
+      
+      // Get the message handler
+      const messageCallback = mockWs.on.mock.calls.find((call: any) => call[0] === 'message');
+      expect(messageCallback).toBeDefined();
+      
+      // Send ping message
+      const pingMessage = JSON.stringify({ type: 'ping' });
+      messageCallback[1](Buffer.from(pingMessage));
+      
+      // Verify pong was sent
+      expect(mockWs.send).toHaveBeenCalledWith(JSON.stringify({ type: 'pong' }));
+    });
+
+    it('should handle request messages alongside ping messages', async () => {
+      const port = 9999;
+      const mockWs = {
+        on: jest.fn(),
+        send: jest.fn(),
+        close: jest.fn()
+      };
+      const mockReq = {
+        url: `/?session=${encodeURIComponent(testSessionId)}`,
+        headers: { host: 'localhost:9999' }
+      };
+      
+      // Mock WebSocketServer constructor
+      (WebSocketServer as any) = jest.fn().mockImplementation(() => {
+        const wss = mockWss;
+        // Simulate successful start
+        setTimeout(() => {
+          const listeningCallback = wss.on.mock.calls.find((call: any) => call[0] === 'listening');
+          if (listeningCallback) {
+            listeningCallback[1]();
+          }
+        }, 0);
+        return wss;
+      });
+
+      await bridge.start(port, testSessionId);
+
+      // Simulate connection
+      const connectionCallback = mockWss.on.mock.calls.find((call: any) => call[0] === 'connection');
+      connectionCallback[1](mockWs, mockReq);
+      
+      // Get the message handler
+      const messageCallback = mockWs.on.mock.calls.find((call: any) => call[0] === 'message');
+      
+      // Send request message (not ping)
+      const requestMessage = JSON.stringify({ 
+        id: '123', 
+        method: 'openFile', 
+        params: { path: 'test.js' } 
+      });
+      messageCallback[1](Buffer.from(requestMessage));
+      
+      // Should not send pong for non-ping messages
+      expect(mockWs.send).not.toHaveBeenCalledWith(JSON.stringify({ type: 'pong' }));
+    });
+  });
 });
