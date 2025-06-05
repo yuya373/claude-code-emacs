@@ -40,7 +40,7 @@
 (declare-function claude-code-emacs-switch-to-buffer "claude-code-emacs-core" ())
 (declare-function claude-code-emacs-close "claude-code-emacs-core" ())
 (declare-function claude-code-emacs-quit "claude-code-emacs-core" ())
-(declare-function claude-code-emacs-send-region "claude-code-emacs-core" ())
+(declare-function claude-code-emacs-send-buffer-or-region "claude-code-emacs-core" ())
 (declare-function claude-code-emacs-send-string "claude-code-emacs-core" (string &optional paste-p))
 
 ;; Command forward declarations
@@ -157,13 +157,10 @@ Each path is inserted on a new line with @ prefix."
   (interactive)
   (let ((project-files (projectile-project-files (projectile-project-root))))
     (when project-files
-      (let* ((bounds (bounds-of-thing-at-point 'symbol))
-             (start (if bounds (car bounds) (point)))
-             (selected (completing-read "File: "
+      (let* ((selected (completing-read "File: "
                                         project-files
                                         nil t)))
         (when selected
-          (delete-region start (point))
           (insert "@" selected))))))
 
 (defun claude-code-emacs-self-insert-@ ()
@@ -183,7 +180,8 @@ Each path is inserted on a new line with @ prefix."
     ("q" "Close Claude Code window" claude-code-emacs-close)
     ("Q" "Quit Claude Code session" claude-code-emacs-quit)
     ("p" "Open Prompt File" claude-code-emacs-open-prompt-file)
-    ("s" "Send Region" claude-code-emacs-send-region)]
+    ("s" "Send Text" claude-code-emacs-send-string)
+    ("r" "Send Buffer/Region" claude-code-emacs-send-buffer-or-region)]
    ["Quick Send"
     ("1" "Send 1" claude-code-emacs-send-1)
     ("y" "Send 1 (yes)" claude-code-emacs-send-1)
@@ -192,7 +190,7 @@ Each path is inserted on a new line with @ prefix."
     ("g" "Send commit" claude-code-emacs-send-commit)
     ("e" "Send Escape" claude-code-emacs-send-escape)
     ("m" "Send Return" claude-code-emacs-send-return)
-    ("r" "Send Ctrl+R (toggle expand)" claude-code-emacs-send-ctrl-r)
+    ("R" "Send Ctrl+R (toggle expand)" claude-code-emacs-send-ctrl-r)
     ("TAB" "Toggle auto accept (Shift+Tab)" claude-code-emacs-send-shift-tab)]
    ["Commands"
     ("i" "Init project" claude-code-emacs-init)

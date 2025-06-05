@@ -10,9 +10,8 @@ This is an Emacs package that provides integration with Claude Code CLI. The pac
 
 The package is modularized into several components:
 - **claude-code-emacs.el** - Main entry point
-- **claude-code-emacs-core.el** - Core functionality and utilities
-- **claude-code-emacs-buffer.el** - Buffer management
-- **claude-code-emacs-session.el** - Session lifecycle management
+- **claude-code-emacs-core.el** - Core functionality, utilities, and session management
+- **claude-code-emacs-buffer.el** - Buffer naming and string processing
 - **claude-code-emacs-commands.el** - Command execution and slash commands
 - **claude-code-emacs-ui.el** - Transient menu interfaces
 - **claude-code-emacs-prompt.el** - Prompt file management and mode
@@ -77,10 +76,9 @@ make test
 
 ### Emacs Lisp
 - `claude-code-emacs.el` - Main package entry point, loads all modules
-- `claude-code-emacs-core.el` - Core utilities (chunking, error handling)
-- `claude-code-emacs-buffer.el` - Buffer naming and management
-- `claude-code-emacs-session.el` - Session lifecycle (run, close, quit)
-- `claude-code-emacs-commands.el` - Command execution (slash, custom)
+- `claude-code-emacs-core.el` - Core utilities (chunking, error handling, session management)
+- `claude-code-emacs-buffer.el` - Buffer naming and string processing
+- `claude-code-emacs-commands.el` - Command execution (slash, custom, key sending)
 - `claude-code-emacs-ui.el` - Transient menus and key bindings
 - `claude-code-emacs-prompt.el` - Prompt file mode and operations
 - `claude-code-emacs-mcp.el` - MCP WebSocket client integration
@@ -200,6 +198,11 @@ When modifying this package:
 3. Maintain project isolation in buffer naming
 4. Follow the chunking pattern for long strings
 5. Update relevant documentation (README, CLAUDE.md)
+
+### Recent Changes
+- **Shift+Tab support**: Added `claude-code-emacs-send-shift-tab` to toggle auto accept
+- **Function rename**: `claude-code-emacs-send-region` → `claude-code-emacs-send-buffer-or-region`
+- **Module consolidation**: Session management moved from separate module into core.el
 
 ## MCP Server
 

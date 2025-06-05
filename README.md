@@ -55,7 +55,7 @@ For detailed documentation about Claude Code slash commands, see the [official C
 - `q`: Close Claude Code window
 - `Q`: Quit Claude Code session
 - `p`: Open Prompt File
-- `s`: Send Region
+- `s`: Send Buffer/Region
 
 #### Quick Send Keys
 - `1` or `y`: Send "1" (useful for "yes" responses)
@@ -65,6 +65,7 @@ For detailed documentation about Claude Code slash commands, see the [official C
 - `e`: Send Escape
 - `m`: Send Return
 - `r`: Send Ctrl+R (toggle expand)
+- `TAB`: Send Shift+Tab (toggle auto accept)
 
 #### Commands
 - `i`: /init
@@ -116,8 +117,8 @@ Store global commands in `~/.claude/commands/*.md`. These can be executed via `/
 When a command contains `$ARGUMENTS` placeholders, you'll be prompted to provide values for each occurrence.
 
 ## Other Features
-### Send Region
-`claude-code-emacs-send-region` - Send the selected region or entire buffer to Claude Code
+### Send Buffer/Region
+`claude-code-emacs-send-buffer-or-region` - Send the selected region or entire buffer to Claude Code
 
 ## Testing
 ### Running Tests

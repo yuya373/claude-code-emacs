@@ -65,6 +65,7 @@ Claude Codeのスラッシュコマンドの詳細については、[公式Claud
 - `e`: Escapeを送信
 - `m`: Returnを送信
 - `r`: Ctrl+Rを送信（展開の切り替え）
+- `TAB`: Shift+Tabを送信（自動承認の切り替え）
 
 #### コマンド
 - `i`: /init
@@ -117,7 +118,7 @@ Claude Code Emacsはマークダウンファイルとして保存されたカス
 
 ## その他の機能
 ### リージョン送信
-`claude-code-emacs-send-region` - 選択したリージョンまたはバッファ全体をClaude Codeに送信
+`claude-code-emacs-send-buffer-or-region` - 選択したリージョンまたはバッファ全体をClaude Codeに送信
 
 ## テスト
 ### テストの実行

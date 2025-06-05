@@ -24,7 +24,6 @@
 ;; Core module tests
 (load-file "test-claude-code-emacs-core.el")
 (load-file "test-claude-code-emacs-buffer.el")
-(load-file "test-claude-code-emacs-session.el")
 (load-file "test-claude-code-emacs-commands.el")
 (load-file "test-claude-code-emacs-ui.el")
 (load-file "test-claude-code-emacs-prompt.el")

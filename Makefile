@@ -6,7 +6,6 @@ BATCH = $(EMACS) -batch -Q -L .
 # Files
 CORE_FILES = claude-code-emacs-core.el \
 	     claude-code-emacs-buffer.el \
-	     claude-code-emacs-session.el \
 	     claude-code-emacs-commands.el \
 	     claude-code-emacs-ui.el \
 	     claude-code-emacs-prompt.el
@@ -17,7 +16,6 @@ MCP_MODULES = claude-code-emacs-mcp-connection.el \
 
 TEST_CORE_FILES = test-claude-code-emacs-core.el \
 		  test-claude-code-emacs-buffer.el \
-		  test-claude-code-emacs-session.el \
 		  test-claude-code-emacs-commands.el \
 		  test-claude-code-emacs-ui.el \
 		  test-claude-code-emacs-prompt.el
@@ -54,7 +52,7 @@ test: compile
 		--eval "(package-initialize)" \
 		-l run-tests.el
 
-clean: mcp-clean
+clean:
 	@echo "Cleaning..."
 	@rm -f *.elc
 
@@ -95,4 +93,4 @@ mcp-test: mcp-install
 		cd mcp-server && npm test; \
 	fi
 
-all: clean compile mcp-build test
+all: clean test mcp-clean mcp-build mcp-test

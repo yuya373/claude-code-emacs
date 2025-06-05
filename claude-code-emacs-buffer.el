@@ -42,7 +42,9 @@
      (lambda ()
        (if (= (length chunks) 1)
            ;; Single chunk, send directly
-           (vterm-send-string (car chunks) paste-p)
+           (progn
+             (vterm-send-string (car chunks) paste-p)
+             (sit-for claude-code-emacs-chunk-delay))
          ;; Multiple chunks, send with delay
          (dolist (chunk chunks)
            (vterm-send-string chunk paste-p)

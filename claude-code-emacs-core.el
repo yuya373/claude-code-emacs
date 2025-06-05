@@ -159,19 +159,29 @@ If CHUNK-SIZE is not provided, use `claude-code-emacs-chunk-size'."
             (delete-window window))
           ;; Kill the vterm process if it exists
           (with-current-buffer buffer
-            (when (and (bound-and-true-p vterm--process)
-                       (process-live-p vterm--process))
-              (kill-process vterm--process)))
-          ;; Disconnect MCP WebSocket if connected
-          (when (fboundp 'claude-code-emacs-mcp-disconnect)
-            (claude-code-emacs-mcp-disconnect (projectile-project-root)))
-          ;; Kill the buffer
-          (kill-buffer buffer)
-          (message "Claude Code session ended for this project"))
+            (vterm-send-string "/quit")
+            (vterm-send-return)
+            (run-at-time 3 nil
+                         (lambda ()
+                           (when (buffer-live-p buffer)
+                             ;; Kill vterm process if still running
+                             (when (and (boundp 'vterm--process)
+                                        vterm--process
+                                        (process-live-p vterm--process))
+                               (kill-process vterm--process))
+                             ;; Clean up MCP connection if it exists
+                             (when (and (fboundp 'claude-code-emacs-mcp-disconnect)
+                                        (fboundp 'claude-code-emacs-mcp-unregister-port))
+                               (let ((project-root (projectile-project-root)))
+                                 (claude-code-emacs-mcp-disconnect project-root)
+                                 (claude-code-emacs-mcp-unregister-port project-root)))
+                             ;; Kill the buffer
+                             (kill-buffer buffer))
+                           (message "Claude Code session ended for this project")))))
       (message "No Claude Code buffer found for this project"))))
 
 ;;;###autoload
-(defun claude-code-emacs-send-region ()
+(defun claude-code-emacs-send-buffer-or-region ()
   "Send selected region or entire buffer to Claude Code."
   (interactive)
   (let ((text (if (use-region-p)

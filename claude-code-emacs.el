@@ -37,7 +37,6 @@
 ;; Load all modules
 (require 'claude-code-emacs-core)
 (require 'claude-code-emacs-buffer)
-(require 'claude-code-emacs-session)
 (require 'claude-code-emacs-commands)
 (require 'claude-code-emacs-ui)
 (require 'claude-code-emacs-prompt)
@@ -45,12 +44,6 @@
 ;; Optional MCP integration
 (when (locate-library "claude-code-emacs-mcp")
   (require 'claude-code-emacs-mcp nil t))
-
-;;;###autoload
-(defun claude-code-emacs-start ()
-  "Start Claude Code session for the current project."
-  (interactive)
-  (claude-code-emacs))
 
 (provide 'claude-code-emacs)
 ;;; claude-code-emacs.el ends here
