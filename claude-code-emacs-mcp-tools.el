@@ -370,9 +370,7 @@ Always returns project-wide diagnostics."
             (error "Command '%s' is blocked for security reasons" command-name))
 
           ;; Execute the command
-          (let* ((original-buffer (current-buffer))
-                 (original-point (point))
-                 (output-buffer (generate-new-buffer " *MCP Command Output*"))
+          (let* ((output-buffer (generate-new-buffer " *MCP Command Output*"))
                  (result nil)
                  (buffer-changed nil))
 
@@ -489,6 +487,7 @@ Always returns project-wide diagnostics."
 
 ;;; Definition finding
 
+;; TODO: file-pathを必須に引数にする
 (defun claude-code-emacs-mcp-handle-getDefinition (params)
   "Handle getDefinition request with PARAMS using LSP."
   (let* ((symbol-name (cdr (assoc 'symbol params)))
@@ -521,7 +520,7 @@ Always returns project-wide diagnostics."
 
                 ;; Get definitions using lsp-request
                 (setq definitions (claude-code-emacs-mcp-get-lsp-definitions-with-request))
-                
+
                 ;; Try to get symbol at point if not provided
                 (unless symbol-name
                   (setq symbol-name (thing-at-point 'symbol t))))))
@@ -549,11 +548,11 @@ Always returns project-wide diagnostics."
 (defun claude-code-emacs-mcp-get-lsp-definitions-with-request ()
   "Get definitions using lsp-request."
   (require 'lsp-mode)
-  (condition-case err
+  (condition-case _
       (let* ((params (lsp--text-document-position-params))
              (response (lsp-request "textDocument/definition" params))
              (definitions '()))
-        
+
         ;; Response can be Location, Location[], LocationLink, or LocationLink[]
         (when response
           (let ((locations (if (listp response)
@@ -562,25 +561,25 @@ Always returns project-wide diagnostics."
                                   response  ; Already a list of locations
                                 (list response))  ; Single location as list
                             (list response))))  ; Make single item a list
-            
+
             (dolist (loc locations)
               (let* ((uri (or (plist-get loc :uri)
                              (plist-get loc :targetUri)))
                      (range (or (plist-get loc :range)
                                (plist-get loc :targetRange)))
                      (file (when uri (lsp--uri-to-path uri))))
-                
+
                 (when (and file range)
                   (let* ((start (plist-get range :start))
                          (line (1+ (plist-get start :line)))
                          (column (plist-get start :character))
                          (def-info (claude-code-emacs-mcp-get-definition-info-at file line column)))
-                    
+
                     (when def-info
                       (push def-info definitions))))))))
-        
+
         (nreverse definitions))
-    
+
     (error
      ;; Return empty list on error
      nil)))

@@ -229,10 +229,7 @@ Contributions are welcome! Please:
 ### Connection Management
 The MCP server maintains a stable WebSocket connection with automatic health monitoring:
 - **Ping/Pong heartbeat**: Sends periodic ping messages (default 30s interval) to detect connection issues
-- **Automatic reconnection**: Reconnects automatically if the connection is lost
-- **Port change detection**: Automatically reconnects when MCP server restarts on a different port
 - **Configurable timeouts**: Customize ping interval and timeout via `claude-code-emacs-mcp-ping-interval` and `claude-code-emacs-mcp-ping-timeout`
-- **Auto-connect control**: Use `claude-code-emacs-mcp-auto-connect` to control initial connection behavior
 
 ### Available MCP Tools
 - **openFile**: Open files with optional text selection

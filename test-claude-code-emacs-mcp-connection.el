@@ -10,19 +10,12 @@
 (require 'claude-code-emacs-mcp-connection)
 (require 'cl-lib)
 
-;; Disable auto-connect for tests
-(setq claude-code-emacs-mcp-auto-connect nil)
-
 ;;; Test utilities
 
 (defmacro claude-code-emacs-mcp-test-with-connection (&rest body)
   "Execute BODY with MCP connection mocked."
-  `(let ((claude-code-emacs-mcp-project-ports (make-hash-table :test 'equal))
-         (claude-code-emacs-mcp-project-connections (make-hash-table :test 'equal))
-         (claude-code-emacs-mcp-connection-callbacks (make-hash-table :test 'equal))
-         (claude-code-emacs-mcp-port-wait-timeout 2))  ; Short timeout for tests
+  `(let ((claude-code-emacs-mcp-project-connections (make-hash-table :test 'equal)))
      ;; Register default port for test project
-     (puthash (projectile-project-root) 8766 claude-code-emacs-mcp-project-ports)
      (cl-letf* (((symbol-function 'websocket-open)
                  (lambda (url &rest args)
                    (let ((ws (cons 'mock-websocket nil))
@@ -54,7 +47,7 @@
   (skip-unless (not (getenv "CI")))  ; Skip in CI due to mock environment issues
   (claude-code-emacs-mcp-test-with-connection
    (let ((project-root (projectile-project-root)))
-     (claude-code-emacs-mcp-connect project-root nil)
+     (claude-code-emacs-mcp-connect project-root 8766)
      (let ((ws (claude-code-emacs-mcp-get-websocket project-root)))
        (should ws)
        (should (websocket-openp ws))))))
@@ -63,63 +56,9 @@
   "Test disconnecting from MCP server."
   (claude-code-emacs-mcp-test-with-connection
    (let ((project-root (projectile-project-root)))
-     (claude-code-emacs-mcp-connect project-root nil)
+     (claude-code-emacs-mcp-connect project-root 8766)
      (claude-code-emacs-mcp-disconnect project-root)
      (should-not (claude-code-emacs-mcp-get-websocket project-root)))))
-
-(ert-deftest test-mcp-ensure-connection ()
-  "Test ensure connection with retry."
-  :tags '(:mcp :network)
-  (skip-unless (not (getenv "CI")))  ; Skip in CI due to mock environment issues
-  (claude-code-emacs-mcp-test-with-connection
-   ;; Ensure connection should connect with retry
-   (let ((project-root (projectile-project-root)))
-     (claude-code-emacs-mcp-ensure-connection project-root)
-     (should (claude-code-emacs-mcp-get-websocket project-root)))))
-
-(ert-deftest test-mcp-port-from-file ()
-  "Test reading port from file."
-  (let* ((test-root "/test/project/")
-         (temp-file (make-temp-file "claude-code-emacs-mcp-test"))
-         (claude-code-emacs-mcp-project-ports (make-hash-table :test 'equal)))
-    (unwind-protect
-        (progn
-          ;; Write port info to file
-          (with-temp-file temp-file
-            (insert (json-encode '((port . 8767) (projectRoot . "/test/project/")))))
-
-          ;; Mock temporary-file-directory
-          (cl-letf (((symbol-function 'expand-file-name)
-                     (lambda (name dir)
-                       (if (string-match "claude-code-emacs-mcp-" name)
-                           temp-file
-                         (concat dir "/" name)))))
-
-            ;; Test getting port from file
-            (let ((port (claude-code-emacs-mcp-get-port-from-file test-root)))
-              (should (equal port 8767))
-              ;; Check that port was registered
-              (should (equal (claude-code-emacs-mcp-get-port test-root) 8767)))))
-      (delete-file temp-file))))
-
-(ert-deftest test-mcp-connection-retry ()
-  "Test connection retry functionality."
-  :tags '(:mcp :network)
-  (skip-unless (not (getenv "CI")))  ; Skip in CI due to timing issues
-  (claude-code-emacs-mcp-test-with-connection
-   (let ((retry-count 0)
-         (project-root (projectile-project-root)))
-     ;; Test that retry mechanism is triggered on failure
-     (cl-letf (((symbol-function 'websocket-open)
-                (lambda (url &rest args)
-                  (signal 'error '("Connection failed"))))
-               ((symbol-function 'run-at-time)
-                (lambda (time repeat func &rest args)
-                  ;; Count retry attempts instead of executing
-                  (setq retry-count (1+ retry-count)))))
-       (claude-code-emacs-mcp-connect-with-retry project-root nil)
-       ;; Should have scheduled retries
-       (should (> retry-count 0))))))
 
 (ert-deftest test-mcp-ping-pong ()
   "Test ping/pong functionality."
@@ -132,40 +71,15 @@
                   (when (string-match "ping" text)
                     (setq ping-sent t)))))
        ;; Connect first
-       (claude-code-emacs-mcp-connect project-root)
-       
+       (claude-code-emacs-mcp-connect project-root 8766)
+
        ;; Test ping timer was created
        (let ((info (claude-code-emacs-mcp-get-connection-info project-root)))
          (should (assoc 'ping-timer info)))
-       
+
        ;; Send ping manually
        (claude-code-emacs-mcp-send-ping project-root)
        (should ping-sent)))))
-
-(ert-deftest test-mcp-ping-timeout ()
-  "Test ping timeout handling."
-  :tags '(:mcp :ping)
-  (claude-code-emacs-mcp-test-with-connection
-   (let ((project-root (projectile-project-root))
-         (timeout-handler-called nil)
-         (reconnect-attempted nil))
-     (cl-letf (((symbol-function 'run-with-timer)
-                (lambda (time repeat func &rest args)
-                  (when (eq func 'claude-code-emacs-mcp-handle-ping-timeout)
-                    ;; Execute timeout handler immediately
-                    (funcall func project-root))
-                  'mock-timer))
-               ((symbol-function 'claude-code-emacs-mcp-ensure-connection)
-                (lambda (root)
-                  (setq reconnect-attempted t))))
-       ;; Connect first
-       (claude-code-emacs-mcp-connect project-root)
-       
-       ;; Send ping - should trigger timeout
-       (claude-code-emacs-mcp-send-ping project-root)
-       
-       ;; Verify reconnection was attempted
-       (should reconnect-attempted)))))
 
 (ert-deftest test-mcp-pong-handling ()
   "Test pong message handling."
@@ -179,60 +93,107 @@
                ((symbol-function 'timerp)
                 (lambda (timer) t)))
        ;; Connect first
-       (claude-code-emacs-mcp-connect project-root)
-       
+       (claude-code-emacs-mcp-connect project-root 8766)
+
        ;; Start ping timeout (mock)
        (let ((info (claude-code-emacs-mcp-get-connection-info project-root)))
          (setcdr (assoc 'ping-timeout-timer info) 'mock-timer))
-       
+
        ;; Handle pong
        (claude-code-emacs-mcp-handle-pong project-root)
-       
+
        ;; Verify timeout was cancelled
        (should timeout-cancelled)
-       
+
        ;; Verify last-pong-time was updated
        (let ((info (claude-code-emacs-mcp-get-connection-info project-root)))
          (should (cdr (assoc 'last-pong-time info))))))))
 
-(ert-deftest test-mcp-port-registration-with-reconnect ()
-  "Test port registration disconnects old connection and reconnects."
-  :tags '(:mcp :connection)
+(ert-deftest test-mcp-get-connection-info ()
+  "Test getting connection info for project."
   (claude-code-emacs-mcp-test-with-connection
    (let* ((project-root (projectile-project-root))
-          ;; Normalize project root like the function does
-          (normalized-root (directory-file-name project-root))
-          (old-port 8765)
-          (new-port 8766)
-          (disconnect-called nil)
-          (reconnect-called nil))
-     ;; Test with auto-connect disabled to verify reconnect always happens
-     (let ((claude-code-emacs-mcp-auto-connect nil))
-       (cl-letf (((symbol-function 'claude-code-emacs-mcp-disconnect)
-                  (lambda (root)
-                    (when (string= root normalized-root)
-                      (setq disconnect-called t))))
-                 ((symbol-function 'claude-code-emacs-mcp-connect-with-retry)
-                  (lambda (root)
-                    (when (string= root normalized-root)
-                      (setq reconnect-called t)))))
-         ;; Register initial port
-         (claude-code-emacs-mcp-register-port project-root old-port)
-         (should (= (claude-code-emacs-mcp-get-port project-root) old-port))
-         (should-not disconnect-called)
-         (should-not reconnect-called)
-         
-         ;; Register same port again - should not disconnect
-         (claude-code-emacs-mcp-register-port project-root old-port)
-         (should-not disconnect-called)
-         (should-not reconnect-called)
-         
-         ;; Register different port - should disconnect and reconnect
-         ;; even with auto-connect disabled
-         (claude-code-emacs-mcp-register-port project-root new-port)
-         (should (= (claude-code-emacs-mcp-get-port project-root) new-port))
-         (should disconnect-called)
-         (should reconnect-called))))))
+          (info (claude-code-emacs-mcp-get-connection-info project-root)))
+     ;; Check all expected fields exist
+     (should (assoc 'websocket info))
+     (should (assoc 'request-id info))
+     (should (assoc 'pending-requests info))
+     (should (assoc 'connection-attempts info))
+     (should (assoc 'ping-timer info))
+     (should (assoc 'ping-timeout-timer info))
+     (should (assoc 'last-pong-time info)))))
+
+(ert-deftest test-mcp-register-port ()
+  "Test port registration for project."
+  (claude-code-emacs-mcp-test-with-connection
+   (let* ((project-root (projectile-project-root))
+          (test-port 9999)
+          (connect-called nil))
+     (cl-letf (((symbol-function 'claude-code-emacs-normalize-project-root)
+                (lambda (root) (directory-file-name root)))
+               ((symbol-function 'claude-code-emacs-mcp-try-connect-async)
+                (lambda (root port)
+                  (setq connect-called (list root port)))))
+       ;; Register port
+       (claude-code-emacs-mcp-register-port project-root test-port)
+       ;; Check that try-connect-async was called with correct args
+       (should connect-called)
+       (should (equal (car connect-called) (directory-file-name project-root)))
+       (should (equal (cadr connect-called) test-port))))))
+
+(ert-deftest test-mcp-handle-connection-lost ()
+  "Test handling lost connection."
+  (claude-code-emacs-mcp-test-with-connection
+   (let ((project-root (projectile-project-root))
+         (disconnect-called nil))
+     ;; Connect first
+     (claude-code-emacs-mcp-connect project-root 8766)
+
+     ;; Mock disconnect
+     (cl-letf (((symbol-function 'claude-code-emacs-mcp-disconnect)
+                (lambda (root)
+                  (setq disconnect-called t))))
+       ;; Handle connection lost
+       (claude-code-emacs-mcp-handle-connection-lost project-root)
+       ;; Should have called disconnect
+       (should disconnect-called)))))
+
+(ert-deftest test-mcp-set-and-get-websocket ()
+  "Test setting and getting websocket."
+  (claude-code-emacs-mcp-test-with-connection
+   (let* ((project-root (projectile-project-root))
+          (new-ws '(new-mock-websocket)))
+     ;; Get the initial websocket (may be nil or a default)
+     (let ((initial-ws (claude-code-emacs-mcp-get-websocket project-root)))
+       ;; Set a new websocket
+       (claude-code-emacs-mcp-set-websocket new-ws project-root)
+       ;; Should get the new websocket back
+       (should (equal (claude-code-emacs-mcp-get-websocket project-root) new-ws))
+       ;; Should not be the initial websocket
+       (should-not (equal (claude-code-emacs-mcp-get-websocket project-root) initial-ws))))))
+
+(ert-deftest test-mcp-ping-timer-management ()
+  "Test ping timer start and stop."
+  (claude-code-emacs-mcp-test-with-connection
+   (let ((project-root (projectile-project-root))
+         (timer-created nil)
+         (timer-cancelled nil))
+     (cl-letf (((symbol-function 'run-with-timer)
+                (lambda (&rest args)
+                  (setq timer-created t)
+                  'mock-timer))
+               ((symbol-function 'cancel-timer)
+                (lambda (timer)
+                  (when (eq timer 'mock-timer)
+                    (setq timer-cancelled t))))
+               ((symbol-function 'timerp)
+                (lambda (timer) (eq timer 'mock-timer))))
+       ;; Start timer
+       (claude-code-emacs-mcp-start-ping-timer project-root)
+       (should timer-created)
+       ;; Stop timer
+       (claude-code-emacs-mcp-stop-ping-timer project-root)
+       (should timer-cancelled)))))
 
 (provide 'test-claude-code-emacs-mcp-connection)
 ;;; test-claude-code-emacs-mcp-connection.el ends here

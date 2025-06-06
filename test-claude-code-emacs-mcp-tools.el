@@ -250,7 +250,7 @@
       (let ((result (claude-code-emacs-mcp-handle-runCommand params)))
         (should (assoc 'success result))
         (should (equal (cdr (assoc 'success result)) t)))))
-  
+
   ;; Test command with arguments
   (let ((params '((command . "goto-line")
                   (args . (100)))))
@@ -262,21 +262,21 @@
         (should (assoc 'success result))
         (should (equal (cdr (assoc 'success result)) t))
         (should (equal (cdr (assoc 'result result)) 100)))))
-  
+
   ;; Test unknown command
   (let ((params '((command . "unknown-command-xyz"))))
     (let ((result (claude-code-emacs-mcp-handle-runCommand params)))
       (should (assoc 'success result))
       (should (equal (cdr (assoc 'success result)) nil))
       (should (string-match "Unknown command" (cdr (assoc 'error result))))))
-  
+
   ;; Test blocked command
   (let ((params '((command . "shell-command"))))
     (let ((result (claude-code-emacs-mcp-handle-runCommand params)))
       (should (assoc 'success result))
       (should (equal (cdr (assoc 'success result)) nil))
       (should (string-match "blocked for security" (cdr (assoc 'error result))))))
-  
+
   ;; Test non-command symbol
   (let ((params '((command . "car"))))
     (let ((result (claude-code-emacs-mcp-handle-runCommand params)))
@@ -291,7 +291,7 @@
   (should (claude-code-emacs-mcp-command-blocked-p "eval-expression"))
   (should (claude-code-emacs-mcp-command-blocked-p "delete-file"))
   (should (claude-code-emacs-mcp-command-blocked-p "kill-emacs"))
-  
+
   ;; Allowed commands
   (should-not (claude-code-emacs-mcp-command-blocked-p "save-buffer"))
   (should-not (claude-code-emacs-mcp-command-blocked-p "goto-line"))
@@ -301,18 +301,18 @@
   "Test value serialization."
   ;; nil -> :null
   (should (eq (claude-code-emacs-mcp-serialize-value nil) :null))
-  
+
   ;; Simple types
   (should (equal (claude-code-emacs-mcp-serialize-value 42) 42))
   (should (equal (claude-code-emacs-mcp-serialize-value "hello") "hello"))
   (should (equal (claude-code-emacs-mcp-serialize-value t) t))
-  
+
   ;; Symbol -> string
   (should (equal (claude-code-emacs-mcp-serialize-value 'foo) "foo"))
-  
+
   ;; List -> array
   (should (equal (claude-code-emacs-mcp-serialize-value '(1 2 3)) '(1 2 3)))
-  
+
   ;; Buffer -> buffer info
   (with-temp-buffer
     (let ((result (claude-code-emacs-mcp-serialize-value (current-buffer))))
@@ -330,9 +330,9 @@
     (goto-char (point-min))
     (search-forward "test-func")
     (cl-letf* ((test-file (make-temp-file "test-def" nil ".el"))
-               ((symbol-function 'fboundp) 
+               ((symbol-function 'fboundp)
                 (lambda (sym) (memq sym '(lsp-mode lsp-request))))
-               ((symbol-function 'bound-and-true-p) 
+               ((symbol-function 'bound-and-true-p)
                 (lambda (sym) (eq sym 'lsp-mode)))
                ((symbol-value 'lsp-mode) t)
                ((symbol-function 'lsp--text-document-position-params)
@@ -397,24 +397,85 @@
     (insert "(defun test-func () nil)\n")
     (goto-char (point-min))
     (should (string= (claude-code-emacs-mcp-guess-definition-type) "function"))
-    
+
     ;; Test variable
     (erase-buffer)
     (insert "(defvar test-var 'value)\n")
     (goto-char (point-min))
     (should (string= (claude-code-emacs-mcp-guess-definition-type) "variable"))
-    
+
     ;; Test macro
     (erase-buffer)
     (insert "(defmacro test-macro () nil)\n")
     (goto-char (point-min))
     (should (string= (claude-code-emacs-mcp-guess-definition-type) "macro"))
-    
+
     ;; Test class
     (erase-buffer)
     (insert "(defclass test-class () ())\n")
     (goto-char (point-min))
     (should (string= (claude-code-emacs-mcp-guess-definition-type) "class"))))
+
+(ert-deftest test-mcp-handle-get-buffer-content ()
+  "Test getting buffer content."
+  (let* ((test-file (make-temp-file "test-file"))
+         (test-buffer (generate-new-buffer "test-buffer")))
+    (unwind-protect
+        (progn
+          ;; Write content to actual file
+          (with-temp-file test-file
+            (insert "Line 1\nLine 2\nLine 3\n"))
+          ;; Visit the file in a buffer
+          (with-current-buffer test-buffer
+            (insert "Line 1\nLine 2\nLine 3\n")
+            (set-visited-file-name test-file))
+          ;; Test getting content
+          (cl-letf (((symbol-function 'projectile-project-root)
+                     (lambda () (file-name-directory test-file)))
+                    ((symbol-function 'claude-code-emacs-normalize-project-root)
+                     (lambda (root) root)))
+            (let ((result (claude-code-emacs-mcp-handle-get-buffer-content
+                           `((path . ,(file-name-nondirectory test-file))))))
+              (should (equal (cdr (assoc 'success result)) t))
+              (should (equal (cdr (assoc 'content result))
+                            "Line 1\nLine 2\nLine 3\n")))))
+      (kill-buffer test-buffer)
+      (delete-file test-file))))
+
+(ert-deftest test-mcp-handle-get-project-info ()
+  "Test getting project info."
+  (cl-letf (((symbol-function 'projectile-project-root)
+             (lambda () "/test/project/"))
+            ((symbol-function 'projectile-project-name)
+             (lambda () "test-project"))
+            ((symbol-function 'projectile-project-type)
+             (lambda () 'generic))
+            ((symbol-function 'claude-code-emacs-normalize-project-root)
+             (lambda (root) root))
+            ((symbol-function 'vc-responsible-backend)
+             (lambda (_) nil)))
+    (let ((result (claude-code-emacs-mcp-handle-get-project-info nil)))
+      (should (equal (cdr (assoc 'success result)) t))
+      (should (equal (cdr (assoc 'projectRoot result)) "/test/project/"))
+      (should (equal (cdr (assoc 'projectName result)) "test-project")))))
+
+(ert-deftest test-mcp-handle-get-project-files ()
+  "Test getting project files."
+  (cl-letf (((symbol-function 'projectile-project-root)
+             (lambda () "/test/project/"))
+            ((symbol-function 'projectile-current-project-files)
+             (lambda () '("file1.el" "src/file2.el" "test/file3.el")))
+            ((symbol-function 'claude-code-emacs-normalize-project-root)
+             (lambda (root) root)))
+    (let ((result (claude-code-emacs-mcp-handle-get-project-files nil)))
+      (should (equal (cdr (assoc 'success result)) t))
+      (let ((files (cdr (assoc 'files result))))
+        (should (= (length files) 3))
+        ;; Check that each file has the expected structure
+        (let ((paths (mapcar (lambda (f) (cdr (assoc 'path f))) files)))
+          (should (member "file1.el" paths))
+          (should (member "src/file2.el" paths))
+          (should (member "test/file3.el" paths)))))))
 
 (provide 'test-claude-code-emacs-mcp-tools)
 ;;; test-claude-code-emacs-mcp-tools.el ends here

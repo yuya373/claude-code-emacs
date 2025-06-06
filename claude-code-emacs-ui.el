@@ -187,11 +187,10 @@ Each path is inserted on a new line with @ prefix."
     ("y" "Send 1 (yes)" claude-code-emacs-send-1)
     ("2" "Send 2" claude-code-emacs-send-2)
     ("3" "Send 3" claude-code-emacs-send-3)
-    ("g" "Send commit" claude-code-emacs-send-commit)
     ("e" "Send Escape" claude-code-emacs-send-escape)
     ("m" "Send Return" claude-code-emacs-send-return)
     ("R" "Send Ctrl+R (toggle expand)" claude-code-emacs-send-ctrl-r)
-    ("TAB" "Toggle auto accept (Shift+Tab)" claude-code-emacs-send-shift-tab)]
+    ("a" "Toggle auto accept (Shift+Tab)" claude-code-emacs-send-shift-tab)]
    ["Commands"
     ("i" "Init project" claude-code-emacs-init)
     ("k" "Clear conversation" claude-code-emacs-clear)
@@ -202,9 +201,8 @@ Each path is inserted on a new line with @ prefix."
     ("M" "Memory" claude-code-emacs-memory)
     ("C" "Config" claude-code-emacs-config)
     ("o" "Compact" claude-code-emacs-compact)]
-   ["Review"
-    ("R" "Review" claude-code-emacs-review)
-    ("P" "PR comments" claude-code-emacs-pr-comments)]
+   ["Git & GitHub"
+    ("g" "Git & GitHub" claude-code-emacs-git-menu-transient)]
    ["Info & Review"
     ("$" "Cost" claude-code-emacs-cost)
     ("S" "Status" claude-code-emacs-status)]
@@ -215,6 +213,16 @@ Each path is inserted on a new line with @ prefix."
     ("B" "Report bug" claude-code-emacs-bug)
     ("D" "Doctor" claude-code-emacs-doctor)]
    ])
+
+(transient-define-prefix claude-code-emacs-git-menu-transient ()
+  "Claude Code Emacs git menu."
+  ["Claude Code"
+   ["Git"
+    ("g" "Send commit" claude-code-emacs-send-commit)
+    ("p" "Send push" claude-code-emacs-send-push)]
+   ["GitHub"
+    ("r" "Review" claude-code-emacs-review)
+    ("c" "PR comments" claude-code-emacs-pr-comments)]])
 
 (transient-define-prefix claude-code-emacs-prompt-transient ()
   "Claude Code prompt buffer menu."

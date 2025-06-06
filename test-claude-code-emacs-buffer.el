@@ -15,10 +15,6 @@
 (require 'claude-code-emacs-buffer)
 (require 'cl-lib)
 
-;; Disable MCP auto-connect for tests
-(when (featurep 'claude-code-emacs-mcp)
-  (setq claude-code-emacs-mcp-auto-connect nil))
-
 ;;; Test utilities
 
 (defmacro with-claude-test-project (&rest body)

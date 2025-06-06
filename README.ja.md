@@ -220,10 +220,7 @@ claude mcp add-json emacs '{
 ### 接続管理
 MCPサーバーは安定したWebSocket接続を維持し、自動ヘルスモニタリングを提供します：
 - **Ping/Pongハートビート**: 接続問題を検出するため定期的にpingメッセージを送信（デフォルト30秒間隔）
-- **自動再接続**: 接続が失われた場合、自動的に再接続
-- **ポート変更検出**: MCPサーバーが異なるポートで再起動した場合、自動的に再接続
 - **設定可能なタイムアウト**: `claude-code-emacs-mcp-ping-interval`と`claude-code-emacs-mcp-ping-timeout`でping間隔とタイムアウトをカスタマイズ
-- **自動接続制御**: `claude-code-emacs-mcp-auto-connect`で初期接続動作を制御
 
 ### 利用可能なMCPツール
 - **openFile**: オプションのテキスト選択付きでファイルを開く

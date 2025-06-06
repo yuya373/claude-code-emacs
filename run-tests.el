@@ -14,9 +14,6 @@
 (require 'package)
 (package-initialize)
 
-;; Disable MCP auto-connect for tests before loading anything
-(setq claude-code-emacs-mcp-auto-connect nil)
-
 ;; Load all modules
 (require 'claude-code-emacs)
 

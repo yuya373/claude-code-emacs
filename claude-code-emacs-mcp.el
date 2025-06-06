@@ -39,10 +39,5 @@
 (require 'claude-code-emacs-mcp-protocol)
 (require 'claude-code-emacs-mcp-tools)
 
-;; Hook into Claude Code session start to ensure connection
-(with-eval-after-load 'claude-code-emacs-ui
-  (add-hook 'claude-code-emacs-vterm-mode-hook
-            #'claude-code-emacs-mcp-maybe-ensure-connection))
-
 (provide 'claude-code-emacs-mcp)
 ;;; claude-code-emacs-mcp.el ends here

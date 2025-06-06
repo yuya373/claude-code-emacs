@@ -122,6 +122,12 @@
   (claude-code-emacs-send-string "commit"))
 
 ;;;###autoload
+(defun claude-code-emacs-send-push ()
+  "Send `push' to Claude Code buffer."
+  (interactive)
+  (claude-code-emacs-send-string "push"))
+
+;;;###autoload
 (defun claude-code-emacs-send-ctrl-r ()
   "Send Ctrl+R to Claude Code buffer to toggle expand."
   (interactive)

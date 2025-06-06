@@ -38,7 +38,6 @@
 (declare-function claude-code-emacs-mcp-get-connection-info "claude-code-emacs-mcp-connection" (project-root))
 (declare-function claude-code-emacs-mcp-get-websocket "claude-code-emacs-mcp-connection" (project-root))
 (declare-function claude-code-emacs-mcp-set-websocket "claude-code-emacs-mcp-connection" (websocket project-root))
-(declare-function claude-code-emacs-mcp-ensure-connection "claude-code-emacs-mcp-connection" (project-root &optional callback))
 (declare-function claude-code-emacs-mcp-handle-pong "claude-code-emacs-mcp-connection" (project-root))
 
 ;; Tool handler forward declarations
@@ -53,55 +52,6 @@
 (declare-function claude-code-emacs-mcp-handle-getDefinition "claude-code-emacs-mcp-tools" (params))
 
 ;;; JSON-RPC Communication
-
-(defun claude-code-emacs-mcp-next-request-id (project-root)
-  "Get next request ID for PROJECT-ROOT."
-  (let* ((info (claude-code-emacs-mcp-get-connection-info project-root))
-         (id-cell (assoc 'request-id info)))
-    (setcdr id-cell (1+ (cdr id-cell)))
-    (cdr id-cell)))
-
-(defun claude-code-emacs-mcp-send-request (method params callback project-root)
-  "Send JSON-RPC request with METHOD and PARAMS for PROJECT-ROOT.
-Call CALLBACK with result or error."
-  (let ((websocket (claude-code-emacs-mcp-get-websocket project-root)))
-    (if (and websocket (websocket-openp websocket))
-        ;; Already connected, send immediately
-        (let* ((id (claude-code-emacs-mcp-next-request-id project-root))
-               (request (json-encode
-                         `((jsonrpc . "2.0")
-                           (id . ,id)
-                           (method . ,method)
-                           (params . ,params))))
-               (info (claude-code-emacs-mcp-get-connection-info project-root))
-               (pending-requests (cdr (assoc 'pending-requests info))))
-          (puthash id callback pending-requests)
-          (websocket-send-text websocket request))
-      ;; Not connected, ensure connection first
-      (claude-code-emacs-mcp-ensure-connection
-       project-root
-       (lambda (connected)
-         (if connected
-             (claude-code-emacs-mcp-send-request method params callback project-root)
-           (funcall callback nil '((code . -32603)
-                                  (message . "Failed to connect to MCP server")))))))))
-
-(defun claude-code-emacs-mcp-send-notification (method params project-root)
-  "Send JSON-RPC notification with METHOD and PARAMS for PROJECT-ROOT."
-  (let ((websocket (claude-code-emacs-mcp-get-websocket project-root)))
-    (if (and websocket (websocket-openp websocket))
-        ;; Already connected, send immediately
-        (let ((notification (json-encode
-                             `((jsonrpc . "2.0")
-                               (method . ,method)
-                               (params . ,params)))))
-          (websocket-send-text websocket notification))
-      ;; Not connected, ensure connection first
-      (claude-code-emacs-mcp-ensure-connection
-       project-root
-       (lambda (connected)
-         (when connected
-           (claude-code-emacs-mcp-send-notification method params project-root)))))))
 
 (defun claude-code-emacs-mcp-send-response (id result error project-root)
   "Send response for request ID with RESULT or ERROR for PROJECT-ROOT."

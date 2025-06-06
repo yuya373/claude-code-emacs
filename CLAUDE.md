@@ -176,7 +176,6 @@ Tests use mock implementations to avoid vterm dependencies:
 - Always use `claude-code-emacs-ensure-buffer` before operations
 - Check file existence before reading command files
 - Validate arguments are non-empty when required
-- Use `claude-code-emacs-handle-error` for consistent error messaging
 
 ### Keybinding Conventions
 - `C-c C-*` in prompt buffers for mode-specific commands
@@ -206,7 +205,6 @@ When modifying this package:
 - **getDiagnostics simplified**: Removed bufferPath parameter, now always returns project-wide diagnostics
 - **runCommand tool**: Added MCP tool to execute Emacs commands from Claude Code with security checks
 - **MCP Resources**: Added support for MCP resources (buffer content, project info, diagnostics)
-- **Port change handling**: Automatic reconnection when MCP server restarts on different port
 - **Enhanced logging**: MCP server now logs to project root (`.claude-code-emacs-mcp.log`)
 - **Shift+Tab support**: Added `claude-code-emacs-send-shift-tab` to toggle auto accept
 - **Function rename**: `claude-code-emacs-send-region` → `claude-code-emacs-send-buffer-or-region`
@@ -257,10 +255,7 @@ When working on the MCP server:
 The MCP connection includes automatic health monitoring:
 - **Ping/Pong mechanism**: Emacs sends ping messages every 30 seconds (configurable via `claude-code-emacs-mcp-ping-interval`)
 - **Timeout detection**: If no pong is received within 10 seconds (configurable via `claude-code-emacs-mcp-ping-timeout`), the connection is considered lost
-- **Automatic reconnection**: On connection loss, the system automatically attempts to reconnect
-- **Port change handling**: When MCP server restarts on a different port, the old connection is automatically closed and a new connection is established
 - **Session persistence**: Each project maintains its own WebSocket connection for isolation
-- **Auto-connect control**: `claude-code-emacs-mcp-auto-connect` controls whether to establish connection when starting Claude Code (reconnections always happen)
 
 ### Known Issues and Solutions
 - **WebSocket 400 error**: Fixed by ensuring the WebSocket URL includes a leading slash (e.g., `ws://localhost:port/?session=...`)
