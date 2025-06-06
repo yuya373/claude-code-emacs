@@ -176,7 +176,7 @@ Returns a list of arguments."
 
 (defun claude-code-emacs-custom-commands-directory ()
   "Return the path to the .claude/commands directory for custom project commands."
-  (let ((project-root (projectile-project-root)))
+  (let ((project-root (claude-code-emacs-normalize-project-root (projectile-project-root))))
     (expand-file-name ".claude/commands" project-root)))
 
 (defun claude-code-emacs-list-custom-command-files ()

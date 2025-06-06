@@ -31,8 +31,13 @@ import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
+// Normalize project root by removing trailing slash
+function normalizeProjectRoot(root: string): string {
+  return root.replace(/\/$/, '');
+}
+
 // Create log file in project root
-const projectRoot = process.cwd();
+const projectRoot = normalizeProjectRoot(process.cwd());
 const logFile = path.join(projectRoot, '.claude-code-emacs-mcp.log');
 const logStream = fs.createWriteStream(logFile, { flags: 'a' });
 
@@ -303,7 +308,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 // Notify Emacs about the port
 async function notifyEmacsPort(port: number): Promise<void> {
-  const projectRoot = process.cwd();
+  const projectRoot = normalizeProjectRoot(process.cwd());
   const elisp = `(claude-code-emacs-mcp-register-port "${projectRoot}" ${port})`;
 
   // Try emacsclient first
@@ -328,7 +333,7 @@ async function notifyEmacsPort(port: number): Promise<void> {
 // Start server
 async function main() {
   // Use project root as session ID
-  const sessionId = process.cwd();
+  const sessionId = normalizeProjectRoot(process.cwd());
 
   // Start Emacs bridge with port 0 for automatic assignment
   const port = await bridge.start(0, sessionId);
@@ -379,18 +384,18 @@ process.on('SIGTERM', async () => {
 process.on('uncaughtException', (error) => {
   log(`Uncaught exception: ${error.message}`);
   log(`Stack: ${error.stack}`);
-  log(`Project root: ${process.cwd()}`);
+  log(`Project root: ${normalizeProjectRoot(process.cwd())}`);
   cleanup().then(() => process.exit(1));
 });
 
 process.on('unhandledRejection', (reason, promise) => {
   log(`Unhandled rejection at: ${promise}, reason: ${reason}`);
-  log(`Project root: ${process.cwd()}`);
+  log(`Project root: ${normalizeProjectRoot(process.cwd())}`);
   cleanup().then(() => process.exit(1));
 });
 
 async function cleanup() {
-  const projectRoot = process.cwd();
+  const projectRoot = normalizeProjectRoot(process.cwd());
 
   try {
     const elisp = `(claude-code-emacs-mcp-unregister-port "${projectRoot}")`;
@@ -415,7 +420,7 @@ async function cleanup() {
 main().catch((error) => {
   log(`Server error: ${error.message}`);
   log(`Stack: ${error.stack}`);
-  log(`Project root: ${process.cwd()}`);
+  log(`Project root: ${normalizeProjectRoot(process.cwd())}`);
   log(`Process info: PID=${process.pid}, Node=${process.version}`);
   cleanup().then(() => process.exit(1));
 });

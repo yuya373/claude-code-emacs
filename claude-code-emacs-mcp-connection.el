@@ -106,7 +106,8 @@ Each value is an alist with keys:
 
 (defun claude-code-emacs-mcp-get-connection-info (project-root)
   "Get connection info for PROJECT-ROOT."
-  (or (gethash project-root claude-code-emacs-mcp-project-connections)
+  (or (gethash (claude-code-emacs-normalize-project-root project-root)
+               claude-code-emacs-mcp-project-connections)
       (let ((info `((websocket . nil)
                     (request-id . 0)
                     (pending-requests . ,(make-hash-table :test 'equal))
@@ -114,7 +115,9 @@ Each value is an alist with keys:
                     (ping-timer . nil)
                     (ping-timeout-timer . nil)
                     (last-pong-time . nil))))
-        (puthash project-root info claude-code-emacs-mcp-project-connections)
+        (puthash (claude-code-emacs-normalize-project-root project-root)
+                 info
+                 claude-code-emacs-mcp-project-connections)
         info)))
 
 (defun claude-code-emacs-mcp-get-websocket (project-root)
@@ -132,7 +135,7 @@ Each value is an alist with keys:
   "Register PORT for PROJECT-ROOT.
 If a different port was already registered, disconnect the old connection and reconnect."
   ;; Normalize project root by removing trailing slash
-  (let ((normalized-root (directory-file-name project-root))
+  (let ((normalized-root (claude-code-emacs-normalize-project-root project-root))
         (old-port (claude-code-emacs-mcp-get-port project-root)))
     ;; Check if we have a different port registered
     (when (and old-port (not (= old-port port)))
@@ -150,19 +153,19 @@ If a different port was already registered, disconnect the old connection and re
 (defun claude-code-emacs-mcp-get-port (project-root)
   "Get port for PROJECT-ROOT."
   ;; Normalize project root by removing trailing slash
-  (let ((normalized-root (directory-file-name project-root)))
+  (let ((normalized-root (claude-code-emacs-normalize-project-root project-root)))
     (gethash normalized-root claude-code-emacs-mcp-project-ports)))
 
 (defun claude-code-emacs-mcp-unregister-port (project-root)
   "Unregister port for PROJECT-ROOT."
   ;; Normalize project root by removing trailing slash
-  (let ((normalized-root (directory-file-name project-root)))
+  (let ((normalized-root (claude-code-emacs-normalize-project-root project-root)))
     (remhash normalized-root claude-code-emacs-mcp-project-ports)))
 
 (defun claude-code-emacs-mcp-get-port-from-file (project-root)
   "Try to get port from temporary file for PROJECT-ROOT."
   ;; Normalize project root by removing trailing slash before sanitizing
-  (let* ((normalized-root (directory-file-name project-root))
+  (let* ((normalized-root (claude-code-emacs-normalize-project-root project-root))
          (sanitized-root (replace-regexp-in-string "[^a-zA-Z0-9]" "_" normalized-root))
          (port-file (expand-file-name
                      (format "claude-code-emacs-mcp-%s.port" sanitized-root)
@@ -186,8 +189,12 @@ Call CALLBACK with t on success, nil on failure."
   (let ((info (claude-code-emacs-mcp-get-connection-info project-root)))
     (setcdr (assoc 'connection-attempts info) 0)
     (when callback
-      (let ((callbacks (or (gethash project-root claude-code-emacs-mcp-connection-callbacks) nil)))
-        (puthash project-root (cons callback callbacks) claude-code-emacs-mcp-connection-callbacks)))
+      (let ((callbacks (or (gethash (claude-code-emacs-normalize-project-root project-root)
+                                    claude-code-emacs-mcp-connection-callbacks)
+                           nil)))
+        (puthash (claude-code-emacs-normalize-project-root project-root)
+                 (cons callback callbacks)
+                 claude-code-emacs-mcp-connection-callbacks)))
     (claude-code-emacs-mcp-try-connect-async project-root)))
 
 (defun claude-code-emacs-mcp-try-connect-async (project-root)
@@ -199,10 +206,13 @@ Call CALLBACK with t on success, nil on failure."
           (message "Failed to connect to MCP server after %d attempts for project %s"
                    claude-code-emacs-mcp-max-connection-attempts project-root)
           ;; Call callbacks with failure
-          (let ((callbacks (gethash project-root claude-code-emacs-mcp-connection-callbacks)))
+          (let ((callbacks (gethash (claude-code-emacs-normalize-project-root project-root)
+                                    claude-code-emacs-mcp-connection-callbacks)))
             (dolist (callback callbacks)
               (funcall callback nil))
-            (puthash project-root nil claude-code-emacs-mcp-connection-callbacks)))
+            (puthash (claude-code-emacs-normalize-project-root project-root)
+                     nil
+                     claude-code-emacs-mcp-connection-callbacks)))
       (setcdr (assoc 'connection-attempts info) (1+ attempts))
       (message "Attempting to connect to MCP server (attempt %d/%d) for project %s..."
                (1+ attempts)
@@ -214,10 +224,13 @@ Call CALLBACK with t on success, nil on failure."
          (if connected
              (progn
                ;; Call callbacks with success
-               (let ((callbacks (gethash project-root claude-code-emacs-mcp-connection-callbacks)))
+               (let ((callbacks (gethash (claude-code-emacs-normalize-project-root project-root)
+                                         claude-code-emacs-mcp-connection-callbacks)))
                  (dolist (callback callbacks)
                    (funcall callback t))
-                 (puthash project-root nil claude-code-emacs-mcp-connection-callbacks)))
+                 (puthash (claude-code-emacs-normalize-project-root project-root)
+                          nil
+                          claude-code-emacs-mcp-connection-callbacks)))
            ;; Connection failed, retry
            (run-at-time claude-code-emacs-mcp-connection-retry-delay nil
                         #'claude-code-emacs-mcp-try-connect-async project-root)))))))
@@ -348,7 +361,7 @@ If CALLBACK is provided, call it with connection result."
   (interactive)
   (when claude-code-emacs-mcp-auto-connect
     (condition-case err
-        (let ((project-root (projectile-project-root)))
+        (let ((project-root (claude-code-emacs-normalize-project-root (projectile-project-root))))
           (when project-root
             (claude-code-emacs-mcp-ensure-connection project-root)))
       (error

@@ -4,6 +4,11 @@ import { ResourceHandler } from './index.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
+// Normalize project root by removing trailing slash
+function normalizeProjectRoot(root: string): string {
+  return root.replace(/\/$/, '');
+}
+
 export const projectResourceHandler: ResourceHandler = {
   async list(bridge: EmacsBridge): Promise<Resource[]> {
     return [
@@ -39,8 +44,8 @@ async function getProjectInfo(bridge: EmacsBridge): Promise<TextResourceContents
     const result = await bridge.sendRequest('get-project-info', {});
 
     const projectInfo = {
-      root: result.projectRoot || process.cwd(),
-      name: result.projectName || path.basename(process.cwd()),
+      root: result.projectRoot || normalizeProjectRoot(process.cwd()),
+      name: result.projectName || path.basename(normalizeProjectRoot(process.cwd())),
       type: result.projectType || 'unknown',
       vcs: result.vcs || null,
       branch: result.branch || null,
@@ -54,7 +59,7 @@ async function getProjectInfo(bridge: EmacsBridge): Promise<TextResourceContents
     };
   } catch (error) {
     // Fallback to basic info if Emacs request fails
-    const projectRoot = process.cwd();
+    const projectRoot = normalizeProjectRoot(process.cwd());
     const projectInfo = {
       root: projectRoot,
       name: path.basename(projectRoot),

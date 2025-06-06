@@ -61,9 +61,13 @@
 
 ;;; Buffer Management
 
+(defun claude-code-emacs-normalize-project-root (project-root)
+  "Normalize PROJECT-ROOT by removing trailing slash."
+  (directory-file-name project-root))
+
 (defun claude-code-emacs-buffer-name ()
   "Return the buffer name for Claude Code session in current project."
-  (let ((project-root (projectile-project-root)))
+  (let ((project-root (claude-code-emacs-normalize-project-root (projectile-project-root))))
     (format "*claude:%s*" project-root)))
 
 (defun claude-code-emacs-get-buffer ()
@@ -109,7 +113,7 @@ If CHUNK-SIZE is not provided, use `claude-code-emacs-chunk-size'."
   "Start Claude Code session for the current project."
   (interactive)
   (let* ((buffer-name (claude-code-emacs-buffer-name))
-         (project-root (projectile-project-root))
+         (project-root (claude-code-emacs-normalize-project-root (projectile-project-root)))
          (default-directory project-root)
          (buf (get-buffer-create buffer-name)))
     (with-current-buffer buf
@@ -120,6 +124,7 @@ If CHUNK-SIZE is not provided, use `claude-code-emacs-chunk-size'."
                    (lambda ()
                      (when (buffer-live-p buf)
                        (with-current-buffer buf
+                         ;; TODO: --dangerously-skip-permissions 等のオプションを渡せるようにしたい
                          (vterm-send-string "claude")
                          (vterm-send-return))))))
     (switch-to-buffer-other-window buffer-name)))
@@ -172,7 +177,7 @@ If CHUNK-SIZE is not provided, use `claude-code-emacs-chunk-size'."
                              ;; Clean up MCP connection if it exists
                              (when (and (fboundp 'claude-code-emacs-mcp-disconnect)
                                         (fboundp 'claude-code-emacs-mcp-unregister-port))
-                               (let ((project-root (projectile-project-root)))
+                               (let ((project-root (claude-code-emacs-normalize-project-root (projectile-project-root))))
                                  (claude-code-emacs-mcp-disconnect project-root)
                                  (claude-code-emacs-mcp-unregister-port project-root)))
                              ;; Kill the buffer

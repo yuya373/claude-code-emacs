@@ -98,7 +98,7 @@
 \\{claude-code-emacs-prompt-mode-map}"
   (setq-local header-line-format
               '(:eval (format "Claude Code Prompts - %s"
-                              (file-name-nondirectory (directory-file-name (projectile-project-root))))))
+                              (file-name-nondirectory (directory-file-name (claude-code-emacs-normalize-project-root (projectile-project-root)))))))
   (setq-local mode-line-format
               (append mode-line-format
                       '(" [C-c C-t: menu, C-c C-i: insert file]")))
@@ -114,7 +114,7 @@
   "Get all buffer file paths with project root replaced by @.
 Returns a list of strings where project root is replaced with @ symbol.
 Buffers without files or outside projects are excluded."
-  (let ((project-root (projectile-project-root))
+  (let ((project-root (claude-code-emacs-normalize-project-root (projectile-project-root)))
         (paths '()))
     (when project-root
       (dolist (buffer (buffer-list))
@@ -128,7 +128,7 @@ Buffers without files or outside projects are excluded."
   "Format BUFFER's file path with project root replaced by @.
 Returns nil if buffer has no file or is outside project."
   (when-let* ((file-path (buffer-file-name buffer))
-              (project-root (projectile-project-root)))
+              (project-root (claude-code-emacs-normalize-project-root (projectile-project-root))))
     (when (string-prefix-p project-root file-path)
       (let ((relative-path (file-relative-name file-path project-root)))
         (concat "@" relative-path)))))
@@ -155,7 +155,7 @@ Each path is inserted on a new line with @ prefix."
 (defun claude-code-emacs-at-sign-complete ()
   "Complete file paths after @ symbol."
   (interactive)
-  (let ((project-files (projectile-project-files (projectile-project-root))))
+  (let ((project-files (projectile-project-files (claude-code-emacs-normalize-project-root (projectile-project-root)))))
     (when project-files
       (let* ((selected (completing-read "File: "
                                         project-files

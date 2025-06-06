@@ -55,7 +55,7 @@
 
 (defun claude-code-emacs-get-buffer-paths ()
   "Get all file paths from buffers in the current project."
-  (let ((project-root (projectile-project-root))
+  (let ((project-root (claude-code-emacs-normalize-project-root (projectile-project-root)))
         (paths '()))
     (when project-root
       (dolist (buffer (buffer-list))
@@ -66,7 +66,7 @@
 
 (defun claude-code-emacs-format-buffer-path (path)
   "Format PATH relative to project root with @ prefix."
-  (let ((project-root (projectile-project-root)))
+  (let ((project-root (claude-code-emacs-normalize-project-root (projectile-project-root))))
     (if (and project-root (string-prefix-p project-root path))
         (concat "@" (file-relative-name path project-root))
       path)))

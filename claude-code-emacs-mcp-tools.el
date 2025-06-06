@@ -30,6 +30,7 @@
 
 ;;; Code:
 
+(require 'claude-code-emacs-core)
 (require 'projectile)
 (require 'lsp-mode nil t)
 (require 'lsp-protocol nil t)
@@ -43,7 +44,7 @@
   (let* ((path (cdr (assoc 'path params)))
          (start-text (cdr (assoc 'startText params)))
          (end-text (cdr (assoc 'endText params)))
-         (full-path (expand-file-name path (projectile-project-root))))
+         (full-path (expand-file-name path (claude-code-emacs-normalize-project-root (projectile-project-root)))))
     (message "Params: %s" params)
 
     (unless (file-exists-p full-path)
@@ -67,7 +68,7 @@
 (defun claude-code-emacs-mcp-handle-getOpenBuffers (params)
   "Handle getOpenBuffers request with PARAMS."
   (let* ((include-hidden (cdr (assoc 'includeHidden params)))
-         (project-root (projectile-project-root))
+         (project-root (claude-code-emacs-normalize-project-root (projectile-project-root)))
          (buffers '()))
 
     (dolist (buffer (buffer-list))
@@ -173,8 +174,8 @@ Always returns project-wide diagnostics."
            ((string= mode "files")
             (unless (and file-a file-b)
               (error "Missing required parameters: fileA and fileB"))
-            (let ((path-a (expand-file-name file-a (projectile-project-root)))
-                  (path-b (expand-file-name file-b (projectile-project-root))))
+            (let ((path-a (expand-file-name file-a (claude-code-emacs-normalize-project-root (projectile-project-root))))
+                  (path-b (expand-file-name file-b (claude-code-emacs-normalize-project-root (projectile-project-root)))))
               (unless (file-exists-p path-a)
                 (error "File not found: %s" path-a))
               (unless (file-exists-p path-b)
@@ -206,9 +207,9 @@ Always returns project-wide diagnostics."
         (progn
           (unless (and file-a file-b file-c)
             (error "Missing required parameters: fileA, fileB, and fileC"))
-          (let ((path-a (expand-file-name file-a (projectile-project-root)))
-                (path-b (expand-file-name file-b (projectile-project-root)))
-                (path-c (expand-file-name file-c (projectile-project-root))))
+          (let ((path-a (expand-file-name file-a (claude-code-emacs-normalize-project-root (projectile-project-root))))
+                (path-b (expand-file-name file-b (claude-code-emacs-normalize-project-root (projectile-project-root))))
+                (path-c (expand-file-name file-c (claude-code-emacs-normalize-project-root (projectile-project-root)))))
             (unless (file-exists-p path-a)
               (error "File not found: %s" path-a))
             (unless (file-exists-p path-b)
@@ -216,7 +217,7 @@ Always returns project-wide diagnostics."
             (unless (file-exists-p path-c)
               (error "File not found: %s" path-c))
             (if ancestor
-                (let ((ancestor-path (expand-file-name ancestor (projectile-project-root))))
+                (let ((ancestor-path (expand-file-name ancestor (claude-code-emacs-normalize-project-root (projectile-project-root)))))
                   (unless (file-exists-p ancestor-path)
                     (error "Ancestor file not found: %s" ancestor-path))
                   (ediff-merge-files-with-ancestor path-a path-b ancestor-path nil path-c))
@@ -235,7 +236,7 @@ Always returns project-wide diagnostics."
         (progn
           (unless file
             (error "Missing required parameter: file"))
-          (let ((full-path (expand-file-name file (projectile-project-root))))
+          (let ((full-path (expand-file-name file (claude-code-emacs-normalize-project-root (projectile-project-root)))))
             (unless (file-exists-p full-path)
               (error "File not found: %s" full-path))
             ;; Open the file and compare with revision
@@ -262,7 +263,7 @@ Always returns project-wide diagnostics."
   (let ((file (cdr (assoc 'file params))))
     (condition-case err
         (let ((target-file (if file
-                               (expand-file-name file (projectile-project-root))
+                               (expand-file-name file (claude-code-emacs-normalize-project-root (projectile-project-root)))
                              (buffer-file-name))))
           (unless target-file
             (error "No file specified and current buffer has no file"))
@@ -286,8 +287,8 @@ Always returns project-wide diagnostics."
         (progn
           (unless (and patch-file target-file)
             (error "Missing required parameters: patchFile and targetFile"))
-          (let ((patch-path (expand-file-name patch-file (projectile-project-root)))
-                (target-path (expand-file-name target-file (projectile-project-root))))
+          (let ((patch-path (expand-file-name patch-file (claude-code-emacs-normalize-project-root (projectile-project-root))))
+                (target-path (expand-file-name target-file (claude-code-emacs-normalize-project-root (projectile-project-root)))))
             (unless (file-exists-p patch-path)
               (error "Patch file not found: %s" patch-path))
             (unless (file-exists-p target-path)
@@ -304,7 +305,7 @@ Always returns project-wide diagnostics."
 (defun claude-code-emacs-mcp-handle-get-buffer-content (params)
   "Get content of a buffer specified by PATH in PARAMS."
   (let* ((path (cdr (assoc 'path params)))
-         (full-path (expand-file-name path (projectile-project-root))))
+         (full-path (expand-file-name path (claude-code-emacs-normalize-project-root (projectile-project-root)))))
     (if (file-exists-p full-path)
         (let ((buffer (find-buffer-visiting full-path)))
           (if buffer
@@ -322,7 +323,7 @@ Always returns project-wide diagnostics."
 
 (defun claude-code-emacs-mcp-handle-get-project-info (_params)
   "Get project information."
-  (let ((project-root (projectile-project-root)))
+  (let ((project-root (claude-code-emacs-normalize-project-root (projectile-project-root))))
     `((success . t)
       (projectRoot . ,project-root)
       (projectName . ,(projectile-project-name))
@@ -341,7 +342,7 @@ Always returns project-wide diagnostics."
       (files . ,(mapcar (lambda (file)
                           `((path . ,file)
                             (relativePath . ,file)
-                            (absolutePath . ,(expand-file-name file (projectile-project-root)))))
+                            (absolutePath . ,(expand-file-name file (claude-code-emacs-normalize-project-root (projectile-project-root))))))
                         files)))))
 
 ;;; Command execution
@@ -501,12 +502,12 @@ Always returns project-wide diagnostics."
         (progn
           ;; Check if LSP is available
           (unless (and (fboundp 'lsp-mode)
-                       (fboundp 'lsp-find-definition))
+                       (fboundp 'lsp-request))
             (error "LSP mode is not available. Please install and configure lsp-mode"))
 
           ;; If file path is provided, visit that file first
           (when file-path
-            (let* ((full-path (expand-file-name file-path (projectile-project-root)))
+            (let* ((full-path (expand-file-name file-path (claude-code-emacs-normalize-project-root (projectile-project-root))))
                    (buffer (find-file-noselect full-path)))
               (with-current-buffer buffer
                 ;; Check if LSP is active in this buffer
@@ -518,6 +519,9 @@ Always returns project-wide diagnostics."
                   (forward-line (1- line))
                   (move-to-column column))
 
+                ;; Get definitions using lsp-request
+                (setq definitions (claude-code-emacs-mcp-get-lsp-definitions-with-request))
+                
                 ;; Try to get symbol at point if not provided
                 (unless symbol-name
                   (setq symbol-name (thing-at-point 'symbol t))))))
@@ -526,15 +530,9 @@ Always returns project-wide diagnostics."
           (when (and symbol-name (not file-path))
             (unless (bound-and-true-p lsp-mode)
               (error "LSP is not active in current buffer"))
-            (setq searched-symbol symbol-name))
-
-          ;; Get definitions using LSP
-          (condition-case lsp-err
-              (let ((lsp-defs (claude-code-emacs-mcp-get-lsp-definitions)))
-                (when lsp-defs
-                  (setq definitions lsp-defs)))
-            (error 
-             (error "LSP failed to find definition: %s" (error-message-string lsp-err))))
+            (setq searched-symbol symbol-name)
+            ;; Get definitions from current buffer
+            (setq definitions (claude-code-emacs-mcp-get-lsp-definitions-with-request)))
 
           ;; Return results
           (if definitions
@@ -548,18 +546,63 @@ Always returns project-wide diagnostics."
       (error
        (error "Failed to find definition: %s" (error-message-string err))))))
 
-(defun claude-code-emacs-mcp-get-lsp-definitions ()
-  "Get definitions using LSP."
-  (let ((current-point (point))
-        (definitions '()))
-    ;; lsp-find-definition moves point, so we need to capture the results
-    (save-excursion
-      (call-interactively 'lsp-find-definition)
-      ;; Check if we moved to a different location
-      (unless (= (point) current-point)
-        (push (claude-code-emacs-mcp-capture-definition-at-point) definitions)))
-    definitions))
+(defun claude-code-emacs-mcp-get-lsp-definitions-with-request ()
+  "Get definitions using lsp-request."
+  (require 'lsp-mode)
+  (condition-case err
+      (let* ((params (lsp--text-document-position-params))
+             (response (lsp-request "textDocument/definition" params))
+             (definitions '()))
+        
+        ;; Response can be Location, Location[], LocationLink, or LocationLink[]
+        (when response
+          (let ((locations (if (listp response)
+                              (if (and (listp (car response))
+                                      (not (plist-member (car response) :uri)))
+                                  response  ; Already a list of locations
+                                (list response))  ; Single location as list
+                            (list response))))  ; Make single item a list
+            
+            (dolist (loc locations)
+              (let* ((uri (or (plist-get loc :uri)
+                             (plist-get loc :targetUri)))
+                     (range (or (plist-get loc :range)
+                               (plist-get loc :targetRange)))
+                     (file (when uri (lsp--uri-to-path uri))))
+                
+                (when (and file range)
+                  (let* ((start (plist-get range :start))
+                         (line (1+ (plist-get start :line)))
+                         (column (plist-get start :character))
+                         (def-info (claude-code-emacs-mcp-get-definition-info-at file line column)))
+                    
+                    (when def-info
+                      (push def-info definitions))))))))
+        
+        (nreverse definitions))
+    
+    (error
+     ;; Return empty list on error
+     nil)))
 
+
+(defun claude-code-emacs-mcp-get-definition-info-at (file line column)
+  "Get definition information at FILE:LINE:COLUMN."
+  (condition-case nil
+      (with-temp-buffer
+        (insert-file-contents file)
+        (goto-char (point-min))
+        (forward-line (1- line))
+        (move-to-column column)
+        (let* ((symbol (thing-at-point 'symbol t))
+               (preview (claude-code-emacs-mcp-get-definition-preview)))
+          `((file . ,file)
+            (line . ,line)
+            (column . ,column)
+            (symbol . ,symbol)
+            (type . ,(claude-code-emacs-mcp-guess-definition-type))
+            (preview . ,preview))))
+    (error nil)))
 
 (defun claude-code-emacs-mcp-capture-definition-at-point ()
   "Capture definition information at current point."

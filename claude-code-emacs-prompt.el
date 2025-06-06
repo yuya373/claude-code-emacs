@@ -41,7 +41,7 @@
 (defun claude-code-emacs-open-prompt-file ()
   "Open project-specific prompt file in another window."
   (interactive)
-  (let* ((project-root (projectile-project-root))
+  (let* ((project-root (claude-code-emacs-normalize-project-root (projectile-project-root)))
          (prompt-file (expand-file-name ".claude-code-emacs.prompt.md" project-root)))
     (unless (file-exists-p prompt-file)
       (with-temp-file prompt-file
