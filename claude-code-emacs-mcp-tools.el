@@ -489,66 +489,62 @@ Always returns project-wide diagnostics."
 ;;; Definition finding
 
 (defun claude-code-emacs-mcp-handle-getDefinition (params)
-  "Handle getDefinition request with PARAMS."
+  "Handle getDefinition request with PARAMS using LSP."
   (let* ((symbol-name (cdr (assoc 'symbol params)))
          (file-path (cdr (assoc 'file params)))
          (line (cdr (assoc 'line params)))
          (column (cdr (assoc 'column params)))
          (definitions '())
-         (method nil)
          (searched-symbol nil))
-    
+
     (condition-case err
         (progn
+          ;; Check if LSP is available
+          (unless (and (fboundp 'lsp-mode)
+                       (fboundp 'lsp-find-definition))
+            (error "LSP mode is not available. Please install and configure lsp-mode"))
+
           ;; If file path is provided, visit that file first
           (when file-path
             (let* ((full-path (expand-file-name file-path (projectile-project-root)))
                    (buffer (find-file-noselect full-path)))
               (with-current-buffer buffer
+                ;; Check if LSP is active in this buffer
+                (unless (bound-and-true-p lsp-mode)
+                  (error "LSP is not active in buffer: %s" (buffer-name)))
+
                 (when (and line column)
                   (goto-char (point-min))
                   (forward-line (1- line))
                   (move-to-column column))
-                
+
                 ;; Try to get symbol at point if not provided
                 (unless symbol-name
                   (setq symbol-name (thing-at-point 'symbol t))))))
-          
+
           ;; If symbol provided without file context, use current buffer
           (when (and symbol-name (not file-path))
+            (unless (bound-and-true-p lsp-mode)
+              (error "LSP is not active in current buffer"))
             (setq searched-symbol symbol-name))
-          
-          ;; Try LSP first if available
-          (when (and (fboundp 'lsp-mode)
-                     (bound-and-true-p lsp-mode)
-                     (fboundp 'lsp-find-definition))
-            (condition-case nil
-                (let ((lsp-defs (claude-code-emacs-mcp-get-lsp-definitions)))
-                  (when lsp-defs
-                    (setq definitions lsp-defs)
-                    (setq method "lsp")))
-              (error nil)))
-          
-          ;; Fall back to xref if no LSP results
-          (when (and (null definitions)
-                     (fboundp 'xref-find-definitions))
-            (condition-case nil
-                (let ((xref-defs (claude-code-emacs-mcp-get-xref-definitions 
-                                  (or symbol-name (thing-at-point 'symbol t)))))
-                  (when xref-defs
-                    (setq definitions xref-defs)
-                    (setq method "xref")))
-              (error nil)))
-          
+
+          ;; Get definitions using LSP
+          (condition-case lsp-err
+              (let ((lsp-defs (claude-code-emacs-mcp-get-lsp-definitions)))
+                (when lsp-defs
+                  (setq definitions lsp-defs)))
+            (error 
+             (error "LSP failed to find definition: %s" (error-message-string lsp-err))))
+
           ;; Return results
           (if definitions
               `((definitions . ,definitions)
-                (searchedSymbol . ,(or searched-symbol 
-                                        symbol-name 
+                (searchedSymbol . ,(or searched-symbol
+                                        symbol-name
                                         (thing-at-point 'symbol t)))
-                (method . ,method))
-            (error "No definition found")))
-      
+                (method . "lsp"))
+            (error "No definition found using LSP")))
+
       (error
        (error "Failed to find definition: %s" (error-message-string err))))))
 
@@ -564,21 +560,6 @@ Always returns project-wide diagnostics."
         (push (claude-code-emacs-mcp-capture-definition-at-point) definitions)))
     definitions))
 
-(defun claude-code-emacs-mcp-get-xref-definitions (symbol)
-  "Get definitions using xref for SYMBOL."
-  (when symbol
-    (let* ((xrefs (xref-backend-definitions (xref-find-backend) symbol))
-           (definitions '()))
-      (dolist (xref xrefs)
-        (let* ((location (xref-item-location xref))
-               (file (xref-location-group location))
-               (position (xref-location-marker location)))
-          (when (and file position)
-            (with-current-buffer (find-file-noselect file)
-              (save-excursion
-                (goto-char position)
-                (push (claude-code-emacs-mcp-capture-definition-at-point) definitions))))))
-      (nreverse definitions))))
 
 (defun claude-code-emacs-mcp-capture-definition-at-point ()
   "Capture definition information at current point."

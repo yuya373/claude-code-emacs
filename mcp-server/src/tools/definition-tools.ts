@@ -21,7 +21,7 @@ export interface DefinitionLocation {
 interface DefinitionResult {
   definitions: DefinitionLocation[];
   searchedSymbol?: string;
-  method: 'lsp' | 'xref';
+  method: 'lsp';
 }
 
 export async function handleGetDefinition(bridge: EmacsBridge, args: GetDefinitionArgs): Promise<any> {

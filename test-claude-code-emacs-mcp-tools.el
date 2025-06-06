@@ -351,28 +351,6 @@
         (should (string= (cdr (assoc 'method result)) "lsp"))
         (should (string= (cdr (assoc 'searchedSymbol result)) "test-func"))))))
 
-(ert-deftest test-mcp-handle-getDefinition-with-xref ()
-  "Test getting definition with xref."
-  (with-temp-buffer
-    (emacs-lisp-mode)
-    (insert "(defun test-func () nil)")
-    (cl-letf (((symbol-function 'fboundp)
-               (lambda (sym) (eq sym 'xref-find-definitions)))
-              ((symbol-function 'bound-and-true-p)
-               (lambda (_) nil))
-              ((symbol-function 'claude-code-emacs-mcp-get-xref-definitions)
-               (lambda (symbol)
-                 (when (string= symbol "test-func")
-                   `(((file . "test.el")
-                      (line . 1)
-                      (column . 7)
-                      (symbol . "test-func")
-                      (type . "function")
-                      (preview . "(defun test-func () nil)")))))))
-      (let ((result (claude-code-emacs-mcp-handle-getDefinition
-                     '((symbol . "test-func")))))
-        (should (listp (cdr (assoc 'definitions result))))
-        (should (string= (cdr (assoc 'method result)) "xref"))))))
 
 (ert-deftest test-mcp-handle-getDefinition-no-results ()
   "Test getting definition with no results."

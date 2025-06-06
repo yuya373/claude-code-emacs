@@ -42,7 +42,7 @@ describe('handleGetDefinition', () => {
     expect(result.content[0].text).toContain('(defun my-function');
   });
 
-  it('should handle multiple definitions via xref', async () => {
+  it('should handle multiple definitions via LSP', async () => {
     mockBridge.isConnected.mockReturnValue(true);
     mockBridge.request.mockResolvedValue({
       definitions: [
@@ -64,7 +64,7 @@ describe('handleGetDefinition', () => {
         }
       ],
       searchedSymbol: 'MyClass',
-      method: 'xref'
+      method: 'lsp'
     });
 
     const args: GetDefinitionArgs = {
@@ -75,7 +75,7 @@ describe('handleGetDefinition', () => {
 
     const result = await handleGetDefinition(mockBridge, args);
 
-    expect(result.content[0].text).toContain('Found 2 definitions using xref');
+    expect(result.content[0].text).toContain('Found 2 definitions using lsp');
     expect(result.content[0].text).toContain('Definition 1');
     expect(result.content[0].text).toContain('Definition 2');
     expect(result.content[0].text).toContain('/path/to/file1.ts');
@@ -87,7 +87,7 @@ describe('handleGetDefinition', () => {
     mockBridge.request.mockResolvedValue({
       definitions: [],
       searchedSymbol: 'unknownSymbol',
-      method: 'xref'
+      method: 'lsp'
     });
 
     const args: GetDefinitionArgs = {
