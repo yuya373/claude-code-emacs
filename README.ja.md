@@ -24,7 +24,7 @@ Claude Code EmacsにはMCPサーバー統合が含まれており、Claude Code�
 - **診断情報を取得**: プロジェクト全体のLSP診断情報を取得
 - **コマンドを実行**: Emacsコマンドを実行（セキュリティチェック付き）
 
-MCPサーバーはデフォルトでポート8766で動作し、Claude CodeとEmacs間の通信のためのWebSocketブリッジを提供します。
+MCPサーバーは各プロジェクトごとに動的にポートを割り当て、Claude CodeとEmacs間の通信のためのWebSocketブリッジを提供します。
 
 ## Claude Codeの起動と終了
 - `claude-code-emacs-run` - 現在のプロジェクトでClaude Codeを起動
@@ -205,16 +205,43 @@ claude mcp add-json emacs '{
 パッケージは以下のモジュールに整理されています：
 
 - **claude-code-emacs.el** - メインエントリーポイント、全モジュールを読み込み
-- **claude-code-emacs-core.el** - コアユーティリティ（チャンキング、エラーハンドリング）
+- **claude-code-emacs-core.el** - コアユーティリティ（チャンキング、エラーハンドリング、セッション管理）
 - **claude-code-emacs-buffer.el** - バッファ名前付けと管理
-- **claude-code-emacs-session.el** - セッションライフサイクル管理
 - **claude-code-emacs-commands.el** - コマンド実行とスラッシュコマンド
 - **claude-code-emacs-ui.el** - Transientメニューインターフェース
 - **claude-code-emacs-prompt.el** - プロンプトファイルモードと操作
 - **claude-code-emacs-mcp.el** - MCP WebSocketクライアント統合
-- **claude-code-emacs-mcp-connection.el** - WebSocket接続管理
+- **claude-code-emacs-mcp-connection.el** - WebSocket接続管理（自動再接続機能付き）
 - **claude-code-emacs-mcp-protocol.el** - MCPプロトコル実装
-- **claude-code-emacs-mcp-tools.el** - MCPツールハンドラー
+- **claude-code-emacs-mcp-tools.el** - MCPツールハンドラー（ファイル操作、診断、差分ツール）
+
+## MCPサーバー機能
+
+### 接続管理
+MCPサーバーは安定したWebSocket接続を維持し、自動ヘルスモニタリングを提供します：
+- **Ping/Pongハートビート**: 接続問題を検出するため定期的にpingメッセージを送信（デフォルト30秒間隔）
+- **自動再接続**: 接続が失われた場合、自動的に再接続
+- **ポート変更検出**: MCPサーバーが異なるポートで再起動した場合、自動的に再接続
+- **設定可能なタイムアウト**: `claude-code-emacs-mcp-ping-interval`と`claude-code-emacs-mcp-ping-timeout`でping間隔とタイムアウトをカスタマイズ
+- **自動接続制御**: `claude-code-emacs-mcp-auto-connect`で初期接続動作を制御
+
+### 利用可能なMCPツール
+- **openFile**: オプションのテキスト選択付きでファイルを開く
+- **getOpenBuffers**: 現在のプロジェクトの全開いているバッファを一覧表示
+- **getCurrentSelection**: 現在選択されているテキストを取得
+- **getDiagnostics**: プロジェクト全体のLSP診断情報を取得（`lsp-mode`が必要）
+- **openDiff**: ediffを使用して2つのファイルまたはバッファを比較
+- **openDiff3**: 3ウェイファイル比較
+- **openRevisionDiff**: ファイルをgitリビジョンと比較
+- **openCurrentChanges**: コミットされていない変更を表示
+- **applyPatch**: ediffを使用してパッチファイルを適用
+- **runCommand**: セキュリティ制限付きでEmacsコマンドを実行
+
+### 利用可能なMCPリソース
+MCPサーバーはClaude Codeがアクセスできるリソースとして以下のEmacsデータを公開します：
+- **バッファリソース** (`file://`): 未保存の変更を含む開いているバッファのコンテンツにアクセス
+- **プロジェクトリソース** (`emacs://project/`): プロジェクトメタデータとファイルリスト
+- **診断リソース** (`emacs://diagnostics/`): バッファとプロジェクトのLSP診断情報
 
 ## コントリビューション
 
@@ -228,12 +255,12 @@ claude mcp add-json emacs '{
 ## ロードマップ
 
 ### 計画中のMCPサーバー機能
-- **openDiff**: Emacsでファイル差分を表示
 - **getWorkspaceFolders**: 全プロジェクトフォルダを一覧表示
 - **checkDocumentDirty**: 未保存の変更をチェック
 - **saveDocument**: 未保存の変更があるファイルを保存
-- **runCommand**: Claude CodeからEmacsコマンドを実行
 - **getSymbols**: コードシンボルと定義にアクセス
+- **getDefinition**: 定義元にアクセス
+- **getReferences**: 参照先にアクセス
 
 実装の詳細についてはコード内の[TODO](#)セクションを参照してください。
 

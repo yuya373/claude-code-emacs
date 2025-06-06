@@ -21,9 +21,10 @@ Claude Code Emacs includes MCP server integration, allowing Claude Code to inter
 - **Open File**: Open any project file with optional text selection
 - **Get Open Buffers**: List all open buffers in the current project
 - **Get Current Selection**: Retrieve the currently selected text in Emacs
-- **Get Diagnostics**: Access LSP diagnostics for project files
+- **Get Diagnostics**: Get LSP diagnostics for all project buffers
+- **Run Command**: Execute Emacs commands with security checks
 
-The MCP server runs on port 8766 by default and provides a WebSocket bridge for communication between Claude Code and Emacs.
+The MCP server uses dynamic port allocation for each project and provides a WebSocket bridge for communication between Claude Code and Emacs.
 
 ## Starting and Closing Claude Code
 - `claude-code-emacs-run` - Start Claude Code in the current project
@@ -237,12 +238,13 @@ The MCP server maintains a stable WebSocket connection with automatic health mon
 - **openFile**: Open files with optional text selection
 - **getOpenBuffers**: List all open buffers in the current project
 - **getCurrentSelection**: Get currently selected text
-- **getDiagnostics**: Access LSP diagnostics (requires `lsp-mode`)
+- **getDiagnostics**: Get project-wide LSP diagnostics (requires `lsp-mode`)
 - **openDiff**: Compare two files or buffers using ediff
 - **openDiff3**: Three-way file comparison
 - **openRevisionDiff**: Compare file with git revision
 - **openCurrentChanges**: Show uncommitted changes
 - **applyPatch**: Apply patch files using ediff
+- **runCommand**: Execute Emacs commands with security restrictions
 
 ### Available MCP Resources
 The MCP server exposes Emacs data as resources that Claude Code can access:
@@ -254,7 +256,6 @@ The MCP server exposes Emacs data as resources that Claude Code can access:
 - **getWorkspaceFolders**: List all project folders
 - **checkDocumentDirty**: Check for unsaved changes
 - **saveDocument**: Save files with unsaved changes
-- **runCommand**: Execute Emacs commands from Claude Code
 - **getSymbols**: Access code symbols and definitions
 
 
