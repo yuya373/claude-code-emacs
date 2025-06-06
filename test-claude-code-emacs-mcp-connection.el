@@ -195,5 +195,44 @@
        (let ((info (claude-code-emacs-mcp-get-connection-info project-root)))
          (should (cdr (assoc 'last-pong-time info))))))))
 
+(ert-deftest test-mcp-port-registration-with-reconnect ()
+  "Test port registration disconnects old connection and reconnects."
+  :tags '(:mcp :connection)
+  (claude-code-emacs-mcp-test-with-connection
+   (let* ((project-root (projectile-project-root))
+          ;; Normalize project root like the function does
+          (normalized-root (directory-file-name project-root))
+          (old-port 8765)
+          (new-port 8766)
+          (disconnect-called nil)
+          (reconnect-called nil))
+     ;; Test with auto-connect disabled to verify reconnect always happens
+     (let ((claude-code-emacs-mcp-auto-connect nil))
+       (cl-letf (((symbol-function 'claude-code-emacs-mcp-disconnect)
+                  (lambda (root)
+                    (when (string= root normalized-root)
+                      (setq disconnect-called t))))
+                 ((symbol-function 'claude-code-emacs-mcp-connect-with-retry)
+                  (lambda (root)
+                    (when (string= root normalized-root)
+                      (setq reconnect-called t)))))
+         ;; Register initial port
+         (claude-code-emacs-mcp-register-port project-root old-port)
+         (should (= (claude-code-emacs-mcp-get-port project-root) old-port))
+         (should-not disconnect-called)
+         (should-not reconnect-called)
+         
+         ;; Register same port again - should not disconnect
+         (claude-code-emacs-mcp-register-port project-root old-port)
+         (should-not disconnect-called)
+         (should-not reconnect-called)
+         
+         ;; Register different port - should disconnect and reconnect
+         ;; even with auto-connect disabled
+         (claude-code-emacs-mcp-register-port project-root new-port)
+         (should (= (claude-code-emacs-mcp-get-port project-root) new-port))
+         (should disconnect-called)
+         (should reconnect-called))))))
+
 (provide 'test-claude-code-emacs-mcp-connection)
 ;;; test-claude-code-emacs-mcp-connection.el ends here

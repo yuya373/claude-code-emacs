@@ -129,11 +129,23 @@ Each value is an alist with keys:
 ;;; Port Registration
 
 (defun claude-code-emacs-mcp-register-port (project-root port)
-  "Register PORT for PROJECT-ROOT."
+  "Register PORT for PROJECT-ROOT.
+If a different port was already registered, disconnect the old connection and reconnect."
   ;; Normalize project root by removing trailing slash
-  (let ((normalized-root (directory-file-name project-root)))
+  (let ((normalized-root (directory-file-name project-root))
+        (old-port (claude-code-emacs-mcp-get-port project-root)))
+    ;; Check if we have a different port registered
+    (when (and old-port (not (= old-port port)))
+      (message "Disconnecting old MCP connection on port %d for project %s" old-port normalized-root)
+      ;; Disconnect existing connection
+      (claude-code-emacs-mcp-disconnect normalized-root))
+    ;; Register the new port
     (puthash normalized-root port claude-code-emacs-mcp-project-ports)
-    (message "MCP server registered on port %d for project %s" port normalized-root)))
+    (message "MCP server registered on port %d for project %s" port normalized-root)
+    ;; If we had an old connection with different port, always reconnect
+    (when (and old-port (not (= old-port port)))
+      (message "Reconnecting to new MCP server on port %d for project %s" port normalized-root)
+      (claude-code-emacs-mcp-connect-with-retry normalized-root))))
 
 (defun claude-code-emacs-mcp-get-port (project-root)
   "Get port for PROJECT-ROOT."

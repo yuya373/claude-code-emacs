@@ -179,7 +179,6 @@ Call CALLBACK with result or error."
 (defun claude-code-emacs-mcp-on-message (_websocket frame project-root)
   "Handle incoming WebSocket message for PROJECT-ROOT."
   (let ((payload (websocket-frame-text frame)))
-    (message "Payload: %s" payload)
     (when payload
       (claude-code-emacs-mcp-handle-message payload project-root))))
 
