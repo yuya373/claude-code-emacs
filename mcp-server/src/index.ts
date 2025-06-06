@@ -1,6 +1,6 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { CallToolRequestSchema, ClientNotificationSchema, ListResourcesRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolRequestSchema, ClientNotificationSchema, ListResourcesRequestSchema, ListToolsRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { EmacsBridge } from './emacs-bridge.js';
 import {
   handleOpenFile,
@@ -14,6 +14,11 @@ import {
   handleOpenCurrentChanges,
   handleApplyPatch
 } from './tools/index.js';
+import {
+  bufferResourceHandler,
+  projectResourceHandler,
+  diagnosticsResourceHandler
+} from './resources/index.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -22,8 +27,9 @@ import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
-// Create single log file for all projects
-const logFile = path.join(os.tmpdir(), `claude-code-emacs-mcp.log`);
+// Create log file in project root
+const projectRoot = process.cwd();
+const logFile = path.join(projectRoot, '.claude-code-emacs-mcp.log');
 const logStream = fs.createWriteStream(logFile, { flags: 'a' });
 
 function log(message: string) {
@@ -31,7 +37,6 @@ function log(message: string) {
   logStream.write(`[${timestamp}] ${message}\n`);
 }
 
-const projectRoot = process.cwd();
 log(`Starting MCP server for project: ${projectRoot}...`);
 log(`Log file: ${logFile}`);
 
@@ -46,6 +51,7 @@ const server = new Server(
   {
     capabilities: {
       tools: {},
+      resources: {},
     },
   }
 );
@@ -119,47 +125,109 @@ const TOOLS = [
 ];
 
 // Handle list tools request
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: TOOLS
-}));
+server.setRequestHandler(ListToolsRequestSchema, async (request) => {
+  log(`MCP Request: list tools`);
+  return {
+    tools: TOOLS
+  };
+});
+
+// Handle list resources request
+server.setRequestHandler(ListResourcesRequestSchema, async (request) => {
+  log(`MCP Request: list resources`);
+  try {
+    const resources = [
+      ...(await bufferResourceHandler.list(bridge)),
+      ...(await projectResourceHandler.list(bridge)),
+      ...(await diagnosticsResourceHandler.list(bridge))
+    ];
+
+    log(`MCP Response: returning ${resources.length} resources`);
+    return { resources };
+  } catch (error) {
+    log(`Error listing resources: ${error}`);
+    return { resources: [] };
+  }
+});
+
+// Handle read resource request
+server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+  const { uri } = request.params;
+  log(`MCP Request: read resource - ${uri}`);
+
+  try {
+    let result;
+    // Route to appropriate handler based on URI scheme
+    if (uri.startsWith('file://')) {
+      result = await bufferResourceHandler.read(bridge, uri);
+    } else if (uri.startsWith('emacs://project/')) {
+      result = await projectResourceHandler.read(bridge, uri);
+    } else if (uri.startsWith('emacs://diagnostics/')) {
+      result = await diagnosticsResourceHandler.read(bridge, uri);
+    } else {
+      throw new Error(`Unsupported resource URI scheme: ${uri}`);
+    }
+
+    log(`MCP Response: read resource successful - ${uri}`);
+    return result;
+  } catch (error) {
+    log(`Error reading resource ${uri}: ${error}`);
+    throw error;
+  }
+});
 
 // Handle tool execution
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
+  log(`MCP Request: call tool - ${name} with args: ${JSON.stringify(args)}`);
 
   try {
+    let result;
     switch (name) {
       case 'openFile':
-        return await handleOpenFile(bridge, args || {});
+        result = await handleOpenFile(bridge, args || {});
+        break;
 
       case 'getOpenBuffers':
-        return await handleGetOpenBuffers(bridge, args || {});
+        result = await handleGetOpenBuffers(bridge, args || {});
+        break;
 
       case 'getCurrentSelection':
-        return await handleGetCurrentSelection(bridge, args || {});
+        result = await handleGetCurrentSelection(bridge, args || {});
+        break;
 
       case 'getDiagnostics':
-        return await handleGetDiagnostics(bridge, args || {});
+        result = await handleGetDiagnostics(bridge, args || {});
+        break;
 
       case 'openDiff':
-        return await handleOpenDiff(bridge, args || {});
+        result = await handleOpenDiff(bridge, args || {});
+        break;
 
       case 'openDiff3':
-        return await handleOpenDiff3(bridge, args || {});
+        result = await handleOpenDiff3(bridge, args || {});
+        break;
 
       case 'openRevisionDiff':
-        return await handleOpenRevisionDiff(bridge, args || {});
+        result = await handleOpenRevisionDiff(bridge, args || {});
+        break;
 
       case 'openCurrentChanges':
-        return await handleOpenCurrentChanges(bridge, args || {});
+        result = await handleOpenCurrentChanges(bridge, args || {});
+        break;
 
       case 'applyPatch':
-        return await handleApplyPatch(bridge, args || {});
+        result = await handleApplyPatch(bridge, args || {});
+        break;
 
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
+
+    log(`MCP Response: tool ${name} executed successfully`);
+    return result;
   } catch (error) {
+    log(`MCP Error: tool ${name} failed - ${error instanceof Error ? error.message : String(error)}`);
     return {
       content: [
         {

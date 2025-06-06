@@ -304,5 +304,50 @@
        `((status . "error")
          (message . ,(error-message-string err)))))))
 
+;;; Resource Handlers
+
+(defun claude-code-emacs-mcp-handle-get-buffer-content (params)
+  "Get content of a buffer specified by PATH in PARAMS."
+  (let* ((path (cdr (assoc 'path params)))
+         (full-path (expand-file-name path (projectile-project-root))))
+    (if (file-exists-p full-path)
+        (let ((buffer (find-buffer-visiting full-path)))
+          (if buffer
+              ;; Return buffer content (which may include unsaved changes)
+              `((success . t)
+                (content . ,(with-current-buffer buffer
+                              (buffer-substring-no-properties (point-min) (point-max)))))
+            ;; File exists but not opened, read from disk
+            `((success . t)
+              (content . ,(with-temp-buffer
+                            (insert-file-contents full-path)
+                            (buffer-string))))))
+      `((success . nil)
+        (error . ,(format "File not found: %s" full-path))))))
+
+(defun claude-code-emacs-mcp-handle-get-project-info (_params)
+  "Get project information."
+  (let ((project-root (projectile-project-root)))
+    `((success . t)
+      (projectRoot . ,project-root)
+      (projectName . ,(projectile-project-name))
+      (projectType . ,(projectile-project-type))
+      (vcs . ,(when (vc-responsible-backend project-root)
+                (symbol-name (vc-responsible-backend project-root))))
+      (branch . ,(when (vc-responsible-backend project-root)
+                   (ignore-errors
+                     (vc-working-revision project-root))))
+      (lastModified . ,(format-time-string "%Y-%m-%dT%H:%M:%S%z")))))
+
+(defun claude-code-emacs-mcp-handle-get-project-files (_params)
+  "Get list of project files."
+  (let ((files (projectile-current-project-files)))
+    `((success . t)
+      (files . ,(mapcar (lambda (file)
+                          `((path . ,file)
+                            (relativePath . ,file)
+                            (absolutePath . ,(expand-file-name file (projectile-project-root)))))
+                        files)))))
+
 (provide 'claude-code-emacs-mcp-tools)
 ;;; claude-code-emacs-mcp-tools.el ends here

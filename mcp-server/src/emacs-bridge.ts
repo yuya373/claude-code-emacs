@@ -133,8 +133,10 @@ export class EmacsBridge extends EventEmitter {
       if (pending) {
         this.pendingRequests.delete(message.id);
         if ('error' in message) {
+          this.log(`Emacs Response Error: id=${message.id}, error=${JSON.stringify(message.error)}`);
           pending.reject(new Error(message.error.message));
         } else {
+          this.log(`Emacs Response: id=${message.id}, result=${JSON.stringify(message.result)}`);
           pending.resolve(message.result);
         }
       }
@@ -184,9 +186,12 @@ export class EmacsBridge extends EventEmitter {
     return new Promise((resolve, reject) => {
       this.pendingRequests.set(id, { resolve, reject });
 
+      this.log(`Emacs Request: ${method} with params: ${JSON.stringify(params)}`);
+      
       client.send(JSON.stringify(request) + '\n', (error) => {
         if (error) {
           this.pendingRequests.delete(id);
+          this.log(`Emacs Request Error: ${method} - ${error}`);
           reject(error);
         }
       });
@@ -195,6 +200,7 @@ export class EmacsBridge extends EventEmitter {
       setTimeout(() => {
         if (this.pendingRequests.has(id)) {
           this.pendingRequests.delete(id);
+          this.log(`Emacs Request Timeout: ${method} (id=${id}) after 30 seconds`);
           reject(new Error(`Request timeout: ${method}`));
         }
       }, 30000);
@@ -203,5 +209,9 @@ export class EmacsBridge extends EventEmitter {
 
   isConnected(): boolean {
     return this.clients.size > 0;
+  }
+
+  async sendRequest(method: string, params?: any): Promise<any> {
+    return this.request(method, params);
   }
 }

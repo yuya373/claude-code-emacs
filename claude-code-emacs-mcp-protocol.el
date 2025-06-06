@@ -46,6 +46,9 @@
 (declare-function claude-code-emacs-mcp-handle-getOpenBuffers "claude-code-emacs-mcp-tools" (params))
 (declare-function claude-code-emacs-mcp-handle-getCurrentSelection "claude-code-emacs-mcp-tools" (params))
 (declare-function claude-code-emacs-mcp-handle-getDiagnostics "claude-code-emacs-mcp-tools" (params))
+(declare-function claude-code-emacs-mcp-handle-get-buffer-content "claude-code-emacs-mcp-tools" (params))
+(declare-function claude-code-emacs-mcp-handle-get-project-info "claude-code-emacs-mcp-tools" (params))
+(declare-function claude-code-emacs-mcp-handle-get-project-files "claude-code-emacs-mcp-tools" (params))
 
 ;;; JSON-RPC Communication
 
