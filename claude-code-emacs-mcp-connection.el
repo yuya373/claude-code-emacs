@@ -123,6 +123,10 @@ Each value is an alist with keys:
     (message "MCP server registered on port %d for project %s" port normalized-root)
     (claude-code-emacs-mcp-try-connect-async normalized-root port)))
 
+(defun claude-code-emacs-mcp-unregister-port (project-root)
+  (let* ((normalized-root (claude-code-emacs-normalize-project-root project-root)))
+    (claude-code-emacs-mcp-disconnect normalized-root)))
+
 ;;; Connection Management
 
 (defun claude-code-emacs-mcp-try-connect-async (project-root port)
@@ -161,6 +165,8 @@ If CALLBACK is provided, call it with connection result."
                    (url-hexify-string session-id))
            :on-open (lambda (websocket)
                       (message "MCP WebSocket opened for project %s" project-root)
+                      (let ((info (claude-code-emacs-mcp-get-connection-info project-root)))
+                        (setcdr (assoc 'connection-attempts info) 0))
                       (claude-code-emacs-mcp-set-websocket websocket project-root)
                       ;; Start ping timer
                       (claude-code-emacs-mcp-start-ping-timer project-root)

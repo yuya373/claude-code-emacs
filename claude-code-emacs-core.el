@@ -200,14 +200,9 @@ With prefix argument, select from available options."
                                         vterm--process
                                         (process-live-p vterm--process))
                                (kill-process vterm--process))
-                             ;; Clean up MCP connection if it exists
-                             (when (and (fboundp 'claude-code-emacs-mcp-disconnect)
-                                        (fboundp 'claude-code-emacs-mcp-unregister-port))
-                               (let ((project-root (claude-code-emacs-normalize-project-root (projectile-project-root))))
-                                 (claude-code-emacs-mcp-disconnect project-root)
-                                 (claude-code-emacs-mcp-unregister-port project-root)))
                              ;; Kill the buffer
-                             (kill-buffer buffer))
+                             (let ((kill-buffer-query-functions nil))
+                               (kill-buffer buffer)))
                            (message "Claude Code session ended for this project")))))
       (message "No Claude Code buffer found for this project"))))
 
