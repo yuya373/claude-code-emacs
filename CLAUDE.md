@@ -203,6 +203,7 @@ When modifying this package:
 5. Update relevant documentation (README, CLAUDE.md)
 
 ### Recent Changes
+- **getDiagnostics simplified**: Removed bufferPath parameter, now always returns project-wide diagnostics
 - **runCommand tool**: Added MCP tool to execute Emacs commands from Claude Code with security checks
 - **MCP Resources**: Added support for MCP resources (buffer content, project info, diagnostics)
 - **Port change handling**: Automatic reconnection when MCP server restarts on different port

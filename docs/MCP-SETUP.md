@@ -68,14 +68,23 @@ Gets the currently selected text in Emacs.
 - No parameters required
 
 ### `getDiagnostics`
-Retrieves LSP diagnostics for the project.
+Retrieves LSP diagnostics for all project buffers.
+- No parameters required
+
+### `runCommand`
+Executes an Emacs command with security checks.
 - Parameters:
-  - `bufferPath`: (optional) Specific buffer path, or all project buffers
+  - `command`: Emacs command name (e.g., "save-buffer", "goto-line")
+  - `args`: (optional) Arguments to pass to the command
+  - `interactive`: (optional) Run command interactively
+  - `currentBuffer`: (optional) Run in current buffer context
+
+Note: Dangerous commands like shell-command, eval-expression, and delete-file are blocked for security.
 
 ## Troubleshooting
 
 ### MCP server not starting
-- Check MCP server logs: `tail -f /tmp/claude-code-emacs-mcp.log`
+- Check MCP server logs: `tail -f .claude-code-emacs-mcp.log` (in project root)
 - The MCP server uses dynamic port allocation for each project
 - Verify Node.js is installed and accessible: `node --version`
 - Check if the MCP server is running: `ps aux | grep mcp-server`
