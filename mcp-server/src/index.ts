@@ -12,7 +12,9 @@ import {
   handleOpenDiff3,
   handleOpenRevisionDiff,
   handleOpenCurrentChanges,
-  handleApplyPatch
+  handleApplyPatch,
+  handleRunCommand,
+  RunCommandArgs
 } from './tools/index.js';
 import {
   bufferResourceHandler,
@@ -114,6 +116,35 @@ const TOOLS = [
           description: 'Specific buffer path (optional, defaults to all project buffers)'
         }
       }
+    }
+  },
+  {
+    name: 'runCommand',
+    description: 'Execute an Emacs command',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        command: {
+          type: 'string',
+          description: 'Emacs command name (e.g., "save-buffer", "goto-line")'
+        },
+        args: {
+          type: 'array',
+          description: 'Arguments to pass to the command (optional)',
+          items: {}
+        },
+        interactive: {
+          type: 'boolean',
+          description: 'Run command interactively (optional, default false)',
+          default: false
+        },
+        currentBuffer: {
+          type: 'boolean',
+          description: 'Run in current buffer context (optional, default true)',
+          default: true
+        }
+      },
+      required: ['command']
     }
   },
   // Add diff tools
@@ -218,6 +249,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'applyPatch':
         result = await handleApplyPatch(bridge, args || {});
+        break;
+
+      case 'runCommand':
+        result = await handleRunCommand(bridge, (args || {}) as unknown as RunCommandArgs);
         break;
 
       default:

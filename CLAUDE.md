@@ -93,6 +93,7 @@ make test
 - `mcp-server/src/index.ts` - Main server entry point
 - `mcp-server/src/emacs-bridge.ts` - WebSocket server for Emacs communication
 - `mcp-server/src/tools/*.ts` - Individual MCP tool implementations
+  - `command-tools.ts` - runCommand tool with security checks
 
 ## Architecture
 
@@ -202,6 +203,7 @@ When modifying this package:
 5. Update relevant documentation (README, CLAUDE.md)
 
 ### Recent Changes
+- **runCommand tool**: Added MCP tool to execute Emacs commands from Claude Code with security checks
 - **MCP Resources**: Added support for MCP resources (buffer content, project info, diagnostics)
 - **Port change handling**: Automatic reconnection when MCP server restarts on different port
 - **Enhanced logging**: MCP server now logs to project root (`.claude-code-emacs-mcp.log`)
@@ -215,7 +217,7 @@ When modifying this package:
 The MCP server provides a bridge between Claude Code and Emacs:
 - WebSocket server on dynamic port for Emacs connection
 - stdio interface for Claude Code MCP protocol
-- Implements tools: openFile, getOpenBuffers, getCurrentSelection, getDiagnostics, diff tools
+- Implements tools: openFile, getOpenBuffers, getCurrentSelection, getDiagnostics, diff tools, runCommand
 - Implements resources: buffer content, project info, diagnostics
 - Per-project WebSocket connections for session isolation
 

@@ -26,7 +26,7 @@ export async function handleGetDiagnostics(bridge: EmacsBridge, args: GetDiagnos
       content: [
         {
           type: 'text',
-          text: args.bufferPath 
+          text: args.bufferPath
             ? `No diagnostics found for ${args.bufferPath}`
             : 'No diagnostics found in current project'
         }
@@ -46,7 +46,7 @@ export async function handleGetDiagnostics(bridge: EmacsBridge, args: GetDiagnos
   // Format output
   const output = Object.entries(byFile).map(([file, diags]) => {
     const fileSection = `## ${file}\n`;
-    const diagList = diags.map(d => 
+    const diagList = diags.map(d =>
       `- **${d.severity.toUpperCase()}** [${d.source}] Line ${d.line}:${d.column}\n  ${d.message}`
     ).join('\n');
     return fileSection + diagList;

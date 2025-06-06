@@ -237,5 +237,88 @@
       (delete-file patch-file)
       (delete-file target-file))))
 
+(ert-deftest test-mcp-handle-runCommand ()
+  "Test runCommand handler."
+  ;; Test successful command execution
+  (let ((params '((command . "save-buffer"))))
+    (cl-letf (((symbol-function 'save-buffer)
+               (lambda () nil))
+              ((symbol-function 'commandp)
+               (lambda (sym) (eq sym 'save-buffer)))
+              ((symbol-function 'buffer-modified-p)
+               (lambda () nil)))
+      (let ((result (claude-code-emacs-mcp-handle-runCommand params)))
+        (should (assoc 'success result))
+        (should (equal (cdr (assoc 'success result)) t)))))
+  
+  ;; Test command with arguments
+  (let ((params '((command . "goto-line")
+                  (args . (100)))))
+    (cl-letf (((symbol-function 'goto-line)
+               (lambda (line) line))
+              ((symbol-function 'commandp)
+               (lambda (sym) (memq sym '(save-buffer goto-line)))))
+      (let ((result (claude-code-emacs-mcp-handle-runCommand params)))
+        (should (assoc 'success result))
+        (should (equal (cdr (assoc 'success result)) t))
+        (should (equal (cdr (assoc 'result result)) 100)))))
+  
+  ;; Test unknown command
+  (let ((params '((command . "unknown-command-xyz"))))
+    (let ((result (claude-code-emacs-mcp-handle-runCommand params)))
+      (should (assoc 'success result))
+      (should (equal (cdr (assoc 'success result)) nil))
+      (should (string-match "Unknown command" (cdr (assoc 'error result))))))
+  
+  ;; Test blocked command
+  (let ((params '((command . "shell-command"))))
+    (let ((result (claude-code-emacs-mcp-handle-runCommand params)))
+      (should (assoc 'success result))
+      (should (equal (cdr (assoc 'success result)) nil))
+      (should (string-match "blocked for security" (cdr (assoc 'error result))))))
+  
+  ;; Test non-command symbol
+  (let ((params '((command . "car"))))
+    (let ((result (claude-code-emacs-mcp-handle-runCommand params)))
+      (should (assoc 'success result))
+      (should (equal (cdr (assoc 'success result)) nil))
+      (should (string-match "Not a command" (cdr (assoc 'error result)))))))
+
+(ert-deftest test-mcp-command-blocked-p ()
+  "Test command blocking function."
+  ;; Blocked commands
+  (should (claude-code-emacs-mcp-command-blocked-p "shell-command"))
+  (should (claude-code-emacs-mcp-command-blocked-p "eval-expression"))
+  (should (claude-code-emacs-mcp-command-blocked-p "delete-file"))
+  (should (claude-code-emacs-mcp-command-blocked-p "kill-emacs"))
+  
+  ;; Allowed commands
+  (should-not (claude-code-emacs-mcp-command-blocked-p "save-buffer"))
+  (should-not (claude-code-emacs-mcp-command-blocked-p "goto-line"))
+  (should-not (claude-code-emacs-mcp-command-blocked-p "indent-region")))
+
+(ert-deftest test-mcp-serialize-value ()
+  "Test value serialization."
+  ;; nil -> :null
+  (should (eq (claude-code-emacs-mcp-serialize-value nil) :null))
+  
+  ;; Simple types
+  (should (equal (claude-code-emacs-mcp-serialize-value 42) 42))
+  (should (equal (claude-code-emacs-mcp-serialize-value "hello") "hello"))
+  (should (equal (claude-code-emacs-mcp-serialize-value t) t))
+  
+  ;; Symbol -> string
+  (should (equal (claude-code-emacs-mcp-serialize-value 'foo) "foo"))
+  
+  ;; List -> array
+  (should (equal (claude-code-emacs-mcp-serialize-value '(1 2 3)) '(1 2 3)))
+  
+  ;; Buffer -> buffer info
+  (with-temp-buffer
+    (let ((result (claude-code-emacs-mcp-serialize-value (current-buffer))))
+      (should (assoc 'type result))
+      (should (equal (cdr (assoc 'type result)) "buffer"))
+      (should (assoc 'name result)))))
+
 (provide 'test-claude-code-emacs-mcp-tools)
 ;;; test-claude-code-emacs-mcp-tools.el ends here
