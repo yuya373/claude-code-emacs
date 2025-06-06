@@ -486,5 +486,141 @@ Always returns project-wide diagnostics."
    ;; Default: convert to string
    (t (format "%S" value))))
 
+;;; Definition finding
+
+(defun claude-code-emacs-mcp-handle-getDefinition (params)
+  "Handle getDefinition request with PARAMS."
+  (let* ((symbol-name (cdr (assoc 'symbol params)))
+         (file-path (cdr (assoc 'file params)))
+         (line (cdr (assoc 'line params)))
+         (column (cdr (assoc 'column params)))
+         (definitions '())
+         (method nil)
+         (searched-symbol nil))
+    
+    (condition-case err
+        (progn
+          ;; If file path is provided, visit that file first
+          (when file-path
+            (let* ((full-path (expand-file-name file-path (projectile-project-root)))
+                   (buffer (find-file-noselect full-path)))
+              (with-current-buffer buffer
+                (when (and line column)
+                  (goto-char (point-min))
+                  (forward-line (1- line))
+                  (move-to-column column))
+                
+                ;; Try to get symbol at point if not provided
+                (unless symbol-name
+                  (setq symbol-name (thing-at-point 'symbol t))))))
+          
+          ;; If symbol provided without file context, use current buffer
+          (when (and symbol-name (not file-path))
+            (setq searched-symbol symbol-name))
+          
+          ;; Try LSP first if available
+          (when (and (fboundp 'lsp-mode)
+                     (bound-and-true-p lsp-mode)
+                     (fboundp 'lsp-find-definition))
+            (condition-case nil
+                (let ((lsp-defs (claude-code-emacs-mcp-get-lsp-definitions)))
+                  (when lsp-defs
+                    (setq definitions lsp-defs)
+                    (setq method "lsp")))
+              (error nil)))
+          
+          ;; Fall back to xref if no LSP results
+          (when (and (null definitions)
+                     (fboundp 'xref-find-definitions))
+            (condition-case nil
+                (let ((xref-defs (claude-code-emacs-mcp-get-xref-definitions 
+                                  (or symbol-name (thing-at-point 'symbol t)))))
+                  (when xref-defs
+                    (setq definitions xref-defs)
+                    (setq method "xref")))
+              (error nil)))
+          
+          ;; Return results
+          (if definitions
+              `((definitions . ,definitions)
+                (searchedSymbol . ,(or searched-symbol 
+                                        symbol-name 
+                                        (thing-at-point 'symbol t)))
+                (method . ,method))
+            (error "No definition found")))
+      
+      (error
+       (error "Failed to find definition: %s" (error-message-string err))))))
+
+(defun claude-code-emacs-mcp-get-lsp-definitions ()
+  "Get definitions using LSP."
+  (let ((current-point (point))
+        (definitions '()))
+    ;; lsp-find-definition moves point, so we need to capture the results
+    (save-excursion
+      (call-interactively 'lsp-find-definition)
+      ;; Check if we moved to a different location
+      (unless (= (point) current-point)
+        (push (claude-code-emacs-mcp-capture-definition-at-point) definitions)))
+    definitions))
+
+(defun claude-code-emacs-mcp-get-xref-definitions (symbol)
+  "Get definitions using xref for SYMBOL."
+  (when symbol
+    (let* ((xrefs (xref-backend-definitions (xref-find-backend) symbol))
+           (definitions '()))
+      (dolist (xref xrefs)
+        (let* ((location (xref-item-location xref))
+               (file (xref-location-group location))
+               (position (xref-location-marker location)))
+          (when (and file position)
+            (with-current-buffer (find-file-noselect file)
+              (save-excursion
+                (goto-char position)
+                (push (claude-code-emacs-mcp-capture-definition-at-point) definitions))))))
+      (nreverse definitions))))
+
+(defun claude-code-emacs-mcp-capture-definition-at-point ()
+  "Capture definition information at current point."
+  (let* ((file (buffer-file-name))
+         (line (line-number-at-pos))
+         (column (current-column))
+         (symbol (thing-at-point 'symbol t))
+         (preview (claude-code-emacs-mcp-get-definition-preview)))
+    `((file . ,file)
+      (line . ,line)
+      (column . ,column)
+      (symbol . ,symbol)
+      (type . ,(claude-code-emacs-mcp-guess-definition-type))
+      (preview . ,preview))))
+
+(defun claude-code-emacs-mcp-get-definition-preview ()
+  "Get preview text around current definition."
+  (save-excursion
+    (let ((start (progn (beginning-of-defun) (point)))
+          (end (progn (end-of-defun) (point))))
+      ;; Limit preview to reasonable size
+      (when (> (- end start) 500)
+        (setq end (+ start 500)))
+      (buffer-substring-no-properties start end))))
+
+(defun claude-code-emacs-mcp-guess-definition-type ()
+  "Guess the type of definition at point."
+  (save-excursion
+    (beginning-of-defun)
+    (cond
+     ;; Emacs Lisp
+     ((looking-at "(defun\\s-") "function")
+     ((looking-at "(defvar\\s-\\|(defcustom\\s-") "variable")
+     ((looking-at "(defclass\\s-") "class")
+     ((looking-at "(defmethod\\s-") "method")
+     ((looking-at "(defmacro\\s-") "macro")
+     ((looking-at "(defconst\\s-") "constant")
+     ;; Generic patterns for other languages
+     ((looking-at "\\(function\\|def\\)\\s-") "function")
+     ((looking-at "\\(class\\)\\s-") "class")
+     ((looking-at "\\(const\\|let\\|var\\)\\s-") "variable")
+     (t "definition"))))
+
 (provide 'claude-code-emacs-mcp-tools)
 ;;; claude-code-emacs-mcp-tools.el ends here

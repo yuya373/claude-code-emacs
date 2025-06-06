@@ -14,7 +14,9 @@ import {
   handleOpenCurrentChanges,
   handleApplyPatch,
   handleRunCommand,
-  RunCommandArgs
+  RunCommandArgs,
+  handleGetDefinition,
+  GetDefinitionArgs
 } from './tools/index.js';
 import {
   bufferResourceHandler,
@@ -142,6 +144,31 @@ const TOOLS = [
       required: ['command']
     }
   },
+  {
+    name: 'getDefinition',
+    description: 'Find definition of symbol using LSP or xref',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          description: 'File path to search from (optional)'
+        },
+        line: {
+          type: 'number',
+          description: 'Line number (1-based, optional)'
+        },
+        column: {
+          type: 'number',
+          description: 'Column number (0-based, optional)'
+        },
+        symbol: {
+          type: 'string',
+          description: 'Symbol name to search for (optional)'
+        }
+      }
+    }
+  },
   // Add diff tools
   ...Object.values(diffTools).map(tool => ({
     name: tool.name,
@@ -248,6 +275,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'runCommand':
         result = await handleRunCommand(bridge, (args || {}) as unknown as RunCommandArgs);
+        break;
+
+      case 'getDefinition':
+        result = await handleGetDefinition(bridge, (args || {}) as unknown as GetDefinitionArgs);
         break;
 
       default:

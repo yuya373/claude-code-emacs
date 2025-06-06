@@ -320,5 +320,112 @@
       (should (equal (cdr (assoc 'type result)) "buffer"))
       (should (assoc 'name result)))))
 
+;;; Tests for definition finding
+
+(ert-deftest test-mcp-handle-getDefinition-with-lsp ()
+  "Test getting definition with LSP."
+  (with-temp-buffer
+    (emacs-lisp-mode)
+    (insert "(defun test-func () nil)")
+    (goto-char (point-min))
+    (search-forward "test-func")
+    (cl-letf* ((lsp-active nil)
+               ((symbol-function 'fboundp) (lambda (sym) (memq sym '(lsp-mode lsp-find-definition))))
+               ((symbol-function 'bound-and-true-p) (lambda (sym) (eq sym 'lsp-mode)))
+               ((symbol-value 'lsp-mode) t)
+               ((symbol-function 'lsp-find-definition)
+                (lambda ()
+                  (goto-char (point-min))
+                  (search-forward "defun")))
+               ((symbol-function 'claude-code-emacs-mcp-get-lsp-definitions)
+                (lambda ()
+                  `(((file . ,(buffer-file-name))
+                     (line . 1)
+                     (column . 1)
+                     (symbol . "test-func")
+                     (type . "function")
+                     (preview . "(defun test-func () nil)"))))))
+      (let ((result (claude-code-emacs-mcp-handle-getDefinition
+                     '((symbol . "test-func")))))
+        (should (listp (cdr (assoc 'definitions result))))
+        (should (string= (cdr (assoc 'method result)) "lsp"))
+        (should (string= (cdr (assoc 'searchedSymbol result)) "test-func"))))))
+
+(ert-deftest test-mcp-handle-getDefinition-with-xref ()
+  "Test getting definition with xref."
+  (with-temp-buffer
+    (emacs-lisp-mode)
+    (insert "(defun test-func () nil)")
+    (cl-letf (((symbol-function 'fboundp)
+               (lambda (sym) (eq sym 'xref-find-definitions)))
+              ((symbol-function 'bound-and-true-p)
+               (lambda (_) nil))
+              ((symbol-function 'claude-code-emacs-mcp-get-xref-definitions)
+               (lambda (symbol)
+                 (when (string= symbol "test-func")
+                   `(((file . "test.el")
+                      (line . 1)
+                      (column . 7)
+                      (symbol . "test-func")
+                      (type . "function")
+                      (preview . "(defun test-func () nil)")))))))
+      (let ((result (claude-code-emacs-mcp-handle-getDefinition
+                     '((symbol . "test-func")))))
+        (should (listp (cdr (assoc 'definitions result))))
+        (should (string= (cdr (assoc 'method result)) "xref"))))))
+
+(ert-deftest test-mcp-handle-getDefinition-no-results ()
+  "Test getting definition with no results."
+  (cl-letf (((symbol-function 'fboundp) (lambda (_) nil)))
+    (should-error
+     (claude-code-emacs-mcp-handle-getDefinition
+      '((symbol . "non-existent-func")))
+     :type 'error)))
+
+(ert-deftest test-mcp-capture-definition-at-point ()
+  "Test capturing definition information at point."
+  (with-temp-buffer
+    (emacs-lisp-mode)
+    (insert "(defun my-test-function (arg)\n  \"Doc string.\"\n  (message \"Hello %s\" arg))\n")
+    (goto-char (point-min))
+    (search-forward "my-test-function")
+    (let ((result (claude-code-emacs-mcp-capture-definition-at-point)))
+      (should (assoc 'line result))
+      (should (= (cdr (assoc 'line result)) 1))
+      (should (assoc 'column result))
+      (should (assoc 'symbol result))
+      (should (string= (cdr (assoc 'symbol result)) "my-test-function"))
+      (should (assoc 'type result))
+      (should (string= (cdr (assoc 'type result)) "function"))
+      (should (assoc 'preview result))
+      (should (string-match "defun my-test-function" (cdr (assoc 'preview result)))))))
+
+(ert-deftest test-mcp-guess-definition-type ()
+  "Test guessing definition types."
+  (with-temp-buffer
+    (emacs-lisp-mode)
+    ;; Test function
+    (insert "(defun test-func () nil)\n")
+    (goto-char (point-min))
+    (should (string= (claude-code-emacs-mcp-guess-definition-type) "function"))
+    
+    ;; Test variable
+    (erase-buffer)
+    (insert "(defvar test-var 'value)\n")
+    (goto-char (point-min))
+    (should (string= (claude-code-emacs-mcp-guess-definition-type) "variable"))
+    
+    ;; Test macro
+    (erase-buffer)
+    (insert "(defmacro test-macro () nil)\n")
+    (goto-char (point-min))
+    (should (string= (claude-code-emacs-mcp-guess-definition-type) "macro"))
+    
+    ;; Test class
+    (erase-buffer)
+    (insert "(defclass test-class () ())\n")
+    (goto-char (point-min))
+    (should (string= (claude-code-emacs-mcp-guess-definition-type) "class"))))
+
 (provide 'test-claude-code-emacs-mcp-tools)
 ;;; test-claude-code-emacs-mcp-tools.el ends here
