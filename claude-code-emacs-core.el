@@ -59,6 +59,15 @@
   :type 'string
   :group 'claude-code-emacs)
 
+(defconst claude-code-emacs-available-options
+  '(("--verbose" . "Enable detailed logging")
+    ("--model sonnet" . "Use Claude Sonnet model")
+    ("--model opus" . "Use Claude Opus model")
+    ("--resume" . "Resume specific session by ID")
+    ("--continue" . "Load latest conversation in current directory")
+    ("--dangerously-skip-permissions" . "Skip permission prompts"))
+  "Available options for Claude Code CLI.")
+
 ;;; Buffer Management
 
 (defun claude-code-emacs-normalize-project-root (project-root)
@@ -110,12 +119,25 @@ If CHUNK-SIZE is not provided, use `claude-code-emacs-chunk-size'."
 
 ;;;###autoload
 (defun claude-code-emacs-run ()
-  "Start Claude Code session for the current project."
+  "Start Claude Code session for the current project.
+With prefix argument, select from available options."
   (interactive)
   (let* ((buffer-name (claude-code-emacs-buffer-name))
          (project-root (claude-code-emacs-normalize-project-root (projectile-project-root)))
          (default-directory project-root)
-         (buf (get-buffer-create buffer-name)))
+         (buf (get-buffer-create buffer-name))
+         (selected-option (when current-prefix-arg
+                            (let* ((choices (mapcar (lambda (opt)
+                                                      (format "%s - %s"
+                                                              (car opt)
+                                                              (cdr opt)))
+                                                    claude-code-emacs-available-options))
+                                   (selected (completing-read "Select Claude option: " choices nil t)))
+                              (when selected
+                                (car (split-string selected " - "))))))
+         (extra-input (when (and selected-option
+                                 (string-match-p "--resume" selected-option))
+                        (read-string "Session ID: "))))
     (with-current-buffer buf
       (unless (eq major-mode 'claude-code-emacs-vterm-mode)
         (claude-code-emacs-vterm-mode))
@@ -124,9 +146,13 @@ If CHUNK-SIZE is not provided, use `claude-code-emacs-chunk-size'."
                    (lambda ()
                      (when (buffer-live-p buf)
                        (with-current-buffer buf
-                         ;; TODO: --dangerously-skip-permissions 等のオプションを渡せるようにしたい
-                         (vterm-send-string "claude")
-                         (vterm-send-return))))))
+                         (let ((command (concat claude-code-emacs-executable
+                                                (when selected-option
+                                                  (concat " " selected-option))
+                                                (when extra-input
+                                                  (concat " " extra-input)))))
+                           (vterm-send-string command)
+                           (vterm-send-return)))))))
     (switch-to-buffer-other-window buffer-name)))
 
 ;;;###autoload
