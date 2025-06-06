@@ -112,22 +112,16 @@
       (endChar . 0)
       (fileName . ""))))
 
-;; TODO: bufferPathは消してプロジェクト全体のdiagnosticsを返すようにする
-(defun claude-code-emacs-mcp-handle-getDiagnostics (params)
-  "Handle getDiagnostics request with PARAMS."
+(defun claude-code-emacs-mcp-handle-getDiagnostics (_params)
+  "Handle getDiagnostics request.
+Always returns project-wide diagnostics."
   (condition-case nil
-      (let* ((buffer-path (cdr (assoc 'bufferPath params)))
-             (diagnostics '()))
+      (let ((diagnostics '()))
 
         (when (and (fboundp 'lsp-diagnostics)
                    (fboundp 'lsp:diagnostic-message))
           (let ((lsp-diags (condition-case nil
-                               (if buffer-path
-                                   (let ((buffer (find-buffer-visiting buffer-path)))
-                                     (when buffer
-                                       (with-current-buffer buffer
-                                         (lsp-diagnostics))))
-                                 (lsp-diagnostics))
+                               (lsp-diagnostics)
                              (error nil))))
             (when lsp-diags
               (maphash

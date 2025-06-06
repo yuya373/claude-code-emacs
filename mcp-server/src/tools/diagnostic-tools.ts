@@ -1,8 +1,7 @@
 import { EmacsBridge } from '../emacs-bridge.js';
 
-interface GetDiagnosticsArgs {
-  bufferPath?: string;
-}
+// Empty interface as we no longer accept parameters
+interface GetDiagnosticsArgs {}
 
 interface Diagnostic {
   file: string;
@@ -13,12 +12,13 @@ interface Diagnostic {
   source: string;
 }
 
-export async function handleGetDiagnostics(bridge: EmacsBridge, args: GetDiagnosticsArgs) {
+export async function handleGetDiagnostics(bridge: EmacsBridge, _args: GetDiagnosticsArgs) {
   if (!bridge.isConnected()) {
     throw new Error('Emacs is not connected');
   }
 
-  const result = await bridge.request('getDiagnostics', args);
+  // Always get project-wide diagnostics
+  const result = await bridge.request('getDiagnostics', {});
   const diagnostics: Diagnostic[] = result?.diagnostics || [];
 
   if (diagnostics.length === 0) {
@@ -26,9 +26,7 @@ export async function handleGetDiagnostics(bridge: EmacsBridge, args: GetDiagnos
       content: [
         {
           type: 'text',
-          text: args.bufferPath
-            ? `No diagnostics found for ${args.bufferPath}`
-            : 'No diagnostics found in current project'
+          text: 'No diagnostics found in current project'
         }
       ]
     };

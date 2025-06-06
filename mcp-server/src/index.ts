@@ -107,15 +107,10 @@ const TOOLS = [
   },
   {
     name: 'getDiagnostics',
-    description: 'Get LSP diagnostics for project or specific buffer',
+    description: 'Get LSP diagnostics for all project buffers',
     inputSchema: {
       type: 'object',
-      properties: {
-        bufferPath: {
-          type: 'string',
-          description: 'Specific buffer path (optional, defaults to all project buffers)'
-        }
-      }
+      properties: {}
     }
   },
   {

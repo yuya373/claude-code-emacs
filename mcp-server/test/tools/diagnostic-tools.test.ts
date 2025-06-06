@@ -76,17 +76,6 @@ describe('diagnostic-tools', () => {
       expect(result.content[0].text).toBe('No diagnostics found in current project');
     });
 
-    it('should pass buffer path parameter', async () => {
-      mockBridge.isConnected.mockReturnValue(true);
-      mockBridge.request.mockResolvedValue({
-        diagnostics: []
-      });
-
-      const result = await handleGetDiagnostics(mockBridge, { bufferPath: '/project/specific.js' });
-
-      expect(mockBridge.request).toHaveBeenCalledWith('getDiagnostics', { bufferPath: '/project/specific.js' });
-      expect(result.content[0].text).toBe('No diagnostics found for /project/specific.js');
-    });
 
     it('should handle single diagnostic', async () => {
       mockBridge.isConnected.mockReturnValue(true);
