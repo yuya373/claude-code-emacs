@@ -56,7 +56,6 @@
 (declare-function claude-code-emacs-clear "claude-code-emacs-commands" ())
 (declare-function claude-code-emacs-help "claude-code-emacs-commands" ())
 (declare-function claude-code-emacs-execute-custom-command "claude-code-emacs-commands" ())
-(declare-function claude-code-emacs-execute-global-command "claude-code-emacs-commands" ())
 (declare-function claude-code-emacs-memory "claude-code-emacs-commands" ())
 (declare-function claude-code-emacs-config "claude-code-emacs-commands" ())
 (declare-function claude-code-emacs-compact "claude-code-emacs-commands" (&optional instructions))
@@ -195,8 +194,7 @@ Each path is inserted on a new line with @ prefix."
     ("i" "Init project" claude-code-emacs-init)
     ("k" "Clear conversation" claude-code-emacs-clear)
     ("h" "Help" claude-code-emacs-help)
-    ("x" "Execute custom project command" claude-code-emacs-execute-custom-command)
-    ("X" "Execute global command (/user:)" claude-code-emacs-execute-global-command)]
+    ("x" "Execute custom command" claude-code-emacs-execute-custom-command)]
    ["Memory & Config"
     ("M" "Memory" claude-code-emacs-memory)
     ("C" "Config" claude-code-emacs-config)

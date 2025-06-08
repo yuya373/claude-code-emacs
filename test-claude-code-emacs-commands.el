@@ -148,33 +148,6 @@
      ;; Test non-existent file
      (should (null (claude-code-emacs-read-custom-command-file "non-existent.md"))))))
 
-(ert-deftest test-claude-code-emacs-execute-custom-command ()
-  "Test custom command execution functionality."
-  (with-claude-mock-buffer
-   (let ((commands-dir (claude-code-emacs-custom-commands-directory))
-         (claude-code-emacs-send-string-called nil)
-         (claude-code-emacs-send-string-arg nil))
-     ;; Mock send-string to capture calls
-     (cl-letf (((symbol-function 'claude-code-emacs-send-string)
-                (lambda (str)
-                  (setq claude-code-emacs-send-string-called t
-                        claude-code-emacs-send-string-arg str))))
-
-       ;; Test with no commands directory
-       (claude-code-emacs-execute-custom-command)
-       (should-not claude-code-emacs-send-string-called)
-
-       ;; Create commands directory and file
-       (make-directory commands-dir t)
-       (with-temp-file (expand-file-name "test-cmd.md" commands-dir)
-         (insert "execute this command"))
-
-       ;; Mock completing-read to select our test file
-       (cl-letf (((symbol-function 'completing-read)
-                  (lambda (&rest _) "test-cmd.md")))
-         (claude-code-emacs-execute-custom-command)
-         (should claude-code-emacs-send-string-called)
-         (should (equal "execute this command" claude-code-emacs-send-string-arg)))))))
 
 ;;; Tests for global command functions
 
@@ -201,29 +174,6 @@
   ;; We'll just test that the function doesn't error with non-existent file
   (should (null (claude-code-emacs-read-global-command-file "non-existent.txt"))))
 
-(ert-deftest test-claude-code-emacs-execute-global-command ()
-  "Test global command execution functionality."
-  (with-claude-mock-buffer
-   (let ((claude-code-emacs-send-string-called nil)
-         (claude-code-emacs-send-string-arg nil))
-     ;; Mock send-string to capture calls
-     (cl-letf (((symbol-function 'claude-code-emacs-send-string)
-                (lambda (str)
-                  (setq claude-code-emacs-send-string-called t
-                        claude-code-emacs-send-string-arg str)))
-               ;; Mock list-global-command-files to return test data
-               ((symbol-function 'claude-code-emacs-list-global-command-files)
-                (lambda () '("test-command.md" "another-command.md")))
-               ;; Mock read-global-command-file to return content without $ARGUMENTS
-               ((symbol-function 'claude-code-emacs-read-global-command-file)
-                (lambda (file) "Simple command content"))
-               ;; Mock completing-read to select a file
-               ((symbol-function 'completing-read)
-                (lambda (&rest _) "test-command.md")))
-
-       (claude-code-emacs-execute-global-command)
-       (should claude-code-emacs-send-string-called)
-       (should (equal "/user:test-command" claude-code-emacs-send-string-arg))))))
 
 (ert-deftest test-claude-code-emacs-execute-custom-command-with-multiple-args ()
   "Test custom command execution with multiple $ARGUMENTS."
@@ -244,7 +194,7 @@
 
        ;; Mock user input
        (cl-letf (((symbol-function 'completing-read)
-                  (lambda (&rest _) "multi-arg.md"))
+                  (lambda (&rest _) "project:multi-arg"))
                  ((symbol-function 'read-string)
                   (let ((counter 0))
                     (lambda (&rest _)
@@ -255,35 +205,98 @@
          (should claude-code-emacs-send-string-called)
          (should (equal "/project:multi-arg arg1 arg2" claude-code-emacs-send-string-arg)))))))
 
-(ert-deftest test-claude-code-emacs-execute-global-command-with-multiple-args ()
-  "Test global command execution with multiple $ARGUMENTS."
+
+;;; Tests for unified command execution
+
+(ert-deftest test-claude-code-emacs-get-custom-commands ()
+  "Test getting all custom commands with prefixes."
+  (with-claude-test-project
+   (let ((project-commands-dir (claude-code-emacs-custom-commands-directory))
+         (user-commands-dir (claude-code-emacs-global-commands-directory)))
+
+     ;; Create project commands
+     (make-directory project-commands-dir t)
+     (with-temp-file (expand-file-name "project-cmd1.md" project-commands-dir)
+       (insert "Project command 1"))
+     (with-temp-file (expand-file-name "project-cmd2.md" project-commands-dir)
+       (insert "Project command 2"))
+
+     ;; Mock global commands
+     (cl-letf (((symbol-function 'claude-code-emacs-list-global-command-files)
+                (lambda () '("user-cmd1.md" "user-cmd2.md"))))
+
+       (let ((commands (claude-code-emacs-get-custom-commands)))
+         ;; Check we have all commands
+         (should (= 4 (length commands)))
+
+         ;; Check project commands
+         (should (assoc "project:project-cmd1" commands))
+         (should (assoc "project:project-cmd2" commands))
+
+         ;; Check user commands
+         (should (assoc "user:user-cmd1" commands))
+         (should (assoc "user:user-cmd2" commands))
+
+         ;; Check command info structure
+         (let ((project-info (cdr (assoc "project:project-cmd1" commands))))
+           (should (eq 'project (cdr (assoc 'type project-info))))
+           (should (equal "project-cmd1.md" (cdr (assoc 'filename project-info)))))
+
+         (let ((user-info (cdr (assoc "user:user-cmd1" commands))))
+           (should (eq 'user (cdr (assoc 'type user-info))))
+           (should (equal "user-cmd1.md" (cdr (assoc 'filename user-info))))))))))
+
+(ert-deftest test-claude-code-emacs-execute-custom-command-unified ()
+  "Test custom command execution with both project and user commands."
   (with-claude-mock-buffer
-   (let ((claude-code-emacs-send-string-called nil)
+   (let ((project-commands-dir (claude-code-emacs-custom-commands-directory))
+         (user-commands-dir (expand-file-name ".claude/commands" (expand-file-name "~")))
+         (claude-code-emacs-send-string-called nil)
          (claude-code-emacs-send-string-arg nil))
-     ;; Mock send-string to capture calls
+
+     ;; Create project command
+     (make-directory project-commands-dir t)
+     (with-temp-file (expand-file-name "test-project.md" project-commands-dir)
+       (insert "project command content"))
+
+     ;; Create user command directory
+     (make-directory user-commands-dir t)
+
+     ;; Mock functions
      (cl-letf (((symbol-function 'claude-code-emacs-send-string)
                 (lambda (str)
                   (setq claude-code-emacs-send-string-called t
                         claude-code-emacs-send-string-arg str)))
-               ;; Mock list-global-command-files
-               ((symbol-function 'claude-code-emacs-list-global-command-files)
-                (lambda () '("multi-cmd.md")))
-               ;; Mock read-global-command-file
-               ((symbol-function 'claude-code-emacs-read-global-command-file)
-                (lambda (file) "Do $ARGUMENTS with $ARGUMENTS and $ARGUMENTS"))
-               ;; Mock completing-read
-               ((symbol-function 'completing-read)
-                (lambda (&rest _) "multi-cmd.md"))
-               ;; Mock read-string to provide different arguments
                ((symbol-function 'read-string)
-                (let ((args '("first" "second" "third")))
-                  (lambda (&rest _)
-                    (pop args)))))
+                (lambda (&rest _) "test-arg"))
+               ((symbol-function 'completing-read)
+                (let ((call-count 0))
+                  (lambda (prompt collection &rest _)
+                    (setq call-count (1+ call-count))
+                    ;; First call returns project command, second returns user command
+                    (if (= call-count 1)
+                        "project:test-project"
+                      "user:commit-push"))))
+               ;; Mock the global command files
+               ((symbol-function 'claude-code-emacs-list-global-command-files)
+                (lambda () '("commit-push.md")))
+               ;; Mock reading global command content
+               ((symbol-function 'claude-code-emacs-read-global-command-file)
+                (lambda (file) "user command content")))
 
-       (claude-code-emacs-execute-global-command)
+       ;; Test project command
+       (claude-code-emacs-execute-custom-command)
        (should claude-code-emacs-send-string-called)
-       (should (equal "/user:multi-cmd first second third"
-                      claude-code-emacs-send-string-arg))))))
+       (should (equal "project command content" claude-code-emacs-send-string-arg))
+
+       ;; Reset and test user command
+       (setq claude-code-emacs-send-string-called nil
+             claude-code-emacs-send-string-arg nil)
+
+       (claude-code-emacs-execute-custom-command)
+       (should claude-code-emacs-send-string-called)
+       ;; User commands always use /user: prefix even without $ARGUMENTS
+       (should (equal "/user:commit-push" claude-code-emacs-send-string-arg))))))
 
 (provide 'test-claude-code-emacs-commands)
 ;;; test-claude-code-emacs-commands.el ends here

@@ -36,6 +36,7 @@
 (declare-function claude-code-emacs-send-string "claude-code-emacs-core" (string &optional paste-p))
 (declare-function claude-code-emacs-ensure-buffer "claude-code-emacs-core" ())
 (declare-function claude-code-emacs-with-vterm-buffer "claude-code-emacs-core" (body-fn))
+(declare-function claude-code-emacs-normalize-project-root "claude-code-emacs-core" (root))
 (declare-function vterm-send-escape "vterm" ())
 (declare-function vterm-send-return "vterm" ())
 (declare-function vterm-send-key "vterm" (key))
@@ -178,6 +179,74 @@ Returns a list of arguments."
       (insert-file-contents filepath)
       (string-trim (buffer-string)))))
 
+;;; Unified command selection with prefix
+
+(defun claude-code-emacs-get-custom-commands ()
+  "Get all available custom commands with appropriate prefixes.
+Returns an alist of (display-name . command-info) where command-info
+contains the type (project/user), filename, and directory."
+  (let ((commands '()))
+    ;; Add project commands
+    (let ((project-files (claude-code-emacs-list-custom-command-files)))
+      (dolist (file project-files)
+        (let ((display-name (format "project:%s" (file-name-sans-extension file))))
+          (push (cons display-name
+                      `((type . project)
+                        (filename . ,file)
+                        (directory . ,(claude-code-emacs-custom-commands-directory))))
+                commands))))
+
+    ;; Add user commands
+    (let ((user-files (claude-code-emacs-list-global-command-files)))
+      (dolist (file user-files)
+        (let ((display-name (format "user:%s" (file-name-sans-extension file))))
+          (push (cons display-name
+                      `((type . user)
+                        (filename . ,file)
+                        (directory . ,(claude-code-emacs-global-commands-directory))))
+                commands))))
+
+    (nreverse commands)))
+
+(defun claude-code-emacs-execute-custom-command ()
+  "Select and execute a custom command from both project and user commands.
+Project commands are prefixed with 'project:' and user commands with 'user:'."
+  (interactive)
+  (let ((commands (claude-code-emacs-get-custom-commands)))
+    (if commands
+        (let* ((selected (completing-read "Select command: "
+                                          (mapcar #'car commands)
+                                          nil t))
+               (command-info (cdr (assoc selected commands)))
+               (type (cdr (assoc 'type command-info)))
+               (filename (cdr (assoc 'filename command-info)))
+               (directory (cdr (assoc 'directory command-info)))
+               (filepath (expand-file-name filename directory))
+               (content (claude-code-emacs-read-command-file filepath)))
+          (if content
+              (let ((arg-count (claude-code-emacs-count-arguments content)))
+                (if (> arg-count 0)
+                    ;; Command contains $ARGUMENTS, prompt for arguments
+                    (let ((args (claude-code-emacs-prompt-for-arguments
+                                 (file-name-sans-extension filename) arg-count)))
+                      (if (seq-some #'string-empty-p args)
+                          (message "All arguments are required for this command")
+                        ;; Send with appropriate prefix
+                        (claude-code-emacs-send-string
+                         (format "/%s:%s %s"
+                                 (symbol-name type)
+                                 (file-name-sans-extension filename)
+                                 (mapconcat #'identity args " ")))))
+                  ;; No $ARGUMENTS
+                  (if (eq type 'project)
+                      ;; Project commands send content directly
+                      (claude-code-emacs-send-string content)
+                    ;; User commands send with /user: prefix
+                    (claude-code-emacs-send-string
+                     (format "/user:%s" (file-name-sans-extension filename))))))
+            (message "Failed to read command file: %s" filename)))
+      (message "No custom commands found"))))
+
 ;;; Custom project command functions
 
 (defun claude-code-emacs-custom-commands-directory ()
@@ -196,32 +265,6 @@ Files are located in the .claude/commands directory."
   (claude-code-emacs-read-command-file
    (expand-file-name filename (claude-code-emacs-custom-commands-directory))))
 
-(defun claude-code-emacs-execute-custom-command ()
-  "Select and execute a custom project command from .claude/commands.
-If the command contains $ARGUMENTS, prompt for each argument and
-send as /project:command args."
-  (interactive)
-  (let ((command-files (claude-code-emacs-list-custom-command-files)))
-    (if command-files
-        (let* ((selected-file (completing-read "Select custom command: " command-files nil t))
-               (command-content (claude-code-emacs-read-custom-command-file selected-file)))
-          (if command-content
-              (let ((arg-count (claude-code-emacs-count-arguments command-content)))
-                (if (> arg-count 0)
-                    ;; Command contains $ARGUMENTS, prompt for arguments
-                    (let ((args (claude-code-emacs-prompt-for-arguments
-                                 (file-name-sans-extension selected-file) arg-count)))
-                      (if (seq-some #'string-empty-p args)
-                          (message "All arguments are required for this command")
-                        ;; Send as /project:command arg1 arg2 ...
-                        (claude-code-emacs-send-string
-                         (format "/project:%s %s"
-                                 (file-name-sans-extension selected-file)
-                                 (mapconcat #'identity args " ")))))
-                  ;; No $ARGUMENTS, send command content as is
-                  (claude-code-emacs-send-string command-content)))
-            (message "Failed to read custom command file: %s" selected-file)))
-      (message "No custom command files found in %s" (claude-code-emacs-custom-commands-directory)))))
 
 ;;; Global command functions (from ~/.claude/commands)
 
@@ -239,30 +282,6 @@ send as /project:command args."
   (claude-code-emacs-read-command-file
    (expand-file-name filename (claude-code-emacs-global-commands-directory))))
 
-(defun claude-code-emacs-execute-global-command ()
-  "Select and execute a global command from ~/.claude/commands using /user: prefix.
-If the command file contains $ARGUMENTS, prompt for each argument."
-  (interactive)
-  (let ((command-files (claude-code-emacs-list-global-command-files)))
-    (if command-files
-        (let* ((selected-file (completing-read "Select global command: " command-files nil t))
-               (file-content (claude-code-emacs-read-global-command-file selected-file))
-               (arg-count (if file-content
-                              (claude-code-emacs-count-arguments file-content)
-                            0)))
-          (if (> arg-count 0)
-              ;; File contains $ARGUMENTS, prompt for arguments
-              (let ((args (claude-code-emacs-prompt-for-arguments selected-file arg-count)))
-                (if (seq-some #'string-empty-p args)
-                    (message "All arguments are required for this command")
-                  (claude-code-emacs-send-string
-                   (format "/user:%s %s"
-                           (file-name-sans-extension selected-file)
-                           (mapconcat #'identity args " ")))))
-            ;; No $ARGUMENTS, send as before
-            (claude-code-emacs-send-string
-             (format "/user:%s" (file-name-sans-extension selected-file)))))
-      (message "No command files found in %s" (claude-code-emacs-global-commands-directory)))))
 
 (provide 'claude-code-emacs-commands)
 ;;; claude-code-emacs-commands.el ends here
