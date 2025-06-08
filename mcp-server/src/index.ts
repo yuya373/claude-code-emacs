@@ -151,13 +151,13 @@ const TOOLS = [
   },
   {
     name: 'getDefinition',
-    description: 'Find definition of symbol using LSP or xref',
+    description: 'Find definition of symbol using LSP',
     inputSchema: {
       type: 'object',
       properties: {
         file: {
           type: 'string',
-          description: 'File path to search from (optional)'
+          description: 'File path to search from (required)'
         },
         line: {
           type: 'number',
@@ -171,7 +171,8 @@ const TOOLS = [
           type: 'string',
           description: 'Symbol name to search for (optional)'
         }
-      }
+      },
+      required: ['file']
     }
   },
   // Add diff tools

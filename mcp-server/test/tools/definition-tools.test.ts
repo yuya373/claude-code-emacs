@@ -30,6 +30,7 @@ describe('handleGetDefinition', () => {
     });
 
     const args: GetDefinitionArgs = {
+      file: '/path/to/current.el',
       symbol: 'my-function'
     };
 
@@ -91,6 +92,7 @@ describe('handleGetDefinition', () => {
     });
 
     const args: GetDefinitionArgs = {
+      file: '/path/to/current.el',
       symbol: 'unknownSymbol'
     };
 
@@ -103,6 +105,7 @@ describe('handleGetDefinition', () => {
     mockBridge.isConnected.mockReturnValue(false);
 
     const args: GetDefinitionArgs = {
+      file: '/path/to/current.el',
       symbol: 'test'
     };
 
@@ -110,20 +113,15 @@ describe('handleGetDefinition', () => {
       .rejects.toThrow('Emacs is not connected');
   });
 
-  it('should throw error if no symbol or file/line provided', async () => {
-    mockBridge.isConnected.mockReturnValue(true);
-
-    const args: GetDefinitionArgs = {};
-
-    await expect(handleGetDefinition(mockBridge, args))
-      .rejects.toThrow('Either symbol or file/line must be provided');
-  });
+  // This test is no longer valid since file is required by TypeScript
+  // The TypeScript compiler will enforce the file parameter at compile time
 
   it('should handle Emacs errors gracefully', async () => {
     mockBridge.isConnected.mockReturnValue(true);
     mockBridge.request.mockRejectedValue(new Error('LSP not available'));
 
     const args: GetDefinitionArgs = {
+      file: '/path/to/current.el',
       symbol: 'test'
     };
 
@@ -149,6 +147,7 @@ describe('handleGetDefinition', () => {
     });
 
     const args: GetDefinitionArgs = {
+      file: '/path/to/current.py',
       symbol: 'calculate'
     };
 

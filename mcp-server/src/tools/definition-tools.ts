@@ -1,11 +1,12 @@
 import { EmacsBridge } from '../emacs-bridge.js';
 
 export interface GetDefinitionArgs {
-  // File path and position to get definition for
-  file?: string;
+  // File path is required
+  file: string;
+  // Optional position within the file
   line?: number;
   column?: number;
-  // Alternative: symbol name to search for
+  // Optional symbol name to search for
   symbol?: string;
 }
 
@@ -29,10 +30,8 @@ export async function handleGetDefinition(bridge: EmacsBridge, args: GetDefiniti
     throw new Error('Emacs is not connected');
   }
 
-  // Validate arguments
-  if (!args.symbol && (!args.file || args.line === undefined)) {
-    throw new Error('Either symbol or file/line must be provided');
-  }
+  // File is now always required (validated by TypeScript)
+  // Additional validation for optional parameters is not needed
 
   try {
     const result = await bridge.request('getDefinition', args) as DefinitionResult;
