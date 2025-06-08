@@ -238,12 +238,10 @@ Project commands are prefixed with 'project:' and user commands with 'user:'."
                                  (file-name-sans-extension filename)
                                  (mapconcat #'identity args " ")))))
                   ;; No $ARGUMENTS
-                  (if (eq type 'project)
-                      ;; Project commands send content directly
-                      (claude-code-emacs-send-string content)
-                    ;; User commands send with /user: prefix
-                    (claude-code-emacs-send-string
-                     (format "/user:%s" (file-name-sans-extension filename))))))
+                  (claude-code-emacs-send-string
+                   (format "/%s:%s"
+                           (symbol-name type)
+                           (file-name-sans-extension filename)))))
             (message "Failed to read command file: %s" filename)))
       (message "No custom commands found"))))
 

@@ -287,7 +287,7 @@
        ;; Test project command
        (claude-code-emacs-execute-custom-command)
        (should claude-code-emacs-send-string-called)
-       (should (equal "project command content" claude-code-emacs-send-string-arg))
+       (should (equal "/project:test-project" claude-code-emacs-send-string-arg))
 
        ;; Reset and test user command
        (setq claude-code-emacs-send-string-called nil
