@@ -195,5 +195,89 @@
        (claude-code-emacs-mcp-stop-ping-timer project-root)
        (should timer-cancelled)))))
 
+(ert-deftest test-mcp-try-connect-async ()
+  "Test asynchronous connection attempts."
+  (claude-code-emacs-mcp-test-with-connection
+   (let ((project-root (projectile-project-root))
+         (test-port 8888)
+         (connect-called nil)
+         (retry-scheduled nil))
+     ;; Test successful connection
+     (cl-letf (((symbol-function 'claude-code-emacs-mcp-connect)
+                (lambda (root port callback)
+                  (setq connect-called (list root port))
+                  (when callback (funcall callback t))))
+               ((symbol-function 'run-at-time)
+                (lambda (&rest args)
+                  (setq retry-scheduled args)
+                  'mock-timer)))
+       (claude-code-emacs-mcp-try-connect-async project-root test-port)
+       (should connect-called)
+       (should-not retry-scheduled))
+     
+     ;; Test failed connection with retry
+     (setq connect-called nil)
+     (setq retry-scheduled nil)
+     (cl-letf (((symbol-function 'claude-code-emacs-mcp-connect)
+                (lambda (root port callback)
+                  (setq connect-called (list root port))
+                  (when callback (funcall callback nil))))
+               ((symbol-function 'run-at-time)
+                (lambda (delay &rest args)
+                  (setq retry-scheduled (cons delay args))
+                  'mock-timer)))
+       (claude-code-emacs-mcp-try-connect-async project-root test-port)
+       (should connect-called)
+       (should retry-scheduled)
+       (should (= (car retry-scheduled) claude-code-emacs-mcp-connection-retry-delay))))))
+
+(ert-deftest test-mcp-ping-timeout-management ()
+  "Test ping timeout timer management."
+  (claude-code-emacs-mcp-test-with-connection
+   (let ((project-root (projectile-project-root))
+         (timeout-timer-created nil)
+         (timeout-timer-cancelled nil))
+     (cl-letf (((symbol-function 'run-with-timer)
+                (lambda (delay &rest args)
+                  (when (= delay claude-code-emacs-mcp-ping-timeout)
+                    (setq timeout-timer-created t))
+                  'mock-timeout-timer))
+               ((symbol-function 'cancel-timer)
+                (lambda (timer)
+                  (when (eq timer 'mock-timeout-timer)
+                    (setq timeout-timer-cancelled t))))
+               ((symbol-function 'timerp)
+                (lambda (timer) (eq timer 'mock-timeout-timer))))
+       ;; Start timeout timer
+       (claude-code-emacs-mcp-start-ping-timeout project-root)
+       (should timeout-timer-created)
+       ;; Stop timeout timer
+       (claude-code-emacs-mcp-stop-ping-timeout project-root)
+       (should timeout-timer-cancelled)))))
+
+(ert-deftest test-mcp-handle-ping-timeout ()
+  "Test handling ping timeout."
+  (claude-code-emacs-mcp-test-with-connection
+   (let ((project-root (projectile-project-root))
+         (connection-lost-called nil))
+     (cl-letf (((symbol-function 'claude-code-emacs-mcp-handle-connection-lost)
+                (lambda (root)
+                  (setq connection-lost-called root))))
+       (claude-code-emacs-mcp-handle-ping-timeout project-root)
+       (should (equal connection-lost-called project-root))))))
+
+(ert-deftest test-mcp-unregister-port ()
+  "Test port unregistration."
+  (claude-code-emacs-mcp-test-with-connection
+   (let ((project-root (projectile-project-root))
+         (disconnect-called nil))
+     (cl-letf (((symbol-function 'claude-code-emacs-normalize-project-root)
+                (lambda (root) (directory-file-name root)))
+               ((symbol-function 'claude-code-emacs-mcp-disconnect)
+                (lambda (root)
+                  (setq disconnect-called root))))
+       (claude-code-emacs-mcp-unregister-port project-root)
+       (should (equal disconnect-called (directory-file-name project-root)))))))
+
 (provide 'test-claude-code-emacs-mcp-connection)
 ;;; test-claude-code-emacs-mcp-connection.el ends here

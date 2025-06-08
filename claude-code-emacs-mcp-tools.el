@@ -557,7 +557,8 @@ Always returns project-wide diagnostics."
         (when response
           (let ((locations (if (listp response)
                               (if (and (listp (car response))
-                                      (not (plist-member (car response) :uri)))
+                                      (or (plist-get (car response) :uri)
+                                          (plist-get (car response) :targetUri)))
                                   response  ; Already a list of locations
                                 (list response))  ; Single location as list
                             (list response))))  ; Make single item a list

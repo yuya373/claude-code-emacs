@@ -477,5 +477,87 @@
           (should (member "src/file2.el" paths))
           (should (member "test/file3.el" paths)))))))
 
+(ert-deftest test-mcp-get-lsp-definitions-with-request ()
+  "Test getting LSP definitions with request."
+  (cl-letf* ((lsp-response nil)
+             ((symbol-function 'lsp--text-document-position-params)
+              (lambda () '(:textDocument (:uri "file:///test.el") :position (:line 0 :character 7))))
+             ((symbol-function 'lsp-request)
+              (lambda (method params)
+                (when (string= method "textDocument/definition")
+                  lsp-response)))
+             ((symbol-function 'lsp--uri-to-path)
+              (lambda (uri) (substring uri 7)))  ;; Remove "file://" prefix
+             ((symbol-function 'claude-code-emacs-mcp-get-definition-info-at)
+              (lambda (file line column)
+                `((file . ,file)
+                  (line . ,line)
+                  (column . ,column)
+                  (symbol . "test-symbol")
+                  (type . "function")
+                  (preview . "function test-symbol() {}")))))
+    ;; Test single location response
+    (setq lsp-response (list :uri "file:///test1.el" :range (list :start (list :line 5 :character 10))))
+    (let ((result (claude-code-emacs-mcp-get-lsp-definitions-with-request)))
+      (should (= (length result) 1))
+      (let ((def (car result)))
+        (should (equal (cdr (assoc 'file def)) "/test1.el"))
+        (should (equal (cdr (assoc 'line def)) 6))  ;; 1-based
+        (should (equal (cdr (assoc 'column def)) 10))))
+    
+    ;; Test multiple locations response  
+    (setq lsp-response (list (list :uri "file:///test1.el" :range (list :start (list :line 5 :character 10)))
+                            (list :uri "file:///test2.el" :range (list :start (list :line 10 :character 5)))))
+    (let ((result (claude-code-emacs-mcp-get-lsp-definitions-with-request)))
+      (should (= (length result) 2)))
+    
+    ;; Test LocationLink response
+    (setq lsp-response (list :targetUri "file:///test3.el" :targetRange (list :start (list :line 15 :character 20))))
+    (let ((result (claude-code-emacs-mcp-get-lsp-definitions-with-request)))
+      (should (= (length result) 1))
+      (let ((def (car result)))
+        (should (equal (cdr (assoc 'file def)) "/test3.el"))
+        (should (equal (cdr (assoc 'line def)) 16))))))  ;; 1-based
+
+(ert-deftest test-mcp-get-definition-info-at ()
+  "Test getting definition info at specific location."
+  (let ((test-file (make-temp-file "test-def" nil ".el")))
+    (unwind-protect
+        (progn
+          (with-temp-file test-file
+            (insert "(defun test-function (arg)\n")
+            (insert "  \"Documentation string.\"\n")
+            (insert "  (message \"Hello %s\" arg))\n"))
+          (let ((result (claude-code-emacs-mcp-get-definition-info-at test-file 1 7)))
+            (should result)
+            (should (equal (cdr (assoc 'file result)) test-file))
+            (should (equal (cdr (assoc 'line result)) 1))
+            (should (equal (cdr (assoc 'column result)) 7))
+            (should (equal (cdr (assoc 'symbol result)) "test-function"))
+            (should (equal (cdr (assoc 'type result)) "function"))
+            (should (string-match "defun test-function" (cdr (assoc 'preview result))))))
+      (delete-file test-file))))
+
+(ert-deftest test-mcp-get-definition-preview ()
+  "Test getting definition preview."
+  (with-temp-buffer
+    (emacs-lisp-mode)
+    (insert "(defun my-long-function (arg1 arg2 arg3)\n")
+    (insert "  \"This is a very long documentation string that goes on and on.\n")
+    (insert "  It has multiple lines and lots of detail about what the function does.\n")
+    (insert "  We want to make sure the preview is limited to a reasonable size.\"\n")
+    (insert "  (let ((result nil))\n")
+    (insert "    (dolist (item arg1)\n")
+    (insert "      (when (member item arg2)\n")
+    (insert "        (push item result)))\n")
+    (insert "    (append result arg3)))\n")
+    (goto-char (point-min))
+    (forward-char 7)  ;; Position at function name
+    (let ((preview (claude-code-emacs-mcp-get-definition-preview)))
+      (should preview)
+      (should (string-match "defun my-long-function" preview))
+      ;; Check that preview is limited in size
+      (should (<= (length preview) 500)))))
+
 (provide 'test-claude-code-emacs-mcp-tools)
 ;;; test-claude-code-emacs-mcp-tools.el ends here
