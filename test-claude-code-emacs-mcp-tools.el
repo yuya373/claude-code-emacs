@@ -356,7 +356,8 @@
             (with-temp-file test-file
               (insert "(defun test-func () nil)"))
             (let ((result (claude-code-emacs-mcp-handle-getDefinition
-                           '((symbol . "test-func")))))
+                           `((symbol . "test-func")
+                             (file . ,(file-name-nondirectory test-file))))))
               (should (listp (cdr (assoc 'definitions result))))
               (should (string= (cdr (assoc 'method result)) "lsp"))
               (should (string= (cdr (assoc 'searchedSymbol result)) "test-func"))))
@@ -368,8 +369,16 @@
   (cl-letf (((symbol-function 'fboundp) (lambda (_) nil)))
     (should-error
      (claude-code-emacs-mcp-handle-getDefinition
-      '((symbol . "non-existent-func")))
+      '((symbol . "non-existent-func")
+        (file . "test.el")))
      :type 'error)))
+
+(ert-deftest test-mcp-handle-getDefinition-missing-file ()
+  "Test getting definition with missing file parameter."
+  (should-error
+   (claude-code-emacs-mcp-handle-getDefinition
+    '((symbol . "test-func")))
+   :type 'error))
 
 (ert-deftest test-mcp-capture-definition-at-point ()
   "Test capturing definition information at point."

@@ -487,9 +487,9 @@ Always returns project-wide diagnostics."
 
 ;;; Definition finding
 
-;; TODO: file-pathを必須に引数にする
 (defun claude-code-emacs-mcp-handle-getDefinition (params)
-  "Handle getDefinition request with PARAMS using LSP."
+  "Handle getDefinition request with PARAMS using LSP.
+PARAMS must include 'file' parameter specifying the file path."
   (let* ((symbol-name (cdr (assoc 'symbol params)))
          (file-path (cdr (assoc 'file params)))
          (line (cdr (assoc 'line params)))
@@ -504,40 +504,36 @@ Always returns project-wide diagnostics."
                        (fboundp 'lsp-request))
             (error "LSP mode is not available. Please install and configure lsp-mode"))
 
-          ;; If file path is provided, visit that file first
-          (when file-path
-            (let* ((full-path (expand-file-name file-path (claude-code-emacs-normalize-project-root (projectile-project-root))))
-                   (buffer (find-file-noselect full-path)))
-              (with-current-buffer buffer
-                ;; Check if LSP is active in this buffer
-                (unless (bound-and-true-p lsp-mode)
-                  (error "LSP is not active in buffer: %s" (buffer-name)))
+          ;; file-path is required
+          (unless file-path
+            (error "Missing required parameter: file"))
 
-                (when (and line column)
-                  (goto-char (point-min))
-                  (forward-line (1- line))
-                  (move-to-column column))
+          ;; Visit the specified file
+          (let* ((full-path (expand-file-name file-path (claude-code-emacs-normalize-project-root (projectile-project-root))))
+                 (buffer (find-file-noselect full-path)))
+            (with-current-buffer buffer
+              ;; Check if LSP is active in this buffer
+              (unless (bound-and-true-p lsp-mode)
+                (error "LSP is not active in buffer: %s" (buffer-name)))
 
-                ;; Get definitions using lsp-request
-                (setq definitions (claude-code-emacs-mcp-get-lsp-definitions-with-request))
+              (when (and line column)
+                (goto-char (point-min))
+                (forward-line (1- line))
+                (move-to-column column))
 
-                ;; Try to get symbol at point if not provided
-                (unless symbol-name
-                  (setq symbol-name (thing-at-point 'symbol t))))))
+              ;; Get definitions using lsp-request
+              (setq definitions (claude-code-emacs-mcp-get-lsp-definitions-with-request))
 
-          ;; If symbol provided without file context, use current buffer
-          (when (and symbol-name (not file-path))
-            (unless (bound-and-true-p lsp-mode)
-              (error "LSP is not active in current buffer"))
-            (setq searched-symbol symbol-name)
-            ;; Get definitions from current buffer
-            (setq definitions (claude-code-emacs-mcp-get-lsp-definitions-with-request)))
+              ;; Try to get symbol at point if not provided
+              (unless symbol-name
+                (setq symbol-name (thing-at-point 'symbol t)))
+              
+              (setq searched-symbol symbol-name)))
 
           ;; Return results
           (if definitions
               `((definitions . ,definitions)
                 (searchedSymbol . ,(or searched-symbol
-                                        symbol-name
                                         (thing-at-point 'symbol t)))
                 (method . "lsp"))
             (error "No definition found using LSP")))
