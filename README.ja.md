@@ -99,20 +99,20 @@ Claude Codeのスラッシュコマンドの詳細については、[公式Claud
 Claude Code Emacsはマークダウンファイルとして保存されたカスタムコマンドをサポートしています。
 
 ### プロジェクト固有のコマンド
-プロジェクトディレクトリ内の`.claude/commands/*.md`にコマンドを保存します。これらは`/project:command-name`で実行できます。
+プロジェクトディレクトリ内の`.claude/commands/*.md`にコマンドを保存します。これらは`/project:command-name`として実行されます。
 
 - `.claude/commands/`ディレクトリにマークダウンファイルを作成
 - ユーザー入力のプレースホルダーとして`$ARGUMENTS`を使用
 - `M-x claude-code-emacs-execute-custom-command`またはTransientメニューの`x`で実行
-- 例：`.claude/commands/deploy.md`は`/project:deploy`として実行可能
+- 例：`.claude/commands/deploy.md`は`/project:deploy`として実行
 
 ### ユーザー固有のコマンド
-グローバルコマンドを`~/.claude/commands/*.md`に保存します。これらは`/user:command-name`で実行できます。
+グローバルコマンドを`~/.claude/commands/*.md`に保存します。これらは`/user:command-name`として実行されます。
 
 - `~/.claude/commands/`ディレクトリにマークダウンファイルを作成
 - ユーザー入力のプレースホルダーとして`$ARGUMENTS`を使用
 - `M-x claude-code-emacs-execute-global-command`またはTransientメニューの`X`で実行
-- 例：`~/.claude/commands/format.md`は`/user:format`として実行可能
+- 例：`~/.claude/commands/format.md`は`/user:format`として実行
 
 ### 引数の使用
 コマンドに`$ARGUMENTS`プレースホルダーが含まれている場合、各出現箇所に対して値の入力を求められます。

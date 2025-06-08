@@ -99,20 +99,20 @@ In prompt buffers, display the menu with `C-c C-t` or `M-x claude-code-emacs-pro
 Claude Code Emacs supports custom commands that can be stored as markdown files and executed through the interface.
 
 ### Project-specific Commands
-Store commands in `.claude/commands/*.md` within your project directory. These can be executed via `/project:command-name`.
+Store commands in `.claude/commands/*.md` within your project directory. These are executed via `/project:command-name`.
 
 - Create markdown files in `.claude/commands/` directory
 - Use `$ARGUMENTS` as placeholders for user input
 - Execute with `M-x claude-code-emacs-execute-custom-command` or `x` in the transient menu
-- Example: `.claude/commands/deploy.md` can be run as `/project:deploy`
+- Example: `.claude/commands/deploy.md` is run as `/project:deploy`
 
 ### User-specific Commands
-Store global commands in `~/.claude/commands/*.md`. These can be executed via `/user:command-name`.
+Store global commands in `~/.claude/commands/*.md`. These are executed via `/user:command-name`.
 
 - Create markdown files in `~/.claude/commands/` directory
 - Use `$ARGUMENTS` as placeholders for user input
 - Execute with `M-x claude-code-emacs-execute-global-command` or `X` in the transient menu
-- Example: `~/.claude/commands/format.md` can be run as `/user:format`
+- Example: `~/.claude/commands/format.md` is run as `/user:format`
 
 ### Using Arguments
 When a command contains `$ARGUMENTS` placeholders, you'll be prompted to provide values for each occurrence.
