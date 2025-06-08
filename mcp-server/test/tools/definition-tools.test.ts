@@ -31,6 +31,8 @@ describe('handleGetDefinition', () => {
 
     const args: GetDefinitionArgs = {
       file: '/path/to/current.el',
+      line: 10,
+      column: 5,
       symbol: 'my-function'
     };
 
@@ -93,6 +95,8 @@ describe('handleGetDefinition', () => {
 
     const args: GetDefinitionArgs = {
       file: '/path/to/current.el',
+      line: 20,
+      column: 10,
       symbol: 'unknownSymbol'
     };
 
@@ -106,6 +110,8 @@ describe('handleGetDefinition', () => {
 
     const args: GetDefinitionArgs = {
       file: '/path/to/current.el',
+      line: 1,
+      column: 0,
       symbol: 'test'
     };
 
@@ -122,6 +128,8 @@ describe('handleGetDefinition', () => {
 
     const args: GetDefinitionArgs = {
       file: '/path/to/current.el',
+      line: 1,
+      column: 0,
       symbol: 'test'
     };
 
@@ -148,6 +156,8 @@ describe('handleGetDefinition', () => {
 
     const args: GetDefinitionArgs = {
       file: '/path/to/current.py',
+      line: 15,
+      column: 0,
       symbol: 'calculate'
     };
 

@@ -357,7 +357,9 @@
               (insert "(defun test-func () nil)"))
             (let ((result (claude-code-emacs-mcp-handle-getDefinition
                            `((symbol . "test-func")
-                             (file . ,(file-name-nondirectory test-file))))))
+                             (file . ,(file-name-nondirectory test-file))
+                             (line . 1)
+                             (column . 7)))))
               (should (listp (cdr (assoc 'definitions result))))
               (should (string= (cdr (assoc 'method result)) "lsp"))
               (should (string= (cdr (assoc 'searchedSymbol result)) "test-func"))))
@@ -370,14 +372,36 @@
     (should-error
      (claude-code-emacs-mcp-handle-getDefinition
       '((symbol . "non-existent-func")
-        (file . "test.el")))
+        (file . "test.el")
+        (line . 1)
+        (column . 0)))
      :type 'error)))
 
 (ert-deftest test-mcp-handle-getDefinition-missing-file ()
   "Test getting definition with missing file parameter."
   (should-error
    (claude-code-emacs-mcp-handle-getDefinition
-    '((symbol . "test-func")))
+    '((symbol . "test-func")
+      (line . 1)
+      (column . 0)))
+   :type 'error))
+
+(ert-deftest test-mcp-handle-getDefinition-missing-line ()
+  "Test getting definition with missing line parameter."
+  (should-error
+   (claude-code-emacs-mcp-handle-getDefinition
+    '((symbol . "test-func")
+      (file . "test.el")
+      (column . 0)))
+   :type 'error))
+
+(ert-deftest test-mcp-handle-getDefinition-missing-column ()
+  "Test getting definition with missing column parameter."
+  (should-error
+   (claude-code-emacs-mcp-handle-getDefinition
+    '((symbol . "test-func")
+      (file . "test.el")
+      (line . 1)))
    :type 'error))
 
 (ert-deftest test-mcp-capture-definition-at-point ()

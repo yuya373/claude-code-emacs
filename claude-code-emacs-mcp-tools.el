@@ -489,7 +489,7 @@ Always returns project-wide diagnostics."
 
 (defun claude-code-emacs-mcp-handle-getDefinition (params)
   "Handle getDefinition request with PARAMS using LSP.
-PARAMS must include 'file' parameter specifying the file path."
+PARAMS must include 'file', 'line', and 'column' parameters."
   (let* ((symbol-name (cdr (assoc 'symbol params)))
          (file-path (cdr (assoc 'file params)))
          (line (cdr (assoc 'line params)))
@@ -504,9 +504,13 @@ PARAMS must include 'file' parameter specifying the file path."
                        (fboundp 'lsp-request))
             (error "LSP mode is not available. Please install and configure lsp-mode"))
 
-          ;; file-path is required
+          ;; file-path, line, and column are required
           (unless file-path
             (error "Missing required parameter: file"))
+          (unless line
+            (error "Missing required parameter: line"))
+          (unless column
+            (error "Missing required parameter: column"))
 
           ;; Visit the specified file
           (let* ((full-path (expand-file-name file-path (claude-code-emacs-normalize-project-root (projectile-project-root))))
@@ -516,10 +520,10 @@ PARAMS must include 'file' parameter specifying the file path."
               (unless (bound-and-true-p lsp-mode)
                 (error "LSP is not active in buffer: %s" (buffer-name)))
 
-              (when (and line column)
-                (goto-char (point-min))
-                (forward-line (1- line))
-                (move-to-column column))
+              ;; Go to specified position (line and column are now required)
+              (goto-char (point-min))
+              (forward-line (1- line))
+              (move-to-column column)
 
               ;; Get definitions using lsp-request
               (setq definitions (claude-code-emacs-mcp-get-lsp-definitions-with-request))
@@ -527,7 +531,7 @@ PARAMS must include 'file' parameter specifying the file path."
               ;; Try to get symbol at point if not provided
               (unless symbol-name
                 (setq symbol-name (thing-at-point 'symbol t)))
-              
+
               (setq searched-symbol symbol-name)))
 
           ;; Return results

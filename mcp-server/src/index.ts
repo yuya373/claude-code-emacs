@@ -161,18 +161,18 @@ const TOOLS = [
         },
         line: {
           type: 'number',
-          description: 'Line number (1-based, optional)'
+          description: 'Line number (1-based, required)'
         },
         column: {
           type: 'number',
-          description: 'Column number (0-based, optional)'
+          description: 'Column number (0-based, required)'
         },
         symbol: {
           type: 'string',
           description: 'Symbol name to search for (optional)'
         }
       },
-      required: ['file']
+      required: ['file', 'line', 'column']
     }
   },
   // Add diff tools

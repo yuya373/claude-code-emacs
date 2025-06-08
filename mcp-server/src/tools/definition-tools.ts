@@ -3,9 +3,9 @@ import { EmacsBridge } from '../emacs-bridge.js';
 export interface GetDefinitionArgs {
   // File path is required
   file: string;
-  // Optional position within the file
-  line?: number;
-  column?: number;
+  // Position within the file is required
+  line: number;
+  column: number;
   // Optional symbol name to search for
   symbol?: string;
 }
@@ -35,7 +35,7 @@ export async function handleGetDefinition(bridge: EmacsBridge, args: GetDefiniti
 
   try {
     const result = await bridge.request('getDefinition', args) as DefinitionResult;
-    
+
     if (!result.definitions || result.definitions.length === 0) {
       return {
         content: [{
@@ -59,11 +59,11 @@ export async function handleGetDefinition(bridge: EmacsBridge, args: GetDefiniti
         output += ` (${def.type})`;
       }
       output += '\n';
-      
+
       if (def.preview) {
         output += '\n```\n' + def.preview + '\n```\n';
       }
-      
+
       output += '\n';
     });
 
