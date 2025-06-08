@@ -324,37 +324,56 @@
 
 (ert-deftest test-mcp-handle-getDefinition-with-lsp ()
   "Test getting definition with LSP."
-  (with-temp-buffer
-    (emacs-lisp-mode)
-    (insert "(defun test-func () nil)")
-    (goto-char (point-min))
-    (search-forward "test-func")
-    (cl-letf* ((test-file (make-temp-file "test-def" nil ".el"))
-               ((symbol-function 'fboundp)
-                (lambda (sym) (memq sym '(lsp-mode lsp-request))))
-               ((symbol-function 'bound-and-true-p)
-                (lambda (sym) (eq sym 'lsp-mode)))
-               ((symbol-value 'lsp-mode) t)
-               ((symbol-function 'lsp--text-document-position-params)
-                (lambda () '(:textDocument (:uri "file:///test.el") :position (:line 0 :character 7))))
-               ((symbol-function 'lsp-request)
-                (lambda (method params)
-                  (when (string= method "textDocument/definition")
-                    `(:uri ,(concat "file://" test-file) :range (:start (:line 0 :character 0) :end (:line 0 :character 23))))))
-               ((symbol-function 'lsp--uri-to-path)
-                (lambda (uri) test-file))
-               ((symbol-function 'claude-code-emacs-mcp-get-definition-info-at)
-                (lambda (file line column)
-                  `((file . ,file)
-                    (line . ,line)
-                    (column . ,column)
-                    (symbol . "test-func")
-                    (type . "function")
-                    (preview . "(defun test-func () nil)")))))
-      (unwind-protect
-          (progn
-            (with-temp-file test-file
-              (insert "(defun test-func () nil)"))
+  (let ((test-file (make-temp-file "test-def" nil ".el")))
+    (unwind-protect
+        (progn
+          (with-temp-file test-file
+            (insert "(defun test-func () nil)"))
+          (cl-letf* (;; Mock all required functions
+                     ((symbol-function 'fboundp)
+                      (lambda (sym) (memq sym '(lsp-mode lsp-request))))
+                     ((symbol-function 'projectile-project-root)
+                      (lambda () (file-name-directory test-file)))
+                     ((symbol-function 'claude-code-emacs-normalize-project-root)
+                      (lambda (root) root))
+                     ;; Don't mock expand-file-name, use the real one
+                     ;;((symbol-function 'expand-file-name)
+                     ;; (lambda (file &optional dir)
+                     ;;   (if dir
+                     ;;       (concat (file-name-as-directory dir) file)
+                     ;;     file)))
+                     ;; Mock find-file-noselect to return a buffer with LSP active
+                     ((symbol-function 'find-file-noselect)
+                      (lambda (file)
+                        (let ((buf (get-buffer-create (file-name-nondirectory file))))
+                          (with-current-buffer buf
+                            (setq buffer-file-name file)
+                            (emacs-lisp-mode)
+                            (insert-file-contents file nil nil nil t)
+                            ;; Make LSP appear active in this buffer
+                            (setq-local lsp-mode t))
+                          buf)))
+                     ((symbol-function 'bound-and-true-p)
+                      (lambda (sym) 
+                        (if (eq sym 'lsp-mode)
+                            t
+                          (and (boundp sym) (symbol-value sym)))))
+                     ((symbol-function 'lsp--text-document-position-params)
+                      (lambda () '(:textDocument (:uri "file:///test.el") :position (:line 0 :character 7))))
+                     ((symbol-function 'lsp-request)
+                      (lambda (method params)
+                        (when (string= method "textDocument/definition")
+                          `(:uri ,(concat "file://" test-file) :range (:start (:line 0 :character 0) :end (:line 0 :character 23))))))
+                     ((symbol-function 'lsp--uri-to-path)
+                      (lambda (uri) test-file))
+                     ((symbol-function 'claude-code-emacs-mcp-get-definition-info-at)
+                      (lambda (file line column)
+                        `((file . ,file)
+                          (line . ,line)
+                          (column . ,column)
+                          (symbol . "test-func")
+                          (type . "function")
+                          (preview . "(defun test-func () nil)")))))
             (let ((result (claude-code-emacs-mcp-handle-getDefinition
                            `((symbol . "test-func")
                              (file . ,(file-name-nondirectory test-file))
@@ -362,8 +381,8 @@
                              (column . 7)))))
               (should (listp (cdr (assoc 'definitions result))))
               (should (string= (cdr (assoc 'method result)) "lsp"))
-              (should (string= (cdr (assoc 'searchedSymbol result)) "test-func"))))
-        (delete-file test-file)))))
+              (should (string= (cdr (assoc 'searchedSymbol result)) "test-func")))))
+      (delete-file test-file))))
 
 
 (ert-deftest test-mcp-handle-getDefinition-no-results ()
