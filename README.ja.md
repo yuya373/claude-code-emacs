@@ -22,12 +22,25 @@ Claude Code EmacsにはMCPサーバー統合が含まれており、Claude Code�
 - **開いているバッファを取得**: 現在のプロジェクトの全開いているバッファを一覧表示
 - **現在の選択範囲を取得**: Emacsで現在選択されているテキストを取得
 - **診断情報を取得**: プロジェクト全体のLSP診断情報を取得
+- **定義を取得**: LSPを使用してシンボル定義を検索（プレビュー付き）
 - **コマンドを実行**: Emacsコマンドを実行（セキュリティチェック付き）
+- **差分ツール**: 強力なファイル比較ツール群：
+  - **openDiff**: 2つのファイルまたはバッファを比較
+  - **openDiff3**: マージ競合用の3ウェイファイル比較
+  - **openRevisionDiff**: ファイルを任意のgitリビジョンと比較
+  - **openCurrentChanges**: ediffでコミットされていない変更を表示
+  - **applyPatch**: ediffを使用してパッチファイルを適用
 
 MCPサーバーは各プロジェクトごとに動的にポートを割り当て、Claude CodeとEmacs間の通信のためのWebSocketブリッジを提供します。
 
 ## Claude Codeの起動と終了
 - `claude-code-emacs-run` - 現在のプロジェクトでClaude Codeを起動
+  - `C-u M-x claude-code-emacs-run`で対話的にオプションを選択：
+    - `--verbose`: 詳細ログを有効化
+    - `--model sonnet` または `--model opus`: AIモデルを選択
+    - `--resume`: 最後の会話を再開
+    - `--continue`: 特定のチャットUUIDから続行
+    - `--dangerously-skip-permissions`: 権限チェックをスキップ
 - `claude-code-emacs-close` - Claude Codeバッファを表示しているウィンドウを閉じる
 - `claude-code-emacs-quit` - Claude Codeセッションを終了してバッファを削除
 
@@ -227,6 +240,7 @@ MCPサーバーは安定したWebSocket接続を維持し、自動ヘルスモ�
 - **getOpenBuffers**: 現在のプロジェクトの全開いているバッファを一覧表示
 - **getCurrentSelection**: 現在選択されているテキストを取得
 - **getDiagnostics**: プロジェクト全体のLSP診断情報を取得（`lsp-mode`が必要）
+- **getDefinition**: LSPを使用してシンボル定義を検索（前後3行のプレビュー付き）
 - **openDiff**: ediffを使用して2つのファイルまたはバッファを比較
 - **openDiff3**: 3ウェイファイル比較
 - **openRevisionDiff**: ファイルをgitリビジョンと比較
@@ -256,7 +270,6 @@ MCPサーバーはClaude Codeがアクセスできるリソースとして以下
 - **checkDocumentDirty**: 未保存の変更をチェック
 - **saveDocument**: 未保存の変更があるファイルを保存
 - **getSymbols**: コードシンボルと定義にアクセス
-- **getDefinition**: 定義元にアクセス
 - **getReferences**: 参照先にアクセス
 
 実装の詳細についてはコード内の[TODO](#)セクションを参照してください。

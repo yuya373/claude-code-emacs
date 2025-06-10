@@ -22,12 +22,25 @@ Claude Code Emacs includes MCP server integration, allowing Claude Code to inter
 - **Get Open Buffers**: List all open buffers in the current project
 - **Get Current Selection**: Retrieve the currently selected text in Emacs
 - **Get Diagnostics**: Get LSP diagnostics for all project buffers
+- **Get Definition**: Find symbol definitions using LSP with preview
 - **Run Command**: Execute Emacs commands with security checks
+- **Diff Tools**: Powerful file comparison tools:
+  - **openDiff**: Compare two files or buffers
+  - **openDiff3**: Three-way file comparison for merge conflicts
+  - **openRevisionDiff**: Compare file with any git revision
+  - **openCurrentChanges**: Show uncommitted changes in ediff
+  - **applyPatch**: Apply patch files using ediff
 
 The MCP server uses dynamic port allocation for each project and provides a WebSocket bridge for communication between Claude Code and Emacs.
 
 ## Starting and Closing Claude Code
 - `claude-code-emacs-run` - Start Claude Code in the current project
+  - Use `C-u M-x claude-code-emacs-run` to interactively select options:
+    - `--verbose`: Enable verbose logging
+    - `--model sonnet` or `--model opus`: Select AI model
+    - `--resume`: Resume last conversation
+    - `--continue`: Continue from specific chat UUID
+    - `--dangerously-skip-permissions`: Skip permission checks
 - `claude-code-emacs-close` - Close the window displaying Claude Code buffer
 - `claude-code-emacs-quit` - Quit Claude Code session and kill the buffer
 
@@ -236,6 +249,7 @@ The MCP server maintains a stable WebSocket connection with automatic health mon
 - **getOpenBuffers**: List all open buffers in the current project
 - **getCurrentSelection**: Get currently selected text
 - **getDiagnostics**: Get project-wide LSP diagnostics (requires `lsp-mode`)
+- **getDefinition**: Find symbol definitions using LSP with preview (shows 3 lines before/after)
 - **openDiff**: Compare two files or buffers using ediff
 - **openDiff3**: Three-way file comparison
 - **openRevisionDiff**: Compare file with git revision

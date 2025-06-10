@@ -71,6 +71,50 @@ Gets the currently selected text in Emacs.
 Retrieves LSP diagnostics for all project buffers.
 - No parameters required
 
+### `getDefinition`
+Finds the definition of a symbol using LSP.
+- Parameters:
+  - `file`: File path to search from (required)
+  - `line`: Line number (1-based, required)
+  - `column`: Column number (0-based, required)
+  - `symbol`: (optional) Symbol name to search for
+- Returns: Definition location with preview (3 lines before/after)
+
+### Diff Tools
+
+#### `openDiff`
+Opens ediff to compare two files or buffers.
+- Parameters:
+  - `fileA`: Path to first file (alternative to bufferA)
+  - `fileB`: Path to second file (alternative to bufferB)
+  - `bufferA`: Name of first buffer (alternative to fileA)
+  - `bufferB`: Name of second buffer (alternative to fileB)
+
+#### `openDiff3`
+Opens ediff3 to compare three files.
+- Parameters:
+  - `fileA`: First file to compare (required)
+  - `fileB`: Second file to compare (required)
+  - `fileC`: Third file to compare (required)
+  - `ancestor`: Common ancestor for merge (optional)
+
+#### `openRevisionDiff`
+Compares a file with its git revision.
+- Parameters:
+  - `file`: File to compare (required)
+  - `revision`: Git revision (default: "HEAD")
+
+#### `openCurrentChanges`
+Shows current uncommitted changes in ediff.
+- Parameters:
+  - `file`: File to show changes for (optional, defaults to current)
+
+#### `applyPatch`
+Applies a patch file using ediff.
+- Parameters:
+  - `patchFile`: Path to patch file (required)
+  - `targetFile`: File to apply patch to (required)
+
 ### `runCommand`
 Executes an Emacs command with security checks.
 - Parameters:
@@ -80,6 +124,25 @@ Executes an Emacs command with security checks.
   - `currentBuffer`: (optional) Run in current buffer context
 
 Note: Dangerous commands like shell-command, eval-expression, and delete-file are blocked for security.
+
+## Connection Health Monitoring
+
+The MCP connection includes automatic health monitoring to ensure a stable connection:
+
+### Ping/Pong Mechanism
+- Emacs sends ping messages to the MCP server at regular intervals
+- Default interval: 30 seconds (customizable via `claude-code-emacs-mcp-ping-interval`)
+- If no pong response is received within the timeout period, the connection is considered lost
+- Default timeout: 10 seconds (customizable via `claude-code-emacs-mcp-ping-timeout`)
+
+### Customization
+```elisp
+;; Adjust ping interval (in seconds)
+(setq claude-code-emacs-mcp-ping-interval 60)  ; Ping every 60 seconds
+
+;; Adjust ping timeout (in seconds)
+(setq claude-code-emacs-mcp-ping-timeout 15)   ; Wait 15 seconds for pong
+```
 
 ## Troubleshooting
 
