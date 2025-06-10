@@ -18,11 +18,12 @@ describe('handleGetDefinition', () => {
       definitions: [
         {
           file: '/path/to/file.el',
-          line: 42,
-          column: 10,
           symbol: 'my-function',
-          type: 'function',
-          preview: '(defun my-function (arg)\n  "Documentation string."\n  (message "Hello %s" arg))'
+          preview: '(defun my-function (arg)\n  "Documentation string."\n  (message "Hello %s" arg))',
+          range: {
+            start: { line: 41, character: 9 },
+            end: { line: 41, character: 20 }
+          }
         }
       ],
       searchedSymbol: 'my-function',
@@ -32,7 +33,6 @@ describe('handleGetDefinition', () => {
     const args: GetDefinitionArgs = {
       file: '/path/to/current.el',
       line: 10,
-      column: 5,
       symbol: 'my-function'
     };
 
@@ -51,19 +51,21 @@ describe('handleGetDefinition', () => {
       definitions: [
         {
           file: '/path/to/file1.ts',
-          line: 10,
-          column: 5,
           symbol: 'MyClass',
-          type: 'class',
-          preview: 'export class MyClass {\n  constructor() {}\n}'
+          preview: 'export class MyClass {\n  constructor() {}\n}',
+          range: {
+            start: { line: 9, character: 4 },
+            end: { line: 9, character: 11 }
+          }
         },
         {
           file: '/path/to/file2.ts',
-          line: 20,
-          column: 8,
           symbol: 'MyClass',
-          type: 'class',
-          preview: 'class MyClass extends BaseClass {\n  // implementation\n}'
+          preview: 'class MyClass extends BaseClass {\n  // implementation\n}',
+          range: {
+            start: { line: 19, character: 7 },
+            end: { line: 19, character: 14 }
+          }
         }
       ],
       searchedSymbol: 'MyClass',
@@ -73,7 +75,7 @@ describe('handleGetDefinition', () => {
     const args: GetDefinitionArgs = {
       file: '/path/to/usage.ts',
       line: 5,
-      column: 10
+      symbol: 'MyClass'
     };
 
     const result = await handleGetDefinition(mockBridge, args);
@@ -96,7 +98,6 @@ describe('handleGetDefinition', () => {
     const args: GetDefinitionArgs = {
       file: '/path/to/current.el',
       line: 20,
-      column: 10,
       symbol: 'unknownSymbol'
     };
 
@@ -111,7 +112,6 @@ describe('handleGetDefinition', () => {
     const args: GetDefinitionArgs = {
       file: '/path/to/current.el',
       line: 1,
-      column: 0,
       symbol: 'test'
     };
 
@@ -129,7 +129,6 @@ describe('handleGetDefinition', () => {
     const args: GetDefinitionArgs = {
       file: '/path/to/current.el',
       line: 1,
-      column: 0,
       symbol: 'test'
     };
 
@@ -143,11 +142,12 @@ describe('handleGetDefinition', () => {
       definitions: [
         {
           file: '/path/to/file.py',
-          line: 15,
-          column: 0,
           symbol: 'calculate',
-          type: 'function'
           // No preview field
+          range: {
+            start: { line: 14, character: 0 },
+            end: { line: 14, character: 9 }
+          }
         }
       ],
       searchedSymbol: 'calculate',
@@ -157,13 +157,12 @@ describe('handleGetDefinition', () => {
     const args: GetDefinitionArgs = {
       file: '/path/to/current.py',
       line: 15,
-      column: 0,
       symbol: 'calculate'
     };
 
     const result = await handleGetDefinition(mockBridge, args);
 
-    expect(result.content[0].text).toContain('calculate (function)');
+    expect(result.content[0].text).toContain('calculate');
     expect(result.content[0].text).not.toContain('```'); // No code block
   });
 });

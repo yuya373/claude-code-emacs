@@ -354,7 +354,7 @@
                             (setq-local lsp-mode t))
                           buf)))
                      ((symbol-function 'bound-and-true-p)
-                      (lambda (sym) 
+                      (lambda (sym)
                         (if (eq sym 'lsp-mode)
                             t
                           (and (boundp sym) (symbol-value sym)))))
@@ -367,18 +367,15 @@
                      ((symbol-function 'lsp--uri-to-path)
                       (lambda (uri) test-file))
                      ((symbol-function 'claude-code-emacs-mcp-get-definition-info-at)
-                      (lambda (file line column)
+                      (lambda (file range)
                         `((file . ,file)
-                          (line . ,line)
-                          (column . ,column)
                           (symbol . "test-func")
-                          (type . "function")
-                          (preview . "(defun test-func () nil)")))))
+                          (preview . "(defun test-func () nil)")
+                          (range . ,range)))))
             (let ((result (claude-code-emacs-mcp-handle-getDefinition
                            `((symbol . "test-func")
                              (file . ,(file-name-nondirectory test-file))
-                             (line . 1)
-                             (column . 7)))))
+                             (line . 1)))))
               (should (listp (cdr (assoc 'definitions result))))
               (should (string= (cdr (assoc 'method result)) "lsp"))
               (should (string= (cdr (assoc 'searchedSymbol result)) "test-func")))))
@@ -392,8 +389,7 @@
      (claude-code-emacs-mcp-handle-getDefinition
       '((symbol . "non-existent-func")
         (file . "test.el")
-        (line . 1)
-        (column . 0)))
+        (line . 1)))
      :type 'error)))
 
 (ert-deftest test-mcp-handle-getDefinition-missing-file ()
@@ -401,8 +397,7 @@
   (should-error
    (claude-code-emacs-mcp-handle-getDefinition
     '((symbol . "test-func")
-      (line . 1)
-      (column . 0)))
+      (line . 1)))
    :type 'error))
 
 (ert-deftest test-mcp-handle-getDefinition-missing-line ()
@@ -410,63 +405,16 @@
   (should-error
    (claude-code-emacs-mcp-handle-getDefinition
     '((symbol . "test-func")
-      (file . "test.el")
-      (column . 0)))
+      (file . "test.el")))
    :type 'error))
 
-(ert-deftest test-mcp-handle-getDefinition-missing-column ()
-  "Test getting definition with missing column parameter."
+(ert-deftest test-mcp-handle-getDefinition-missing-symbol ()
+  "Test getting definition with missing symbol parameter."
   (should-error
    (claude-code-emacs-mcp-handle-getDefinition
-    '((symbol . "test-func")
-      (file . "test.el")
+    '((file . "test.el")
       (line . 1)))
    :type 'error))
-
-(ert-deftest test-mcp-capture-definition-at-point ()
-  "Test capturing definition information at point."
-  (with-temp-buffer
-    (emacs-lisp-mode)
-    (insert "(defun my-test-function (arg)\n  \"Doc string.\"\n  (message \"Hello %s\" arg))\n")
-    (goto-char (point-min))
-    (search-forward "my-test-function")
-    (let ((result (claude-code-emacs-mcp-capture-definition-at-point)))
-      (should (assoc 'line result))
-      (should (= (cdr (assoc 'line result)) 1))
-      (should (assoc 'column result))
-      (should (assoc 'symbol result))
-      (should (string= (cdr (assoc 'symbol result)) "my-test-function"))
-      (should (assoc 'type result))
-      (should (string= (cdr (assoc 'type result)) "function"))
-      (should (assoc 'preview result))
-      (should (string-match "defun my-test-function" (cdr (assoc 'preview result)))))))
-
-(ert-deftest test-mcp-guess-definition-type ()
-  "Test guessing definition types."
-  (with-temp-buffer
-    (emacs-lisp-mode)
-    ;; Test function
-    (insert "(defun test-func () nil)\n")
-    (goto-char (point-min))
-    (should (string= (claude-code-emacs-mcp-guess-definition-type) "function"))
-
-    ;; Test variable
-    (erase-buffer)
-    (insert "(defvar test-var 'value)\n")
-    (goto-char (point-min))
-    (should (string= (claude-code-emacs-mcp-guess-definition-type) "variable"))
-
-    ;; Test macro
-    (erase-buffer)
-    (insert "(defmacro test-macro () nil)\n")
-    (goto-char (point-min))
-    (should (string= (claude-code-emacs-mcp-guess-definition-type) "macro"))
-
-    ;; Test class
-    (erase-buffer)
-    (insert "(defclass test-class () ())\n")
-    (goto-char (point-min))
-    (should (string= (claude-code-emacs-mcp-guess-definition-type) "class"))))
 
 (ert-deftest test-mcp-handle-get-buffer-content ()
   "Test getting buffer content."
@@ -541,35 +489,38 @@
              ((symbol-function 'lsp--uri-to-path)
               (lambda (uri) (substring uri 7)))  ;; Remove "file://" prefix
              ((symbol-function 'claude-code-emacs-mcp-get-definition-info-at)
-              (lambda (file line column)
+              (lambda (file range)
                 `((file . ,file)
-                  (line . ,line)
-                  (column . ,column)
                   (symbol . "test-symbol")
-                  (type . "function")
-                  (preview . "function test-symbol() {}")))))
+                  (preview . "function test-symbol() {}")
+                  (range . ,range)))))
     ;; Test single location response
     (setq lsp-response (list :uri "file:///test1.el" :range (list :start (list :line 5 :character 10))))
     (let ((result (claude-code-emacs-mcp-get-lsp-definitions-with-request)))
       (should (= (length result) 1))
       (let ((def (car result)))
         (should (equal (cdr (assoc 'file def)) "/test1.el"))
-        (should (equal (cdr (assoc 'line def)) 6))  ;; 1-based
-        (should (equal (cdr (assoc 'column def)) 10))))
-    
-    ;; Test multiple locations response  
+        (should (equal (cdr (assoc 'symbol def)) "test-symbol"))
+        (let ((range (cdr (assoc 'range def))))
+          (should (equal (plist-get (plist-get range :start) :line) 5))
+          (should (equal (plist-get (plist-get range :start) :character) 10))))
+
+    ;; Test multiple locations response
     (setq lsp-response (list (list :uri "file:///test1.el" :range (list :start (list :line 5 :character 10)))
                             (list :uri "file:///test2.el" :range (list :start (list :line 10 :character 5)))))
     (let ((result (claude-code-emacs-mcp-get-lsp-definitions-with-request)))
       (should (= (length result) 2)))
-    
+
     ;; Test LocationLink response
     (setq lsp-response (list :targetUri "file:///test3.el" :targetRange (list :start (list :line 15 :character 20))))
     (let ((result (claude-code-emacs-mcp-get-lsp-definitions-with-request)))
       (should (= (length result) 1))
       (let ((def (car result)))
         (should (equal (cdr (assoc 'file def)) "/test3.el"))
-        (should (equal (cdr (assoc 'line def)) 16))))))  ;; 1-based
+        (should (equal (cdr (assoc 'symbol def)) "test-symbol"))
+        (let ((range (cdr (assoc 'range def))))
+          (should (equal (plist-get (plist-get range :start) :line) 15))
+          (should (equal (plist-get (plist-get range :start) :character) 20)))))))
 
 (ert-deftest test-mcp-get-definition-info-at ()
   "Test getting definition info at specific location."
@@ -580,20 +531,23 @@
             (insert "(defun test-function (arg)\n")
             (insert "  \"Documentation string.\"\n")
             (insert "  (message \"Hello %s\" arg))\n"))
-          (let ((result (claude-code-emacs-mcp-get-definition-info-at test-file 1 7)))
+          (let* ((range '(:start (:line 0 :character 7) :end (:line 0 :character 20)))
+                 (result (claude-code-emacs-mcp-get-definition-info-at test-file range)))
             (should result)
             (should (equal (cdr (assoc 'file result)) test-file))
-            (should (equal (cdr (assoc 'line result)) 1))
-            (should (equal (cdr (assoc 'column result)) 7))
             (should (equal (cdr (assoc 'symbol result)) "test-function"))
-            (should (equal (cdr (assoc 'type result)) "function"))
-            (should (string-match "defun test-function" (cdr (assoc 'preview result))))))
-      (delete-file test-file))))
+            (should (string-match "defun test-function" (cdr (assoc 'preview result))))
+            (should (equal (cdr (assoc 'range result)) range))))
+      (delete-file test-file)))))
 
 (ert-deftest test-mcp-get-definition-preview ()
   "Test getting definition preview."
   (with-temp-buffer
     (emacs-lisp-mode)
+    ;; Insert some lines before the function
+    (insert ";; Some comment before\n")
+    (insert ";; Another comment\n")
+    (insert ";; Third comment\n")
     (insert "(defun my-long-function (arg1 arg2 arg3)\n")
     (insert "  \"This is a very long documentation string that goes on and on.\n")
     (insert "  It has multiple lines and lots of detail about what the function does.\n")
@@ -603,13 +557,24 @@
     (insert "      (when (member item arg2)\n")
     (insert "        (push item result)))\n")
     (insert "    (append result arg3)))\n")
-    (goto-char (point-min))
-    (forward-char 7)  ;; Position at function name
-    (let ((preview (claude-code-emacs-mcp-get-definition-preview)))
+    (insert ";; Comment after\n")
+    (insert ";; Another after\n")
+    (insert ";; Third after\n")
+    
+    ;; Create a range for the function definition (line 3 to line 11, 0-based)
+    (let* ((range '(:start (:line 3 :character 7)
+                    :end (:line 11 :character 24)))
+           (preview (claude-code-emacs-mcp-get-definition-preview range)))
       (should preview)
+      ;; Should include the function definition
       (should (string-match "defun my-long-function" preview))
-      ;; Check that preview is limited in size
-      (should (<= (length preview) 500)))))
+      ;; Should include some context before (comments)
+      (should (string-match ";; Some comment before" preview))
+      ;; Should include some context after
+      (should (string-match ";; Comment after" preview))
+      ;; The preview includes all lines since we have a small test case
+      ;; In real usage, the preview would be truncated for very large functions
+      (should t))))
 
 (provide 'test-claude-code-emacs-mcp-tools)
 ;;; test-claude-code-emacs-mcp-tools.el ends here

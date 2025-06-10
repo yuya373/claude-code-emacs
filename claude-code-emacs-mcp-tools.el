@@ -489,11 +489,10 @@ Always returns project-wide diagnostics."
 
 (defun claude-code-emacs-mcp-handle-getDefinition (params)
   "Handle getDefinition request with PARAMS using LSP.
-PARAMS must include 'file', 'line', and 'column' parameters."
+PARAMS must include 'file', 'line', and 'symbol' parameters."
   (let* ((symbol-name (cdr (assoc 'symbol params)))
          (file-path (cdr (assoc 'file params)))
          (line (cdr (assoc 'line params)))
-         (column (cdr (assoc 'column params)))
          (definitions '())
          (searched-symbol nil))
 
@@ -504,13 +503,13 @@ PARAMS must include 'file', 'line', and 'column' parameters."
                        (fboundp 'lsp-request))
             (error "LSP mode is not available. Please install and configure lsp-mode"))
 
-          ;; file-path, line, and column are required
+          ;; file-path, line, and symbol are required
           (unless file-path
             (error "Missing required parameter: file"))
           (unless line
             (error "Missing required parameter: line"))
-          (unless column
-            (error "Missing required parameter: column"))
+          (unless symbol-name
+            (error "Missing required parameter: symbol"))
 
           ;; Visit the specified file
           (let* ((full-path (expand-file-name file-path (claude-code-emacs-normalize-project-root (projectile-project-root))))
@@ -520,17 +519,19 @@ PARAMS must include 'file', 'line', and 'column' parameters."
               (unless (bound-and-true-p lsp-mode)
                 (error "LSP is not active in buffer: %s" (buffer-name)))
 
-              ;; Go to specified position (line and column are now required)
+              ;; Go to specified position
               (goto-char (point-min))
               (forward-line (1- line))
-              (move-to-column column)
+
+              ;; Search for the symbol on this line
+              (let ((line-end (line-end-position)))
+                (if (search-forward symbol-name line-end t)
+                    (goto-char (match-beginning 0))
+                  ;; If not found, just go to beginning of line
+                  (beginning-of-line)))
 
               ;; Get definitions using lsp-request
               (setq definitions (claude-code-emacs-mcp-get-lsp-definitions-with-request))
-
-              ;; Try to get symbol at point if not provided
-              (unless symbol-name
-                (setq symbol-name (thing-at-point 'symbol t)))
 
               (setq searched-symbol symbol-name)))
 
@@ -538,7 +539,7 @@ PARAMS must include 'file', 'line', and 'column' parameters."
           (if definitions
               `((definitions . ,definitions)
                 (searchedSymbol . ,(or searched-symbol
-                                        (thing-at-point 'symbol t)))
+                                       (thing-at-point 'symbol t)))
                 (method . "lsp"))
             (error "No definition found using LSP")))
 
@@ -556,26 +557,22 @@ PARAMS must include 'file', 'line', and 'column' parameters."
         ;; Response can be Location, Location[], LocationLink, or LocationLink[]
         (when response
           (let ((locations (if (listp response)
-                              (if (and (listp (car response))
-                                      (or (plist-get (car response) :uri)
-                                          (plist-get (car response) :targetUri)))
-                                  response  ; Already a list of locations
-                                (list response))  ; Single location as list
-                            (list response))))  ; Make single item a list
+                               (if (and (listp (car response))
+                                        (or (plist-get (car response) :uri)
+                                            (plist-get (car response) :targetUri)))
+                                   response  ; Already a list of locations
+                                 (list response))  ; Single location as list
+                             (list response))))  ; Make single item a list
 
             (dolist (loc locations)
               (let* ((uri (or (plist-get loc :uri)
-                             (plist-get loc :targetUri)))
+                              (plist-get loc :targetUri)))
                      (range (or (plist-get loc :range)
-                               (plist-get loc :targetRange)))
+                                (plist-get loc :targetRange)))
                      (file (when uri (lsp--uri-to-path uri))))
 
                 (when (and file range)
-                  (let* ((start (plist-get range :start))
-                         (line (1+ (plist-get start :line)))
-                         (column (plist-get start :character))
-                         (def-info (claude-code-emacs-mcp-get-definition-info-at file line column)))
-
+                  (let* ((def-info (claude-code-emacs-mcp-get-definition-info-at file range)))
                     (when def-info
                       (push def-info definitions))))))))
 
@@ -586,65 +583,52 @@ PARAMS must include 'file', 'line', and 'column' parameters."
      nil)))
 
 
-(defun claude-code-emacs-mcp-get-definition-info-at (file line column)
-  "Get definition information at FILE:LINE:COLUMN."
+(defun claude-code-emacs-mcp-get-definition-info-at (file range)
+  "Get definition information at FILE with RANGE."
   (condition-case nil
       (with-temp-buffer
         (insert-file-contents file)
-        (goto-char (point-min))
-        (forward-line (1- line))
-        (move-to-column column)
+        (let* ((start (plist-get range :start))
+               (line (plist-get start :line))
+               (column (plist-get start :character)))
+          (goto-char (point-min))
+          (forward-line line)
+          (move-to-column column))
         (let* ((symbol (thing-at-point 'symbol t))
-               (preview (claude-code-emacs-mcp-get-definition-preview)))
+               (preview (claude-code-emacs-mcp-get-definition-preview range)))
           `((file . ,file)
-            (line . ,line)
-            (column . ,column)
             (symbol . ,symbol)
-            (type . ,(claude-code-emacs-mcp-guess-definition-type))
-            (preview . ,preview))))
+            (preview . ,preview)
+            (range . ,range))))
     (error nil)))
 
-(defun claude-code-emacs-mcp-capture-definition-at-point ()
-  "Capture definition information at current point."
-  (let* ((file (buffer-file-name))
-         (line (line-number-at-pos))
-         (column (current-column))
-         (symbol (thing-at-point 'symbol t))
-         (preview (claude-code-emacs-mcp-get-definition-preview)))
-    `((file . ,file)
-      (line . ,line)
-      (column . ,column)
-      (symbol . ,symbol)
-      (type . ,(claude-code-emacs-mcp-guess-definition-type))
-      (preview . ,preview))))
-
-(defun claude-code-emacs-mcp-get-definition-preview ()
-  "Get preview text around current definition."
+(defun claude-code-emacs-mcp-get-definition-preview (range)
+  "Get preview text around current definition with RANGE.
+Returns text including 3 lines before and after the definition."
   (save-excursion
-    (let ((start (progn (beginning-of-defun) (point)))
-          (end (progn (end-of-defun) (point))))
-      ;; Limit preview to reasonable size
-      (when (> (- end start) 500)
-        (setq end (+ start 500)))
-      (buffer-substring-no-properties start end))))
+    (let* ((start-line (plist-get (plist-get range :start) :line))
+           (end-line (plist-get (plist-get range :end) :line))
+           ;; Calculate preview range with 3 lines padding
+           (preview-start-line (max 0 (- start-line 3)))
+           (preview-end-line (+ end-line 3))
+           preview-start preview-end)
 
-(defun claude-code-emacs-mcp-guess-definition-type ()
-  "Guess the type of definition at point."
-  (save-excursion
-    (beginning-of-defun)
-    (cond
-     ;; Emacs Lisp
-     ((looking-at "(defun\\s-") "function")
-     ((looking-at "(defvar\\s-\\|(defcustom\\s-") "variable")
-     ((looking-at "(defclass\\s-") "class")
-     ((looking-at "(defmethod\\s-") "method")
-     ((looking-at "(defmacro\\s-") "macro")
-     ((looking-at "(defconst\\s-") "constant")
-     ;; Generic patterns for other languages
-     ((looking-at "\\(function\\|def\\)\\s-") "function")
-     ((looking-at "\\(class\\)\\s-") "class")
-     ((looking-at "\\(const\\|let\\|var\\)\\s-") "variable")
-     (t "definition"))))
+      ;; Move to preview start
+      (goto-char (point-min))
+      (forward-line preview-start-line)
+      (beginning-of-line)
+      (setq preview-start (point))
+
+      ;; Move to preview end
+      (goto-char (point-min))
+      (forward-line preview-end-line)
+      (end-of-line)
+      (setq preview-end (point))
+
+      ;; Ensure we don't go past buffer boundaries
+      (buffer-substring-no-properties
+       preview-start
+       (min preview-end (point-max))))))
 
 (provide 'claude-code-emacs-mcp-tools)
 ;;; claude-code-emacs-mcp-tools.el ends here

@@ -5,18 +5,26 @@ export interface GetDefinitionArgs {
   file: string;
   // Position within the file is required
   line: number;
-  column: number;
-  // Optional symbol name to search for
-  symbol?: string;
+  // Symbol name to search for
+  symbol: string;
+}
+
+export interface Range {
+  start: Position;
+  end: Position;
+}
+
+export interface Position {
+  line: number;
+  // 0-based offset
+  character: number;
 }
 
 export interface DefinitionLocation {
   file: string;
-  line: number;
-  column: number;
   symbol: string;
-  type?: string;
   preview?: string;
+  range: Range;
 }
 
 interface DefinitionResult {
@@ -53,12 +61,8 @@ export async function handleGetDefinition(bridge: EmacsBridge, args: GetDefiniti
     result.definitions.forEach((def, index) => {
       output += `## Definition ${index + 1}\n`;
       output += `**File**: ${def.file}\n`;
-      output += `**Location**: Line ${def.line}, Column ${def.column}\n`;
-      output += `**Symbol**: ${def.symbol}`;
-      if (def.type) {
-        output += ` (${def.type})`;
-      }
-      output += '\n';
+      output += `**Location**: Line ${def.range.start.line + 1}, Column ${def.range.start.character + 1}\n`;
+      output += `**Symbol**: ${def.symbol}\n`;
 
       if (def.preview) {
         output += '\n```\n' + def.preview + '\n```\n';
