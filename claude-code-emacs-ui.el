@@ -102,7 +102,8 @@
               (append mode-line-format
                       '(" [C-c C-t: menu, C-c C-i: insert file]")))
   ;; Add LSP language ID configuration if lsp-mode is available
-  (when (and (require 'lsp-mode nil t)
+  (when (and (fboundp 'lsp-mode)
+             (ignore-errors (require 'lsp-mode nil t))
              (boundp 'lsp-language-id-configuration))
     (add-to-list 'lsp-language-id-configuration
                  '(claude-code-emacs-prompt-mode . "markdown"))))

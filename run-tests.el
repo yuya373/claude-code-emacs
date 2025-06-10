@@ -25,8 +25,9 @@
 (load-file "test-claude-code-emacs-ui.el")
 (load-file "test-claude-code-emacs-prompt.el")
 
-;; MCP module tests (if available)
-(when (file-exists-p "test-claude-code-emacs-mcp-connection.el")
+;; MCP module tests (if available and dependencies are installed)
+(when (and (file-exists-p "test-claude-code-emacs-mcp-connection.el")
+           (ignore-errors (require 'websocket nil t)))
   (load-file "test-claude-code-emacs-mcp-connection.el")
   (load-file "test-claude-code-emacs-mcp-protocol.el")
   (load-file "test-claude-code-emacs-mcp-tools.el"))

@@ -41,8 +41,9 @@
 (require 'claude-code-emacs-ui)
 (require 'claude-code-emacs-prompt)
 
-;; Optional MCP integration
-(when (locate-library "claude-code-emacs-mcp")
+;; Optional MCP integration (only if dependencies are available)
+(when (and (locate-library "claude-code-emacs-mcp")
+           (ignore-errors (require 'websocket nil t)))
   (require 'claude-code-emacs-mcp nil t))
 
 (provide 'claude-code-emacs)
