@@ -280,9 +280,13 @@
                ;; Mock the global command files
                ((symbol-function 'claude-code-emacs-list-global-command-files)
                 (lambda () '("commit-push.md")))
-               ;; Mock reading global command content
-               ((symbol-function 'claude-code-emacs-read-global-command-file)
-                (lambda (file) "user command content")))
+               ;; Mock reading command file - mock the general function used by execute-custom-command
+               ((symbol-function 'claude-code-emacs-read-command-file)
+                (lambda (filepath) 
+                  (cond
+                   ((string-match-p "test-project\\.md$" filepath) "project command content")
+                   ((string-match-p "commit-push\\.md$" filepath) "user command content")
+                   (t nil)))))
 
        ;; Test project command
        (claude-code-emacs-execute-custom-command)
