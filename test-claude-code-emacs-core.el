@@ -56,5 +56,24 @@
   (should (= 2 (claude-code-emacs-count-arguments "$ARGUMENTS and $ARGUMENTS")))
   (should (= 3 (claude-code-emacs-count-arguments "Start $ARGUMENTS middle $ARGUMENTS end $ARGUMENTS"))))
 
+(ert-deftest test-claude-code-emacs-send-region ()
+  "Test sending selected region to Claude Code."
+  ;; Mock the required functions
+  (cl-letf* ((sent-text nil)
+             ((symbol-function 'claude-code-emacs-send-string)
+              (lambda (text) (setq sent-text text)))
+             ((symbol-function 'use-region-p) (lambda () t))
+             ((symbol-function 'region-beginning) (lambda () 1))
+             ((symbol-function 'region-end) (lambda () 6)))
+    ;; Test with region selected
+    (with-temp-buffer
+      (insert "Hello World")
+      (claude-code-emacs-send-region)
+      (should (equal sent-text "Hello"))))
+
+  ;; Test without region selected
+  (cl-letf (((symbol-function 'use-region-p) (lambda () nil)))
+    (should-error (claude-code-emacs-send-region) :type 'user-error)))
+
 (provide 'test-claude-code-emacs-core)
 ;;; test-claude-code-emacs-core.el ends here

@@ -207,13 +207,13 @@ With prefix argument, select from available options."
       (message "No Claude Code buffer found for this project"))))
 
 ;;;###autoload
-(defun claude-code-emacs-send-buffer-or-region ()
-  "Send selected region or entire buffer to Claude Code."
+(defun claude-code-emacs-send-region ()
+  "Send selected region to Claude Code."
   (interactive)
-  (let ((text (if (use-region-p)
-                  (buffer-substring-no-properties (region-beginning) (region-end))
-                (buffer-substring-no-properties (point-min) (point-max)))))
-    (claude-code-emacs-send-string text)))
+  (if (use-region-p)
+      (let ((text (buffer-substring-no-properties (region-beginning) (region-end))))
+        (claude-code-emacs-send-string text))
+    (user-error "No region selected")))
 
 (provide 'claude-code-emacs-core)
 ;;; claude-code-emacs-core.el ends here

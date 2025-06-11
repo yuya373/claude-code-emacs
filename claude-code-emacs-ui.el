@@ -40,7 +40,7 @@
 (declare-function claude-code-emacs-switch-to-buffer "claude-code-emacs-core" ())
 (declare-function claude-code-emacs-close "claude-code-emacs-core" ())
 (declare-function claude-code-emacs-quit "claude-code-emacs-core" ())
-(declare-function claude-code-emacs-send-buffer-or-region "claude-code-emacs-core" ())
+(declare-function claude-code-emacs-send-region "claude-code-emacs-core" ())
 (declare-function claude-code-emacs-send-string "claude-code-emacs-core" (string &optional paste-p))
 
 ;; Command forward declarations
@@ -180,7 +180,7 @@ Each path is inserted on a new line with @ prefix."
     ("Q" "Quit Claude Code session" claude-code-emacs-quit)
     ("p" "Open Prompt File" claude-code-emacs-open-prompt-file)
     ("s" "Send Text" claude-code-emacs-send-string)
-    ("r" "Send Buffer/Region" claude-code-emacs-send-buffer-or-region)]
+    ("r" "Send Region" claude-code-emacs-send-region)]
    ["Quick Send"
     ("1" "Send 1" claude-code-emacs-send-1)
     ("y" "Send 1 (yes)" claude-code-emacs-send-1)
