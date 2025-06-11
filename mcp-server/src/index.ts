@@ -18,7 +18,9 @@ import {
   handleGetDefinition,
   GetDefinitionArgs,
   handleFindReferences,
-  FindReferencesArgs
+  FindReferencesArgs,
+  handleDescribeSymbol,
+  DescribeSymbolArgs
 } from './tools/index.js';
 import {
   bufferResourceHandler,
@@ -199,6 +201,28 @@ const TOOLS = [
       required: ['file', 'line', 'symbol']
     }
   },
+  {
+    name: 'describeSymbol',
+    description: 'Get full documentation and information about a symbol using LSP hover',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          description: 'File path relative to project root'
+        },
+        line: {
+          type: 'number',
+          description: 'Line number (1-based)'
+        },
+        symbol: {
+          type: 'string',
+          description: 'Symbol name to describe'
+        }
+      },
+      required: ['file', 'line', 'symbol']
+    }
+  },
   // Add diff tools
   ...Object.values(diffTools).map(tool => ({
     name: tool.name,
@@ -313,6 +337,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'findReferences':
         result = await handleFindReferences(bridge, (args || {}) as unknown as FindReferencesArgs);
+        break;
+
+      case 'describeSymbol':
+        result = await handleDescribeSymbol(bridge, (args || {}) as unknown as DescribeSymbolArgs);
         break;
 
       default:

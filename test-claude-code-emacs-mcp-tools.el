@@ -616,5 +616,153 @@
             (should (string-match "message" preview))))
       (delete-file test-file))))
 
+;;; Tests for symbol description
+
+(ert-deftest test-mcp-handle-describeSymbol ()
+  "Test describing symbol with LSP hover."
+  (let ((test-file (make-temp-file "test-desc" nil ".el")))
+    (unwind-protect
+        (progn
+          (with-temp-file test-file
+            (insert "(defun test-function (arg)\n")
+            (insert "  \"Test function documentation.\"\n")
+            (insert "  (message \"Hello %s\" arg))\n"))
+          
+          (cl-letf* (;; Mock required functions
+                     ((symbol-function 'fboundp)
+                      (lambda (sym) (memq sym '(lsp-mode lsp-request))))
+                     ((symbol-function 'projectile-project-root)
+                      (lambda () (file-name-directory test-file)))
+                     ((symbol-function 'claude-code-emacs-normalize-project-root)
+                      (lambda (root) root))
+                     ((symbol-function 'find-file-noselect)
+                      (lambda (file)
+                        (let ((buf (get-buffer-create (file-name-nondirectory file))))
+                          (with-current-buffer buf
+                            (setq buffer-file-name file)
+                            (emacs-lisp-mode)
+                            (insert-file-contents file nil nil nil t)
+                            (setq-local lsp-mode t))
+                          buf)))
+                     ((symbol-function 'bound-and-true-p)
+                      (lambda (sym)
+                        (if (eq sym 'lsp-mode) t
+                          (and (boundp sym) (symbol-value sym)))))
+                     ((symbol-function 'lsp--text-document-position-params)
+                      (lambda () '(:textDocument (:uri "file:///test.el")
+                                  :position (:line 0 :character 7))))
+                     ((symbol-function 'thing-at-point)
+                      (lambda (thing &optional no-props)
+                        (when (eq thing 'symbol)
+                          "test-function")))
+                     ((symbol-function 'lsp-request)
+                      (lambda (method params)
+                        (when (string= method "textDocument/hover")
+                          ;; Return mock hover response with MarkedString array
+                          `(:contents ((:language "elisp"
+                                       :value "(defun test-function (arg)\n  \"Test function documentation.\"\n  (message \"Hello %s\" arg))")
+                                      "Test function documentation.")
+                            :range (:start (:line 0 :character 7)
+                                   :end (:line 0 :character 20)))))))
+            
+            (let ((result (claude-code-emacs-mcp-handle-describeSymbol
+                           `((file . ,(file-name-nondirectory test-file))
+                             (line . 1)
+                             (symbol . "test-function")))))
+              (should (assoc 'description result))
+              (should (equal (cdr (assoc 'method result)) "lsp"))
+              (let ((desc (cdr (assoc 'description result))))
+                (should (assoc 'documentation desc))))))
+      (delete-file test-file))))
+
+(ert-deftest test-mcp-handle-describeSymbol-markdown-format ()
+  "Test that MarkedString with language is formatted as markdown code block."
+  (let ((test-file (make-temp-file "test-desc" nil ".el")))
+    (unwind-protect
+        (progn
+          (with-temp-file test-file
+            (insert "(defun test-function (arg)\n")
+            (insert "  \"Test function documentation.\"\n")
+            (insert "  (message \"Hello %s\" arg))\n"))
+          
+          (cl-letf* (;; Mock required functions
+                     ((symbol-function 'fboundp)
+                      (lambda (sym) (memq sym '(lsp-mode lsp-request))))
+                     ((symbol-function 'projectile-project-root)
+                      (lambda () (file-name-directory test-file)))
+                     ((symbol-function 'claude-code-emacs-normalize-project-root)
+                      (lambda (root) root))
+                     ((symbol-function 'find-file-noselect)
+                      (lambda (file)
+                        (let ((buf (get-buffer-create (file-name-nondirectory file))))
+                          (with-current-buffer buf
+                            (setq buffer-file-name file)
+                            (emacs-lisp-mode)
+                            (insert-file-contents file nil nil nil t)
+                            (setq-local lsp-mode t))
+                          buf)))
+                     ((symbol-function 'bound-and-true-p)
+                      (lambda (sym)
+                        (if (eq sym 'lsp-mode) t
+                          (and (boundp sym) (symbol-value sym)))))
+                     ((symbol-function 'lsp--text-document-position-params)
+                      (lambda () '(:textDocument (:uri "file:///test.el")
+                                  :position (:line 0 :character 7))))
+                     ((symbol-function 'lsp-request)
+                      (lambda (method params)
+                        (when (string= method "textDocument/hover")
+                          ;; Return mock hover response with MarkedString array
+                          `(:contents ((:language "elisp"
+                                       :value "(defun test-function (arg))")
+                                      "Test function documentation.")
+                            :range (:start (:line 0 :character 7)
+                                   :end (:line 0 :character 20)))))))
+            
+            (let ((result (claude-code-emacs-mcp-handle-describeSymbol
+                           `((file . ,(file-name-nondirectory test-file))
+                             (line . 1)
+                             (symbol . "test-function")))))
+              (should (assoc 'description result))
+              (should (equal (cdr (assoc 'method result)) "lsp"))
+              (let* ((desc (cdr (assoc 'description result)))
+                     (doc (cdr (assoc 'documentation desc))))
+                (should doc)
+                ;; Check that markdown code block is formatted correctly
+                (should (string-match "```elisp" doc))
+                (should (string-match "(defun test-function (arg))" doc))
+                (should (string-match "```" doc))
+                (should (string-match "Test function documentation\\." doc))))))
+      (delete-file test-file))))
+
+(ert-deftest test-mcp-handle-describeSymbol-no-lsp ()
+  "Test describing symbol without LSP available."
+  (cl-letf (((symbol-function 'fboundp) (lambda (_) nil)))
+    (should-error
+     (claude-code-emacs-mcp-handle-describeSymbol
+      '((file . "test.el")
+        (line . 1)
+        (symbol . "test-symbol")))
+     :type 'error)))
+
+(ert-deftest test-mcp-handle-describeSymbol-missing-params ()
+  "Test describing symbol with missing parameters."
+  ;; Missing file
+  (should-error
+   (claude-code-emacs-mcp-handle-describeSymbol
+    '((line . 1) (symbol . "test")))
+   :type 'error)
+  
+  ;; Missing line
+  (should-error
+   (claude-code-emacs-mcp-handle-describeSymbol
+    '((file . "test.el") (symbol . "test")))
+   :type 'error)
+  
+  ;; Missing symbol
+  (should-error
+   (claude-code-emacs-mcp-handle-describeSymbol
+    '((file . "test.el") (line . 1)))
+   :type 'error))
+
 (provide 'test-claude-code-emacs-mcp-tools)
 ;;; test-claude-code-emacs-mcp-tools.el ends here

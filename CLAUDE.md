@@ -219,6 +219,8 @@ When modifying this package:
 - **Shift+Tab support**: Added `claude-code-emacs-send-shift-tab` to toggle auto accept
 - **Function rename**: `claude-code-emacs-send-buffer-or-region` → `claude-code-emacs-send-region`
 - **Module consolidation**: Session management moved from separate module into core.el
+- **describeSymbol tool**: Added MCP tool to get symbol documentation using LSP hover (simplified to return only documentation)
+- **findReferences tool**: Added MCP tool to find all references to a symbol using LSP
 
 ## MCP Server
 

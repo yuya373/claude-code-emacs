@@ -561,5 +561,105 @@ Optional: 'includeDeclaration' (boolean)."
                   (preview . ,preview)))))
           lsp-references))
 
+;;; Symbol description
+
+(defun claude-code-emacs-mcp-handle-describeSymbol (params)
+  "Handle describeSymbol request with PARAMS using LSP hover.
+PARAMS must include 'file', 'line', and 'symbol' parameters."
+  (let* ((symbol-name (cdr (assoc 'symbol params)))
+         (file-path (cdr (assoc 'file params)))
+         (line (cdr (assoc 'line params)))
+         (description nil))
+
+    (condition-case err
+        (progn
+          ;; Check if LSP is available
+          (unless (and (fboundp 'lsp-mode)
+                       (fboundp 'lsp-request))
+            (error "LSP mode is not available. Please install and configure lsp-mode"))
+
+          ;; file-path, line, and symbol are required
+          (unless file-path
+            (error "Missing required parameter: file"))
+          (unless line
+            (error "Missing required parameter: line"))
+          (unless symbol-name
+            (error "Missing required parameter: symbol"))
+
+          ;; Visit the specified file
+          (let* ((full-path (expand-file-name file-path (claude-code-emacs-normalize-project-root (projectile-project-root))))
+                 (buffer (find-file-noselect full-path)))
+            (with-current-buffer buffer
+              ;; Check if LSP is active in this buffer
+              (unless (bound-and-true-p lsp-mode)
+                (error "LSP is not active in buffer: %s" (buffer-name)))
+
+              ;; Go to specified position
+              (goto-char (point-min))
+              (forward-line (1- line))
+
+              ;; Search for the symbol on this line
+              (let ((line-end (line-end-position)))
+                (if (search-forward symbol-name line-end t)
+                    (goto-char (match-beginning 0))
+                  ;; If not found, just go to beginning of line
+                  (beginning-of-line)))
+
+              ;; Get hover information using lsp-request
+              (setq description (claude-code-emacs-mcp-get-lsp-hover-info))))
+
+          ;; Return results
+          (if description
+              `((description . ,description)
+                (method . "lsp"))
+            (error "No hover information found using LSP")))
+
+      (error
+       (error "Failed to describe symbol: %s" (error-message-string err))))))
+
+(defun claude-code-emacs-mcp-get-lsp-hover-info ()
+  "Get hover information using lsp-request."
+  (require 'lsp-mode)
+  (condition-case nil
+      (let* ((params (lsp--text-document-position-params))
+             (response (lsp-request "textDocument/hover" params)))
+
+        (when response
+          (let* ((contents (or (plist-get response :contents) nil))
+                 (documentation nil))
+
+            ;; Process contents - can be string, MarkupContent, or MarkedString[]
+            (cond
+             ;; Simple string
+             ((stringp contents)
+              (setq documentation contents))
+
+             ;; MarkupContent with kind and value
+             ((and (listp contents) (plist-get contents :kind))
+              (setq documentation (plist-get contents :value)))
+
+             ;; Array of MarkedString
+             ((and (listp contents) (not (plist-get contents :kind)))
+              (let ((doc-parts '()))
+                (dolist (item contents)
+                  (cond
+                   ;; MarkedString with language and value
+                   ((and (listp item) (plist-get item :language))
+                    (let ((lang (plist-get item :language))
+                          (value (plist-get item :value)))
+                      ;; Format as markdown code block
+                      (push (format "```%s\n%s\n```" lang value) doc-parts)))
+                   ;; Simple string
+                   ((stringp item)
+                    (push item doc-parts))))
+                (when doc-parts
+                  (setq documentation (string-join (nreverse doc-parts) "\n\n"))))))
+
+            ;; Return only documentation
+            (when documentation
+              `((documentation . ,documentation))))))
+
+    (error nil)))
+
 (provide 'claude-code-emacs-mcp-tools)
 ;;; claude-code-emacs-mcp-tools.el ends here

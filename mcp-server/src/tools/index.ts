@@ -13,3 +13,4 @@ export {
 export { handleRunCommand, type RunCommandArgs } from './command-tools.js';
 export { handleGetDefinition, type GetDefinitionArgs } from './definition-tools.js';
 export { handleFindReferences, type FindReferencesArgs } from './reference-tools.js';
+export { handleDescribeSymbol, type DescribeSymbolArgs } from './describe-tools.js';
