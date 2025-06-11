@@ -10,6 +10,7 @@ This MCP (Model Context Protocol) server enables Claude Code to interact with Em
 - **getCurrentSelection**: Get the currently selected text in Emacs
 - **getDiagnostics**: Retrieve LSP diagnostics for the project
 - **getDefinition**: Find symbol definitions using LSP
+- **findReferences**: Find all references to a symbol using LSP
 - **runCommand**: Execute Emacs commands via emacsclient subprocess (with security restrictions)
 
 ### Diff Tools

@@ -286,7 +286,6 @@
                      ((symbol-function 'claude-code-emacs-mcp-get-definition-info-at)
                       (lambda (file range)
                         `((file . ,file)
-                          (symbol . "test-func")
                           (preview . "(defun test-func () nil)")
                           (range . ,range)))))
             (let ((result (claude-code-emacs-mcp-handle-getDefinition
@@ -294,8 +293,7 @@
                              (file . ,(file-name-nondirectory test-file))
                              (line . 1)))))
               (should (listp (cdr (assoc 'definitions result))))
-              (should (string= (cdr (assoc 'method result)) "lsp"))
-              (should (string= (cdr (assoc 'searchedSymbol result)) "test-func")))))
+              (should (string= (cdr (assoc 'method result)) "lsp")))))
       (delete-file test-file))))
 
 
@@ -322,7 +320,7 @@
   (should-error
    (claude-code-emacs-mcp-handle-getDefinition
     '((symbol . "test-func")
-      (file . "test.el")))
+      (file . "test.el"))
    :type 'error))
 
 (ert-deftest test-mcp-handle-getDefinition-missing-symbol ()
@@ -408,7 +406,6 @@
              ((symbol-function 'claude-code-emacs-mcp-get-definition-info-at)
               (lambda (file range)
                 `((file . ,file)
-                  (symbol . "test-symbol")
                   (preview . "function test-symbol() {}")
                   (range . ,range)))))
     ;; Test single location response
@@ -417,7 +414,6 @@
       (should (= (length result) 1))
       (let ((def (car result)))
         (should (equal (cdr (assoc 'file def)) "/test1.el"))
-        (should (equal (cdr (assoc 'symbol def)) "test-symbol"))
         (let ((range (cdr (assoc 'range def))))
           (should (equal (plist-get (plist-get range :start) :line) 5))
           (should (equal (plist-get (plist-get range :start) :character) 10))))
@@ -434,7 +430,6 @@
       (should (= (length result) 1))
       (let ((def (car result)))
         (should (equal (cdr (assoc 'file def)) "/test3.el"))
-        (should (equal (cdr (assoc 'symbol def)) "test-symbol"))
         (let ((range (cdr (assoc 'range def))))
           (should (equal (plist-get (plist-get range :start) :line) 15))
           (should (equal (plist-get (plist-get range :start) :character) 20)))))))
@@ -452,46 +447,174 @@
                  (result (claude-code-emacs-mcp-get-definition-info-at test-file range)))
             (should result)
             (should (equal (cdr (assoc 'file result)) test-file))
-            (should (equal (cdr (assoc 'symbol result)) "test-function"))
             (should (string-match "defun test-function" (cdr (assoc 'preview result))))
             (should (equal (cdr (assoc 'range result)) range))))
       (delete-file test-file)))))
 
 (ert-deftest test-mcp-get-definition-preview ()
   "Test getting definition preview."
-  (with-temp-buffer
-    (emacs-lisp-mode)
-    ;; Insert some lines before the function
-    (insert ";; Some comment before\n")
-    (insert ";; Another comment\n")
-    (insert ";; Third comment\n")
-    (insert "(defun my-long-function (arg1 arg2 arg3)\n")
-    (insert "  \"This is a very long documentation string that goes on and on.\n")
-    (insert "  It has multiple lines and lots of detail about what the function does.\n")
-    (insert "  We want to make sure the preview is limited to a reasonable size.\"\n")
-    (insert "  (let ((result nil))\n")
-    (insert "    (dolist (item arg1)\n")
-    (insert "      (when (member item arg2)\n")
-    (insert "        (push item result)))\n")
-    (insert "    (append result arg3)))\n")
-    (insert ";; Comment after\n")
-    (insert ";; Another after\n")
-    (insert ";; Third after\n")
+  (let ((test-file (make-temp-file "test-preview" nil ".el")))
+    (unwind-protect
+        (progn
+          (with-temp-file test-file
+            ;; Insert some lines before the function
+            (insert ";; Some comment before\n")
+            (insert ";; Another comment\n")
+            (insert ";; Third comment\n")
+            (insert "(defun my-long-function (arg1 arg2 arg3)\n")
+            (insert "  \"This is a very long documentation string that goes on and on.\n")
+            (insert "  It has multiple lines and lots of detail about what the function does.\n")
+            (insert "  We want to make sure the preview is limited to a reasonable size.\"\n")
+            (insert "  (let ((result nil))\n")
+            (insert "    (dolist (item arg1)\n")
+            (insert "      (when (member item arg2)\n")
+            (insert "        (push item result)))\n")
+            (insert "    (append result arg3)))\n")
+            (insert ";; Comment after\n")
+            (insert ";; Another after\n")
+            (insert ";; Third after\n"))
 
-    ;; Create a range for the function definition (line 3 to line 11, 0-based)
-    (let* ((range '(:start (:line 3 :character 7)
-                    :end (:line 11 :character 24)))
-           (preview (claude-code-emacs-mcp-get-definition-preview range)))
-      (should preview)
-      ;; Should include the function definition
-      (should (string-match "defun my-long-function" preview))
-      ;; Should include some context before (comments)
-      (should (string-match ";; Some comment before" preview))
-      ;; Should include some context after
-      (should (string-match ";; Comment after" preview))
-      ;; The preview includes all lines since we have a small test case
-      ;; In real usage, the preview would be truncated for very large functions
-      (should t))))
+          ;; Create a range for the function definition (line 3 to line 11, 0-based)
+          (let* ((range '(:start (:line 3 :character 7)
+                          :end (:line 11 :character 24)))
+                 (preview (claude-code-emacs-mcp-get-preview-text test-file range)))
+            (should preview)
+            ;; Should include the function definition
+            (should (string-match "defun my-long-function" preview))
+            ;; Should include some context before (comments)
+            (should (string-match ";; Some comment before" preview))
+            ;; Should include some context after
+            (should (string-match ";; Comment after" preview))
+            ;; The preview includes all lines since we have a small test case
+            ;; In real usage, the preview would be truncated for very large functions
+            (should t)))
+      (delete-file test-file)))))
+
+;;; Tests for reference finding
+
+(ert-deftest test-mcp-handle-findReferences ()
+  "Test finding references with LSP."
+  (let ((test-file (make-temp-file "test-ref" nil ".el")))
+    (unwind-protect
+        (progn
+          (with-temp-file test-file
+            (insert "(defun test-func ()\n")
+            (insert "  \"Test function\"\n")
+            (insert "  (message \"test\"))\n")
+            (insert "\n")
+            (insert "(defun caller ()\n")
+            (insert "  (test-func))\n"))
+          
+          (cl-letf* (;; Mock required functions
+                     ((symbol-function 'fboundp)
+                      (lambda (sym) (memq sym '(lsp-mode lsp-request))))
+                     ((symbol-function 'projectile-project-root)
+                      (lambda () (file-name-directory test-file)))
+                     ((symbol-function 'claude-code-emacs-normalize-project-root)
+                      (lambda (root) root))
+                     ((symbol-function 'find-file-noselect)
+                      (lambda (file)
+                        (let ((buf (get-buffer-create (file-name-nondirectory file))))
+                          (with-current-buffer buf
+                            (setq buffer-file-name file)
+                            (emacs-lisp-mode)
+                            (insert-file-contents file nil nil nil t)
+                            (setq-local lsp-mode t))
+                          buf)))
+                     ((symbol-function 'bound-and-true-p)
+                      (lambda (sym)
+                        (if (eq sym 'lsp-mode) t
+                          (and (boundp sym) (symbol-value sym)))))
+                     ((symbol-function 'lsp--text-document-position-params)
+                      (lambda () '(:textDocument (:uri "file:///test.el")
+                                  :position (:line 0 :character 7))))
+                     ((symbol-function 'lsp-request)
+                      (lambda (method params)
+                        (when (string= method "textDocument/references")
+                          ;; Return mock references
+                          `((:uri ,(concat "file://" test-file)
+                             :range (:start (:line 0 :character 7)
+                                    :end (:line 0 :character 16)))
+                            (:uri ,(concat "file://" test-file)
+                             :range (:start (:line 5 :character 3)
+                                    :end (:line 5 :character 12)))))))
+                     ((symbol-function 'lsp--uri-to-path)
+                      (lambda (uri) (substring uri 7))))  ;; Remove "file://"
+            
+            (let ((result (claude-code-emacs-mcp-handle-findReferences
+                           `((file . ,(file-name-nondirectory test-file))
+                             (line . 1)
+                             (symbol . "test-func")
+                             (includeDeclaration . t)))))
+              (should (assoc 'references result))
+              (should (equal (cdr (assoc 'count result)) 2))
+              (let ((refs (cdr (assoc 'references result))))
+                (should (= (length refs) 2))
+                ;; Check first reference (declaration)
+                (let ((ref1 (car refs)))
+                  (should (string= (cdr (assoc 'file ref1))
+                                  (file-name-nondirectory test-file)))
+                  (should (assoc 'preview ref1)))
+                ;; Check second reference (usage)
+                (let ((ref2 (cadr refs)))
+                  (should (string= (cdr (assoc 'file ref2))
+                                  (file-name-nondirectory test-file)))
+                  (should (assoc 'preview ref2)))))))
+      (delete-file test-file))))
+
+(ert-deftest test-mcp-handle-findReferences-no-lsp ()
+  "Test finding references without LSP available."
+  (cl-letf (((symbol-function 'fboundp) (lambda (_) nil)))
+    (let ((result (claude-code-emacs-mcp-handle-findReferences
+                   '((file . "test.el")
+                     (line . 1)
+                     (symbol . "test-symbol")))))
+      (should (assoc 'error result))
+      (should (string-match "LSP mode is not available" (cdr (assoc 'error result)))))))
+
+(ert-deftest test-mcp-handle-findReferences-missing-params ()
+  "Test finding references with missing parameters."
+  ;; Missing file
+  (let ((result (claude-code-emacs-mcp-handle-findReferences
+                 '((line . 1) (symbol . "test")))))
+    (should (assoc 'error result))
+    (should (string-match "file parameter is required" (cdr (assoc 'error result)))))
+  
+  ;; Missing line
+  (let ((result (claude-code-emacs-mcp-handle-findReferences
+                 '((file . "test.el") (symbol . "test")))))
+    (should (assoc 'error result))
+    (should (string-match "line parameter is required" (cdr (assoc 'error result)))))
+  
+  ;; Missing symbol
+  (let ((result (claude-code-emacs-mcp-handle-findReferences
+                 '((file . "test.el") (line . 1)))))
+    (should (assoc 'error result))
+    (should (string-match "symbol parameter is required" (cdr (assoc 'error result))))))
+
+(ert-deftest test-mcp-get-reference-preview ()
+  "Test getting reference preview."
+  (let ((test-file (make-temp-file "test-preview" nil ".el")))
+    (unwind-protect
+        (progn
+          (with-temp-file test-file
+            (insert ";; Line 0\n")
+            (insert "(defun test-func ()\n")  ;; Line 1
+            (insert "  \"Documentation\"\n")   ;; Line 2
+            (insert "  (message \"test\"))\n"))  ;; Line 3
+          
+          (let* ((range '(:start (:line 1 :character 7)
+                          :end (:line 1 :character 16)))
+                 (preview (claude-code-emacs-mcp-get-preview-text test-file range)))
+            (should preview)
+            ;; Should include line 0 (3 lines before)
+            (should (string-match ";; Line 0" preview))
+            ;; Should include the actual reference line
+            (should (string-match "defun test-func" preview))
+            ;; Should include lines after
+            (should (string-match "Documentation" preview))
+            (should (string-match "message" preview))))
+      (delete-file test-file))))
 
 (provide 'test-claude-code-emacs-mcp-tools)
 ;;; test-claude-code-emacs-mcp-tools.el ends here

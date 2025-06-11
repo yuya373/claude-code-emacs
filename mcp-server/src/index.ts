@@ -16,7 +16,9 @@ import {
   handleRunCommand,
   RunCommandArgs,
   handleGetDefinition,
-  GetDefinitionArgs
+  GetDefinitionArgs,
+  handleFindReferences,
+  FindReferencesArgs
 } from './tools/index.js';
 import {
   bufferResourceHandler,
@@ -163,16 +165,38 @@ const TOOLS = [
           type: 'number',
           description: 'Line number (1-based, required)'
         },
-        column: {
+        symbol: {
+          type: 'string',
+          description: 'Symbol name to search for (required)'
+        }
+      },
+      required: ['file', 'line', 'symbol']
+    }
+  },
+  {
+    name: 'findReferences',
+    description: 'Find all references to a symbol using LSP',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          description: 'File path to search from (required)'
+        },
+        line: {
           type: 'number',
-          description: 'Column number (0-based, required)'
+          description: 'Line number (1-based, required)'
         },
         symbol: {
           type: 'string',
-          description: 'Symbol name to search for (optional)'
+          description: 'Symbol name to search for (required)'
+        },
+        includeDeclaration: {
+          type: 'boolean',
+          description: 'Include the declaration in results (default: true)'
         }
       },
-      required: ['file', 'line', 'column']
+      required: ['file', 'line', 'symbol']
     }
   },
   // Add diff tools
@@ -285,6 +309,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'getDefinition':
         result = await handleGetDefinition(bridge, (args || {}) as unknown as GetDefinitionArgs);
+        break;
+
+      case 'findReferences':
+        result = await handleFindReferences(bridge, (args || {}) as unknown as FindReferencesArgs);
         break;
 
       default:

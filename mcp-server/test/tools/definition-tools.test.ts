@@ -18,7 +18,6 @@ describe('handleGetDefinition', () => {
       definitions: [
         {
           file: '/path/to/file.el',
-          symbol: 'my-function',
           preview: '(defun my-function (arg)\n  "Documentation string."\n  (message "Hello %s" arg))',
           range: {
             start: { line: 41, character: 9 },
@@ -26,7 +25,6 @@ describe('handleGetDefinition', () => {
           }
         }
       ],
-      searchedSymbol: 'my-function',
       method: 'lsp'
     });
 
@@ -39,7 +37,6 @@ describe('handleGetDefinition', () => {
     const result = await handleGetDefinition(mockBridge, args);
 
     expect(result.content[0].text).toContain('Found 1 definition using lsp');
-    expect(result.content[0].text).toContain('my-function');
     expect(result.content[0].text).toContain('/path/to/file.el');
     expect(result.content[0].text).toContain('Line 42, Column 10');
     expect(result.content[0].text).toContain('(defun my-function');
@@ -51,7 +48,6 @@ describe('handleGetDefinition', () => {
       definitions: [
         {
           file: '/path/to/file1.ts',
-          symbol: 'MyClass',
           preview: 'export class MyClass {\n  constructor() {}\n}',
           range: {
             start: { line: 9, character: 4 },
@@ -60,7 +56,6 @@ describe('handleGetDefinition', () => {
         },
         {
           file: '/path/to/file2.ts',
-          symbol: 'MyClass',
           preview: 'class MyClass extends BaseClass {\n  // implementation\n}',
           range: {
             start: { line: 19, character: 7 },
@@ -68,7 +63,6 @@ describe('handleGetDefinition', () => {
           }
         }
       ],
-      searchedSymbol: 'MyClass',
       method: 'lsp'
     });
 
@@ -91,7 +85,6 @@ describe('handleGetDefinition', () => {
     mockBridge.isConnected.mockReturnValue(true);
     mockBridge.request.mockResolvedValue({
       definitions: [],
-      searchedSymbol: 'unknownSymbol',
       method: 'lsp'
     });
 
@@ -142,7 +135,6 @@ describe('handleGetDefinition', () => {
       definitions: [
         {
           file: '/path/to/file.py',
-          symbol: 'calculate',
           // No preview field
           range: {
             start: { line: 14, character: 0 },
@@ -150,7 +142,6 @@ describe('handleGetDefinition', () => {
           }
         }
       ],
-      searchedSymbol: 'calculate',
       method: 'lsp'
     });
 
@@ -162,7 +153,6 @@ describe('handleGetDefinition', () => {
 
     const result = await handleGetDefinition(mockBridge, args);
 
-    expect(result.content[0].text).toContain('calculate');
     expect(result.content[0].text).not.toContain('```'); // No code block
   });
 });

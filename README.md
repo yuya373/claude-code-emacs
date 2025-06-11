@@ -250,6 +250,7 @@ The MCP server maintains a stable WebSocket connection with automatic health mon
 - **getCurrentSelection**: Get currently selected text
 - **getDiagnostics**: Get project-wide LSP diagnostics (requires `lsp-mode`)
 - **getDefinition**: Find symbol definitions using LSP with preview (shows 3 lines before/after)
+- **findReferences**: Find all references to a symbol using LSP (requires `lsp-mode`)
 - **openDiff**: Compare two files or buffers using ediff
 - **openDiff3**: Three-way file comparison
 - **openRevisionDiff**: Compare file with git revision

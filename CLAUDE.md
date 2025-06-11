@@ -213,6 +213,7 @@ When modifying this package:
 - **CI/CD**: Added GitHub Actions workflow for automated testing
 - **getDiagnostics simplified**: Removed bufferPath parameter, now always returns project-wide diagnostics
 - **runCommand tool**: Executes Emacs commands via emacsclient subprocess (no longer uses WebSocket)
+- **findReferences tool**: Added MCP tool to find all references to a symbol using LSP
 - **MCP Resources**: Added support for MCP resources (buffer content, project info, diagnostics)
 - **Enhanced logging**: MCP server now logs to project root (`.claude-code-emacs-mcp.log`)
 - **Shift+Tab support**: Added `claude-code-emacs-send-shift-tab` to toggle auto accept
@@ -225,7 +226,7 @@ When modifying this package:
 The MCP server provides a bridge between Claude Code and Emacs:
 - WebSocket server on dynamic port for Emacs connection
 - stdio interface for Claude Code MCP protocol
-- Implements tools: openFile, getOpenBuffers, getCurrentSelection, getDiagnostics, getDefinition, diff tools (openDiff, openDiff3, openRevisionDiff, openCurrentChanges, applyPatch), runCommand
+- Implements tools: openFile, getOpenBuffers, getCurrentSelection, getDiagnostics, getDefinition, findReferences, diff tools (openDiff, openDiff3, openRevisionDiff, openCurrentChanges, applyPatch), runCommand
 - Implements resources: buffer content, project info, diagnostics
 - Per-project WebSocket connections for session isolation
 

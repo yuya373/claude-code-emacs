@@ -354,8 +354,7 @@ PARAMS must include 'file', 'line', and 'symbol' parameters."
   (let* ((symbol-name (cdr (assoc 'symbol params)))
          (file-path (cdr (assoc 'file params)))
          (line (cdr (assoc 'line params)))
-         (definitions '())
-         (searched-symbol nil))
+         (definitions '()))
 
     (condition-case err
         (progn
@@ -392,15 +391,11 @@ PARAMS must include 'file', 'line', and 'symbol' parameters."
                   (beginning-of-line)))
 
               ;; Get definitions using lsp-request
-              (setq definitions (claude-code-emacs-mcp-get-lsp-definitions-with-request))
-
-              (setq searched-symbol symbol-name)))
+              (setq definitions (claude-code-emacs-mcp-get-lsp-definitions-with-request))))
 
           ;; Return results
           (if definitions
               `((definitions . ,definitions)
-                (searchedSymbol . ,(or searched-symbol
-                                       (thing-at-point 'symbol t)))
                 (method . "lsp"))
             (error "No definition found using LSP")))
 
@@ -443,53 +438,128 @@ PARAMS must include 'file', 'line', and 'symbol' parameters."
      ;; Return empty list on error
      nil)))
 
-
 (defun claude-code-emacs-mcp-get-definition-info-at (file range)
   "Get definition information at FILE with RANGE."
   (condition-case nil
-      (with-temp-buffer
-        (insert-file-contents file)
-        (let* ((start (plist-get range :start))
-               (line (plist-get start :line))
-               (column (plist-get start :character)))
-          (goto-char (point-min))
-          (forward-line line)
-          (move-to-column column))
-        (let* ((symbol (thing-at-point 'symbol t))
-               (preview (claude-code-emacs-mcp-get-definition-preview range)))
-          `((file . ,file)
-            (symbol . ,symbol)
-            (preview . ,preview)
-            (range . ,range))))
+      (let* ((preview (claude-code-emacs-mcp-get-preview-text file range)))
+        `((file . ,file)
+          (preview . ,preview)
+          (range . ,range)))
     (error nil)))
 
-(defun claude-code-emacs-mcp-get-definition-preview (range)
-  "Get preview text around current definition with RANGE.
-Returns text including 3 lines before and after the definition."
-  (save-excursion
-    (let* ((start-line (plist-get (plist-get range :start) :line))
-           (end-line (plist-get (plist-get range :end) :line))
-           ;; Calculate preview range with 3 lines padding
-           (preview-start-line (max 0 (- start-line 3)))
-           (preview-end-line (+ end-line 3))
-           preview-start preview-end)
+(defun claude-code-emacs-mcp-get-preview-text (file-path range)
+  "Get preview text around RANGE with 3 lines of context from FILE-PATH."
+  (condition-case nil
+      (with-temp-buffer
+        (insert-file-contents file-path)
+        (claude-code-emacs-mcp-get-preview-text-internal range))
+    (error "")))
 
-      ;; Move to preview start
-      (goto-char (point-min))
-      (forward-line preview-start-line)
-      (beginning-of-line)
-      (setq preview-start (point))
+(defun claude-code-emacs-mcp-get-preview-text-internal (range)
+  "Internal function to get preview text for RANGE.
+Assumes we're in the correct buffer."
+  (let* ((start-line (plist-get (plist-get range :start) :line))
+         (end-line (plist-get (plist-get range :end) :line))
+         ;; Calculate preview range with 3 lines padding
+         (preview-start-line (max 0 (- start-line 3)))
+         (preview-end-line (+ end-line 3))
+         preview-start preview-end)
 
-      ;; Move to preview end
-      (goto-char (point-min))
-      (forward-line preview-end-line)
-      (end-of-line)
-      (setq preview-end (point))
+    ;; Move to preview start
+    (goto-char (point-min))
+    (forward-line preview-start-line)
+    (beginning-of-line)
+    (setq preview-start (point))
 
-      ;; Ensure we don't go past buffer boundaries
-      (buffer-substring-no-properties
-       preview-start
-       (min preview-end (point-max))))))
+    ;; Move to preview end
+    (goto-char (point-min))
+    (forward-line preview-end-line)
+    (end-of-line)
+    (setq preview-end (point))
+
+    ;; Ensure we don't go past buffer boundaries
+    (buffer-substring-no-properties
+     preview-start
+     (min preview-end (point-max)))))
+
+;;; Reference finding
+
+(defun claude-code-emacs-mcp-handle-findReferences (params)
+  "Handle findReferences request with PARAMS using LSP.
+PARAMS must include 'file', 'line', 'symbol' parameters.
+Optional: 'includeDeclaration' (boolean)."
+  (let* ((file-path (cdr (assoc 'file params)))
+         (line (cdr (assoc 'line params)))
+         (symbol-name (cdr (assoc 'symbol params)))
+         (include-declaration (cdr (assoc 'includeDeclaration params)))
+         (references '()))
+
+    (condition-case err
+        (progn
+          ;; Check if LSP is available
+          (unless (and (fboundp 'lsp-mode)
+                       (fboundp 'lsp-request))
+            (error "LSP mode is not available"))
+
+          ;; Validate required parameters
+          (unless file-path
+            (error "file parameter is required"))
+          (unless line
+            (error "line parameter is required"))
+          (unless symbol-name
+            (error "symbol parameter is required"))
+
+          ;; Find the file
+          (let* ((project-root (claude-code-emacs-normalize-project-root (projectile-project-root)))
+                 (absolute-path (expand-file-name file-path project-root))
+                 (buffer (find-file-noselect absolute-path)))
+
+            (with-current-buffer buffer
+              ;; Move to the specified position
+              (goto-char (point-min))
+              (forward-line (1- line))  ;; line is 1-based
+
+              ;; Search for the symbol on this line
+              (let ((line-end (line-end-position)))
+                (if (search-forward symbol-name line-end t)
+                    (goto-char (match-beginning 0))
+                  ;; If not found, just go to beginning of line
+                  (beginning-of-line)))
+
+              ;; Check if LSP is active in this buffer
+              (unless (bound-and-true-p lsp-mode)
+                (error "LSP is not active in this buffer"))
+
+              ;; Find references using LSP
+              (let* ((context `(:includeDeclaration ,(if include-declaration t :json-false)))
+                     (params (append (lsp--text-document-position-params)
+                                    `(:context ,context)))
+                     (lsp-response (lsp-request "textDocument/references" params)))
+
+                (when lsp-response
+                  (setq references (claude-code-emacs-mcp-convert-lsp-references lsp-response project-root))))))
+
+          ;; Return the references
+          `((references . ,references)
+            (count . ,(length references))))
+
+      (error
+       `((error . ,(error-message-string err)))))))
+
+(defun claude-code-emacs-mcp-convert-lsp-references (lsp-references project-root)
+  "Convert LSP-REFERENCES to MCP format relative to PROJECT-ROOT."
+  (mapcar (lambda (location)
+            (let* ((uri (plist-get location :uri))
+                   (range (plist-get location :range))
+                   (file-path (lsp--uri-to-path uri))
+                   (relative-path (file-relative-name file-path project-root)))
+              ;; Get preview text for this reference
+              (let ((preview (claude-code-emacs-mcp-get-preview-text file-path range)))
+                `((file . ,relative-path)
+                  (absolutePath . ,file-path)
+                  (range . ,range)
+                  (preview . ,preview)))))
+          lsp-references))
 
 (provide 'claude-code-emacs-mcp-tools)
 ;;; claude-code-emacs-mcp-tools.el ends here

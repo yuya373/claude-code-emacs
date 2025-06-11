@@ -4,7 +4,7 @@ export interface GetDefinitionArgs {
   // File path is required
   file: string;
   // Position within the file is required
-  line: number;
+  line: number;    // 1-based line number
   // Symbol name to search for
   symbol: string;
 }
@@ -22,14 +22,12 @@ export interface Position {
 
 export interface DefinitionLocation {
   file: string;
-  symbol: string;
   preview?: string;
   range: Range;
 }
 
 interface DefinitionResult {
   definitions: DefinitionLocation[];
-  searchedSymbol?: string;
   method: 'lsp';
 }
 
@@ -38,8 +36,16 @@ export async function handleGetDefinition(bridge: EmacsBridge, args: GetDefiniti
     throw new Error('Emacs is not connected');
   }
 
-  // File is now always required (validated by TypeScript)
-  // Additional validation for optional parameters is not needed
+  // Validate required parameters
+  if (!args.file) {
+    throw new Error('file parameter is required');
+  }
+  if (args.line === undefined || args.line === null) {
+    throw new Error('line parameter is required');
+  }
+  if (!args.symbol) {
+    throw new Error('symbol parameter is required');
+  }
 
   try {
     const result = await bridge.request('getDefinition', args) as DefinitionResult;
@@ -48,7 +54,7 @@ export async function handleGetDefinition(bridge: EmacsBridge, args: GetDefiniti
       return {
         content: [{
           type: 'text',
-          text: `No definition found for ${result.searchedSymbol || 'the specified location'}`
+          text: `No definition found for ${args.symbol}`
         }]
       };
     }
@@ -62,7 +68,6 @@ export async function handleGetDefinition(bridge: EmacsBridge, args: GetDefiniti
       output += `## Definition ${index + 1}\n`;
       output += `**File**: ${def.file}\n`;
       output += `**Location**: Line ${def.range.start.line + 1}, Column ${def.range.start.character + 1}\n`;
-      output += `**Symbol**: ${def.symbol}\n`;
 
       if (def.preview) {
         output += '\n```\n' + def.preview + '\n```\n';
