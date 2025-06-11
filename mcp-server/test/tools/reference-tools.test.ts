@@ -191,9 +191,9 @@ describe('handleFindReferences', () => {
     const text = result.content[0].text;
     expect(text).toContain('Found 3 references');
     expect(text).toContain('📄 src/main.ts:');
-    expect(text).toContain('Line 11:5');  // 1-based line number
-    expect(text).toContain('Line 26:8');  // 1-based line number
+    expect(text).toContain('Line 11:6');  // 1-based line and column
+    expect(text).toContain('Line 26:9');  // 1-based line and column
     expect(text).toContain('📄 src/utils.ts:');
-    expect(text).toContain('Line 21:10'); // 1-based line number
+    expect(text).toContain('Line 21:11'); // 1-based line and column
   });
 });

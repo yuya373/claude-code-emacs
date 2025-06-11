@@ -66,7 +66,7 @@ function formatReferencesResult(result: FindReferencesResult): string {
   }
 
   const lines = [`Found ${result.count} reference${result.count === 1 ? '' : 's'}:\n`];
-  
+
   // Group references by file
   const referencesByFile: Map<string, Reference[]> = new Map();
   for (const ref of result.references) {
@@ -80,7 +80,7 @@ function formatReferencesResult(result: FindReferencesResult): string {
     lines.push(`📄 ${file}:`);
     for (const ref of refs) {
       const line = ref.range.start.line + 1; // Convert to 1-based
-      const col = ref.range.start.character;
+      const col = ref.range.start.character + 1; // Convert to 1-based
       lines.push(`  Line ${line}:${col} - ${ref.preview}`);
     }
     lines.push('');
