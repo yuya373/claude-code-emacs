@@ -23,6 +23,8 @@ Claude Code Emacs includes MCP server integration, allowing Claude Code to inter
 - **Get Current Selection**: Retrieve the currently selected text in Emacs
 - **Get Diagnostics**: Get LSP diagnostics for all project buffers
 - **Get Definition**: Find symbol definitions using LSP with preview
+- **Find References**: Find all references to a symbol using LSP
+- **Describe Symbol**: Get documentation and information about symbols using LSP hover
 - **Run Command**: Execute Emacs commands with security checks
 - **Diff Tools**: Powerful file comparison tools:
   - **openDiff**: Compare two files or buffers
@@ -251,6 +253,7 @@ The MCP server maintains a stable WebSocket connection with automatic health mon
 - **getDiagnostics**: Get project-wide LSP diagnostics (requires `lsp-mode`)
 - **getDefinition**: Find symbol definitions using LSP with preview (shows 3 lines before/after)
 - **findReferences**: Find all references to a symbol using LSP (requires `lsp-mode`)
+- **describeSymbol**: Get symbol documentation using LSP hover, with Markdown formatting for code blocks
 - **openDiff**: Compare two files or buffers using ediff
 - **openDiff3**: Three-way file comparison
 - **openRevisionDiff**: Compare file with git revision
