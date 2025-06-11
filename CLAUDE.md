@@ -93,7 +93,7 @@ make test
 - `mcp-server/src/index.ts` - Main server entry point
 - `mcp-server/src/emacs-bridge.ts` - WebSocket server for Emacs communication
 - `mcp-server/src/tools/*.ts` - Individual MCP tool implementations
-  - `command-tools.ts` - runCommand tool with security checks
+  - `command-tools.ts` - runCommand tool using emacsclient subprocess
 
 ## Architecture
 
@@ -212,11 +212,11 @@ When modifying this package:
 - **Interactive claude-code-emacs-run**: Added prefix argument support (`C-u`) for interactive option selection (model, verbose, resume, etc.)
 - **CI/CD**: Added GitHub Actions workflow for automated testing
 - **getDiagnostics simplified**: Removed bufferPath parameter, now always returns project-wide diagnostics
-- **runCommand tool**: Added MCP tool to execute Emacs commands from Claude Code with security checks
+- **runCommand tool**: Executes Emacs commands via emacsclient subprocess (no longer uses WebSocket)
 - **MCP Resources**: Added support for MCP resources (buffer content, project info, diagnostics)
 - **Enhanced logging**: MCP server now logs to project root (`.claude-code-emacs-mcp.log`)
 - **Shift+Tab support**: Added `claude-code-emacs-send-shift-tab` to toggle auto accept
-- **Function rename**: `claude-code-emacs-send-region` → `claude-code-emacs-send-buffer-or-region`
+- **Function rename**: `claude-code-emacs-send-buffer-or-region` → `claude-code-emacs-send-region`
 - **Module consolidation**: Session management moved from separate module into core.el
 
 ## MCP Server

@@ -131,8 +131,8 @@ Store global commands in `~/.claude/commands/*.md`. These are executed via `/use
 When a command contains `$ARGUMENTS` placeholders, you'll be prompted to provide values for each occurrence.
 
 ## Other Features
-### Send Buffer/Region
-`claude-code-emacs-send-buffer-or-region` - Send the selected region or entire buffer to Claude Code
+### Send Region
+`claude-code-emacs-send-region` - Send the selected region to Claude Code (error if no region selected)
 
 ## Testing
 ### Running Tests

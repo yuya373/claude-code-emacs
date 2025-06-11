@@ -4,10 +4,25 @@ This MCP (Model Context Protocol) server enables Claude Code to interact with Em
 
 ## Features
 
+### Tools
 - **openFile**: Open files in Emacs with optional text selection
 - **getOpenBuffers**: List all open buffers in the current project
 - **getCurrentSelection**: Get the currently selected text in Emacs
 - **getDiagnostics**: Retrieve LSP diagnostics for the project
+- **getDefinition**: Find symbol definitions using LSP
+- **runCommand**: Execute Emacs commands via emacsclient subprocess (with security restrictions)
+
+### Diff Tools
+- **openDiff**: Compare two files or buffers
+- **openDiff3**: Three-way file comparison
+- **openRevisionDiff**: Compare file with git revision
+- **openCurrentChanges**: Show uncommitted changes
+- **applyPatch**: Apply patch files using ediff
+
+### Resources
+- Buffer content access
+- Project information
+- LSP diagnostics
 
 ## Setup
 
@@ -64,8 +79,8 @@ npm run clean
 ## Debugging
 
 The MCP server logs to a file for troubleshooting:
-- Log file: `/tmp/claude-code-emacs-mcp.log`
-- View logs: `tail -f /tmp/claude-code-emacs-mcp.log`
+- Log file: `.claude-code-emacs-mcp.log` in project root
+- View logs: `tail -f .claude-code-emacs-mcp.log`
 - Logs include:
   - Server startup and connection events
   - Emacs WebSocket connection status

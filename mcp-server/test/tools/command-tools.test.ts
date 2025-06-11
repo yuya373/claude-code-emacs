@@ -1,70 +1,84 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { handleRunCommand } from '../../src/tools/command-tools.js';
 import { EmacsBridge } from '../../src/emacs-bridge.js';
+import { spawn } from 'child_process';
+import { EventEmitter } from 'events';
+
+// Mock child_process
+jest.mock('child_process');
 
 describe('handleRunCommand', () => {
   let mockBridge: jest.Mocked<EmacsBridge>;
+  let mockSpawn: jest.MockedFunction<typeof spawn>;
+  let mockProcess: any;
 
   beforeEach(() => {
     mockBridge = {
       isConnected: jest.fn().mockReturnValue(true),
       request: jest.fn()
     } as any;
+
+    // Create mock process
+    mockProcess = new EventEmitter();
+    mockProcess.stdout = new EventEmitter();
+    mockProcess.stderr = new EventEmitter();
+    
+    // Setup spawn mock
+    mockSpawn = spawn as jest.MockedFunction<typeof spawn>;
+    mockSpawn.mockReturnValue(mockProcess as any);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
   it('should execute a simple command successfully', async () => {
-    mockBridge.request.mockResolvedValue({
-      success: true,
-      result: ':null',
-      output: '',
-      bufferChanged: false
+    const resultPromise = handleRunCommand(mockBridge, { command: 'save-buffer' });
+
+    // Simulate successful emacsclient execution
+    process.nextTick(() => {
+      mockProcess.stdout.emit('data', 'nil\n');
+      mockProcess.emit('close', 0);
     });
 
-    const result = await handleRunCommand(mockBridge, { command: 'save-buffer' });
+    const result = await resultPromise;
 
-    expect(mockBridge.request).toHaveBeenCalledWith('runCommand', { command: 'save-buffer' });
+    expect(mockSpawn).toHaveBeenCalledWith('emacsclient', ['-e', '(save-buffer)']);
     expect(result.content[0].text).toContain('Executed command: save-buffer');
   });
 
   it('should pass arguments to command', async () => {
-    mockBridge.request.mockResolvedValue({
-      success: true,
-      result: 100,
-      output: '',
-      bufferChanged: false
-    });
-
-    const result = await handleRunCommand(mockBridge, {
+    const resultPromise = handleRunCommand(mockBridge, {
       command: 'goto-line',
       args: [100]
     });
 
-    expect(mockBridge.request).toHaveBeenCalledWith('runCommand', {
-      command: 'goto-line',
-      args: [100]
+    process.nextTick(() => {
+      mockProcess.stdout.emit('data', '100\n');
+      mockProcess.emit('close', 0);
     });
-    expect(result.content[0].text).toContain('Result: 100');
+
+    const result = await resultPromise;
+
+    expect(mockSpawn).toHaveBeenCalledWith('emacsclient', ['-e', '(goto-line 100)']);
+    expect(result.content[0].text).toContain('Result: "100"');
   });
 
   it('should handle interactive commands', async () => {
-    mockBridge.request.mockResolvedValue({
-      success: true,
-      result: ':null',
-      output: 'Query replace from: foo\nQuery replace to: bar',
-      bufferChanged: true
-    });
-
-    const result = await handleRunCommand(mockBridge, {
+    const resultPromise = handleRunCommand(mockBridge, {
       command: 'query-replace',
       interactive: true
     });
 
-    expect(mockBridge.request).toHaveBeenCalledWith('runCommand', {
-      command: 'query-replace',
-      interactive: true
+    process.nextTick(() => {
+      mockProcess.stdout.emit('data', 'nil\n');
+      mockProcess.emit('close', 0);
     });
-    expect(result.content[0].text).toContain('Output: Query replace');
-    expect(result.content[0].text).toContain('[Buffer modified]');
+
+    const result = await resultPromise;
+
+    expect(mockSpawn).toHaveBeenCalledWith('emacsclient', ['-e', "(call-interactively 'query-replace)"]);
+    expect(result.content[0].text).toContain('Executed command: query-replace');
   });
 
   it('should reject blocked commands', async () => {
@@ -78,22 +92,28 @@ describe('handleRunCommand', () => {
   });
 
   it('should handle command errors', async () => {
-    mockBridge.request.mockResolvedValue({
-      success: false,
-      error: 'Unknown command: foo-bar-baz'
+    const resultPromise = handleRunCommand(mockBridge, { command: 'foo-bar-baz' });
+
+    process.nextTick(() => {
+      mockProcess.stderr.emit('data', 'Unknown command: foo-bar-baz');
+      mockProcess.emit('close', 1);
     });
 
-    const result = await handleRunCommand(mockBridge, { command: 'foo-bar-baz' });
+    const result = await resultPromise;
 
     expect(result.content[0].text).toContain('Failed to execute command: Unknown command: foo-bar-baz');
   });
 
-  it('should throw error when Emacs is not connected', async () => {
-    mockBridge.isConnected.mockReturnValue(false);
+  it('should handle emacsclient spawn errors', async () => {
+    const resultPromise = handleRunCommand(mockBridge, { command: 'save-buffer' });
 
-    await expect(
-      handleRunCommand(mockBridge, { command: 'save-buffer' })
-    ).rejects.toThrow('Emacs is not connected');
+    process.nextTick(() => {
+      mockProcess.emit('error', new Error('spawn emacsclient ENOENT'));
+    });
+
+    const result = await resultPromise;
+    
+    expect(result.content[0].text).toContain('Failed to execute command: Failed to run emacsclient');
   });
 
   it('should throw error when command is missing', async () => {
@@ -102,22 +122,35 @@ describe('handleRunCommand', () => {
     ).rejects.toThrow('Command is required');
   });
 
-  it('should handle currentBuffer option', async () => {
-    mockBridge.request.mockResolvedValue({
-      success: true,
-      result: ':null',
-      output: '',
-      bufferChanged: false
+  it('should handle string arguments with quotes', async () => {
+    const resultPromise = handleRunCommand(mockBridge, {
+      command: 'insert',
+      args: ['Hello "World"']
     });
 
-    await handleRunCommand(mockBridge, {
-      command: 'indent-region',
-      currentBuffer: false
+    process.nextTick(() => {
+      mockProcess.stdout.emit('data', 'nil\n');
+      mockProcess.emit('close', 0);
     });
 
-    expect(mockBridge.request).toHaveBeenCalledWith('runCommand', {
-      command: 'indent-region',
-      currentBuffer: false
+    await resultPromise;
+
+    expect(mockSpawn).toHaveBeenCalledWith('emacsclient', ['-e', '(insert "Hello \\"World\\"")']);
+  });
+
+  it('should handle boolean and number arguments', async () => {
+    const resultPromise = handleRunCommand(mockBridge, {
+      command: 'set-variable',
+      args: ['truncate-lines', true, 42]
     });
+
+    process.nextTick(() => {
+      mockProcess.stdout.emit('data', 't\n');
+      mockProcess.emit('close', 0);
+    });
+
+    await resultPromise;
+
+    expect(mockSpawn).toHaveBeenCalledWith('emacsclient', ['-e', '(set-variable "truncate-lines" t 42)']);
   });
 });

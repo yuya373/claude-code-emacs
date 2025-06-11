@@ -187,7 +187,7 @@ export class EmacsBridge extends EventEmitter {
       this.pendingRequests.set(id, { resolve, reject });
 
       this.log(`Emacs Request: ${method} with params: ${JSON.stringify(params)}`);
-      
+
       client.send(JSON.stringify(request) + '\n', (error) => {
         if (error) {
           this.pendingRequests.delete(id);

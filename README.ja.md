@@ -132,7 +132,7 @@ Claude Code Emacsはマークダウンファイルとして保存されたカス
 
 ## その他の機能
 ### リージョン送信
-`claude-code-emacs-send-buffer-or-region` - 選択したリージョンまたはバッファ全体をClaude Codeに送信
+`claude-code-emacs-send-region` - 選択したリージョンをClaude Codeに送信（リージョンが選択されていない場合はエラー）
 
 ## テスト
 ### テストの実行
