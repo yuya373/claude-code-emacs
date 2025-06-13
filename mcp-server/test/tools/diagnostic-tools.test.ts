@@ -16,10 +16,17 @@ describe('diagnostic-tools', () => {
   });
 
   describe('handleGetDiagnostics', () => {
+    it('should throw error when buffer is not provided', async () => {
+      mockBridge.isConnected.mockReturnValue(true);
+
+      await expect(handleGetDiagnostics(mockBridge, {} as any))
+        .rejects.toThrow('Buffer name is required for LSP context');
+    });
+
     it('should throw error when Emacs is not connected', async () => {
       mockBridge.isConnected.mockReturnValue(false);
 
-      await expect(handleGetDiagnostics(mockBridge, {}))
+      await expect(handleGetDiagnostics(mockBridge, { buffer: 'test-buffer' }))
         .rejects.toThrow('Emacs is not connected');
     });
 
@@ -54,9 +61,9 @@ describe('diagnostic-tools', () => {
         ]
       });
 
-      const result = await handleGetDiagnostics(mockBridge, {});
+      const result = await handleGetDiagnostics(mockBridge, { buffer: 'test-buffer' });
 
-      expect(mockBridge.request).toHaveBeenCalledWith('getDiagnostics', {});
+      expect(mockBridge.request).toHaveBeenCalledWith('getDiagnostics', { buffer: 'test-buffer' });
       expect(result.content[0].text).toContain('Found 3 diagnostics in 2 files');
       expect(result.content[0].text).toContain('## /project/file1.js');
       expect(result.content[0].text).toContain('## /project/file2.js');
@@ -71,9 +78,9 @@ describe('diagnostic-tools', () => {
         diagnostics: []
       });
 
-      const result = await handleGetDiagnostics(mockBridge, {});
+      const result = await handleGetDiagnostics(mockBridge, { buffer: 'test-buffer' });
 
-      expect(result.content[0].text).toBe('No diagnostics found in current project');
+      expect(result.content[0].text).toBe('No diagnostics found in project (executed from buffer test-buffer)');
     });
 
 
@@ -92,7 +99,7 @@ describe('diagnostic-tools', () => {
         ]
       });
 
-      const result = await handleGetDiagnostics(mockBridge, {});
+      const result = await handleGetDiagnostics(mockBridge, { buffer: 'test-buffer' });
 
       expect(result.content[0].text).toContain('Found 1 diagnostic in 1 file');
     });

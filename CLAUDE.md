@@ -93,7 +93,6 @@ make test
 - `mcp-server/src/index.ts` - Main server entry point
 - `mcp-server/src/emacs-bridge.ts` - WebSocket server for Emacs communication
 - `mcp-server/src/tools/*.ts` - Individual MCP tool implementations
-  - `command-tools.ts` - runCommand tool using emacsclient subprocess
 
 ## Architecture
 
@@ -139,6 +138,7 @@ The `@` symbol triggers project file completion:
 - `claude-code-emacs-get-buffer-paths()` - Lists all open project files
 - `claude-code-emacs-at-sign-complete()` - Interactive completion
 - Project root is replaced with `@` for brevity
+- Handles cases where `@` is already typed to avoid duplication
 
 ### Mode Architecture
 - **`claude-code-emacs-vterm-mode`** - Minor mode for Claude Code vterm buffers
@@ -211,8 +211,8 @@ When modifying this package:
   - `applyPatch`: Apply patch files using ediff
 - **Interactive claude-code-emacs-run**: Added prefix argument support (`C-u`) for interactive option selection (model, verbose, resume, etc.)
 - **CI/CD**: Added GitHub Actions workflow for automated testing
-- **getDiagnostics simplified**: Removed bufferPath parameter, now always returns project-wide diagnostics
-- **runCommand tool**: Executes Emacs commands via emacsclient subprocess (no longer uses WebSocket)
+- **getDiagnostics requires buffer**: Buffer parameter is now required for LSP context (still returns project-wide diagnostics)
+- **Removed tools**: openFile and runCommand have been removed
 - **MCP Resources**: Added support for MCP resources (buffer content, project info, diagnostics)
 - **Enhanced logging**: MCP server now logs to project root (`.claude-code-emacs-mcp.log`)
 - **Shift+Tab support**: Added `claude-code-emacs-send-shift-tab` to toggle auto accept
@@ -220,6 +220,8 @@ When modifying this package:
 - **Module consolidation**: Session management moved from separate module into core.el
 - **findReferences tool**: Added MCP tool to find all references to a symbol using LSP with proper 1-based column numbering
 - **describeSymbol tool**: Added MCP tool to get symbol documentation using LSP hover with Markdown code block formatting for MarkedString responses
+- **@ completion fix**: Fixed double @ insertion when completing file paths
+- **Error handling improvement**: getDiagnostics now properly logs errors instead of suppressing them
 
 ## MCP Server
 
@@ -227,7 +229,7 @@ When modifying this package:
 The MCP server provides a bridge between Claude Code and Emacs:
 - WebSocket server on dynamic port for Emacs connection
 - stdio interface for Claude Code MCP protocol
-- Implements tools: openFile, getOpenBuffers, getCurrentSelection, getDiagnostics, getDefinition, findReferences, describeSymbol, diff tools (openDiff, openDiff3, openRevisionDiff, openCurrentChanges, applyPatch), runCommand
+- Implements tools: getOpenBuffers, getCurrentSelection, getDiagnostics, getDefinition, findReferences, describeSymbol, diff tools (openDiff, openDiff3, openRevisionDiff, openCurrentChanges, applyPatch)
 - Implements resources: buffer content, project info, diagnostics
 - Per-project WebSocket connections for session isolation
 
@@ -272,3 +274,27 @@ The MCP connection includes automatic health monitoring:
 - **WebSocket 400 error**: Fixed by ensuring the WebSocket URL includes a leading slash (e.g., `ws://localhost:port/?session=...`)
 - **Connection timing**: WebSocket connections are established asynchronously; the `on-open` callback is used to ensure proper initialization
 - **Timer management**: Ping timers are properly cleaned up on disconnect to prevent resource leaks
+
+### Recent Changes
+- **Tool removal**: Removed `openFile` and `runCommand` MCP tools as they were redundant
+- **@ completion fix**: Fixed double `@` insertion in file completion when user already typed `@`
+- **getDiagnostics enhancement**: 
+  - Added required `buffer` parameter for LSP workspace context
+  - Improved error handling to log errors instead of suppressing them
+  - Clarified that buffer is for LSP context, not filtering (returns project-wide diagnostics)
+- **getDefinition tool**: Added MCP tool to find symbol definitions using LSP with preview (shows 3 lines before/after)
+- **Diff tools suite**: Added comprehensive ediff integration tools:
+  - `openDiff`: Compare two files or buffers
+  - `openDiff3`: Three-way file comparison for merge conflicts
+  - `openRevisionDiff`: Compare file with any git revision
+  - `openCurrentChanges`: Show uncommitted changes in ediff
+  - `applyPatch`: Apply patch files using ediff
+- **Interactive claude-code-emacs-run**: Added prefix argument support (`C-u`) for interactive option selection (model, verbose, resume, etc.)
+- **CI/CD**: Added GitHub Actions workflow for automated testing
+- **MCP Resources**: Added support for MCP resources (buffer content, project info, diagnostics)
+- **Enhanced logging**: MCP server now logs to project root (`.claude-code-emacs-mcp.log`)
+- **Shift+Tab support**: Added `claude-code-emacs-send-shift-tab` to toggle auto accept
+- **Function rename**: `claude-code-emacs-send-buffer-or-region` → `claude-code-emacs-send-region`
+- **Module consolidation**: Session management moved from separate module into core.el
+- **findReferences tool**: Added MCP tool to find all references to a symbol using LSP with proper 1-based column numbering
+- **describeSymbol tool**: Added MCP tool to get symbol documentation using LSP hover with Markdown code block formatting for MarkedString responses

@@ -49,15 +49,48 @@
       (should (assoc 'startLine result))
       (should (assoc 'endLine result)))))
 
-(ert-deftest test-mcp-handle-getDiagnostics ()
-  "Test getDiagnostics handler."
+(ert-deftest test-mcp-handle-getDiagnostics-no-buffer ()
+  "Test getDiagnostics handler without buffer parameter should error."
+  (should-error
+   (claude-code-emacs-mcp-handle-getDiagnostics nil)
+   :type 'error))
+
+(ert-deftest test-mcp-handle-getDiagnostics-buffer-not-found ()
+  "Test getDiagnostics handler with non-existent buffer."
   (cl-letf (((symbol-function 'fboundp)
-             (lambda (sym) (eq sym 'lsp-diagnostics)))
-            ((symbol-function 'lsp-diagnostics)
-             (lambda () (make-hash-table))))
-    (let ((result (claude-code-emacs-mcp-handle-getDiagnostics nil)))
-      (should (assoc 'diagnostics result))
-      (should (listp (cdr (assoc 'diagnostics result)))))))
+             (lambda (sym) (memq sym '(lsp-diagnostics lsp:diagnostic-message)))))
+    (should-error
+     (claude-code-emacs-mcp-handle-getDiagnostics '((buffer . "non-existent-buffer")))
+     :type 'error)))
+
+(ert-deftest test-mcp-handle-getDiagnostics-with-buffer ()
+  "Test getDiagnostics handler with buffer parameter."
+  (let ((test-buffer (generate-new-buffer "test-diagnostics-buffer")))
+    (unwind-protect
+        (cl-letf (((symbol-function 'fboundp)
+                   (lambda (sym) (memq sym '(lsp-diagnostics lsp:diagnostic-message))))
+                  ((symbol-function 'lsp-diagnostics)
+                   (lambda () 
+                     (let ((hash (make-hash-table :test 'equal)))
+                       (puthash "/test/file.el" 
+                                (let ((inner-hash (make-hash-table)))
+                                  (puthash 10 (list 'mock-diagnostic) inner-hash)
+                                  inner-hash)
+                                hash)
+                       hash)))
+                  ((symbol-function 'lsp:diagnostic-message)
+                   (lambda (_) "Test diagnostic message"))
+                  ((symbol-function 'lsp:diagnostic-severity)
+                   (lambda (_) 1))
+                  ((symbol-function 'lsp:diagnostic-source)
+                   (lambda (_) "test-lsp")))
+          (with-current-buffer test-buffer
+            (let ((result (claude-code-emacs-mcp-handle-getDiagnostics 
+                           `((buffer . ,(buffer-name test-buffer))))))
+              (should (assoc 'diagnostics result))
+              (let ((diags (cdr (assoc 'diagnostics result))))
+                (should (listp diags))))))
+      (kill-buffer test-buffer))))
 
 ;;; Diff tool handler tests
 

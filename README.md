@@ -18,14 +18,12 @@ An Emacs package to run Claude Code CLI within Emacs. This package provides seam
 Claude Code Emacs includes MCP server integration, allowing Claude Code to interact directly with your Emacs environment.
 
 #### Available MCP Tools
-- **Open File**: Open any project file with optional text selection
 - **Get Open Buffers**: List all open buffers in the current project
 - **Get Current Selection**: Retrieve the currently selected text in Emacs
-- **Get Diagnostics**: Get LSP diagnostics for all project buffers
+- **Get Diagnostics**: Get project-wide LSP diagnostics (requires specifying a buffer for LSP context)
 - **Get Definition**: Find symbol definitions using LSP with preview
 - **Find References**: Find all references to a symbol using LSP
 - **Describe Symbol**: Get documentation and information about symbols using LSP hover
-- **Run Command**: Execute Emacs commands with security checks
 - **Diff Tools**: Powerful file comparison tools:
   - **openDiff**: Compare two files or buffers
   - **openDiff3**: Three-way file comparison for merge conflicts
@@ -247,10 +245,9 @@ The MCP server maintains a stable WebSocket connection with automatic health mon
 - **Configurable timeouts**: Customize ping interval and timeout via `claude-code-emacs-mcp-ping-interval` and `claude-code-emacs-mcp-ping-timeout`
 
 ### Available MCP Tools
-- **openFile**: Open files with optional text selection
 - **getOpenBuffers**: List all open buffers in the current project
 - **getCurrentSelection**: Get currently selected text
-- **getDiagnostics**: Get project-wide LSP diagnostics (requires `lsp-mode`)
+- **getDiagnostics**: Get project-wide LSP diagnostics (requires buffer name for LSP context)
 - **getDefinition**: Find symbol definitions using LSP with preview (shows 3 lines before/after)
 - **findReferences**: Find all references to a symbol using LSP (requires `lsp-mode`)
 - **describeSymbol**: Get symbol documentation using LSP hover, with Markdown formatting for code blocks
@@ -259,7 +256,6 @@ The MCP server maintains a stable WebSocket connection with automatic health mon
 - **openRevisionDiff**: Compare file with git revision
 - **openCurrentChanges**: Show uncommitted changes
 - **applyPatch**: Apply patch files using ediff
-- **runCommand**: Execute Emacs commands with security restrictions
 
 ### Available MCP Resources
 The MCP server exposes Emacs data as resources that Claude Code can access:

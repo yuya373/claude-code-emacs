@@ -87,17 +87,30 @@
       (endChar . 0)
       (fileName . ""))))
 
-(defun claude-code-emacs-mcp-handle-getDiagnostics (_params)
-  "Handle getDiagnostics request.
-Always returns project-wide diagnostics."
-  (condition-case nil
-      (let ((diagnostics '()))
+(defun claude-code-emacs-mcp-handle-getDiagnostics (params)
+  "Handle getDiagnostics request with PARAMS.
+Returns project-wide diagnostics using specified buffer for LSP context."
+  (condition-case err
+      (let ((diagnostics '())
+            (buffer-name (cdr (assoc 'buffer params))))
+        
+        ;; Buffer parameter is required for LSP context
+        (unless buffer-name
+          (error "Buffer name is required for LSP context"))
 
         (when (and (fboundp 'lsp-diagnostics)
                    (fboundp 'lsp:diagnostic-message))
-          (let ((lsp-diags (condition-case nil
-                               (lsp-diagnostics)
-                             (error nil))))
+          (let ((lsp-diags (when-let ((buffer (get-buffer buffer-name)))
+                             (with-current-buffer buffer
+                               (condition-case diag-err
+                                   (lsp-diagnostics)
+                                 (error
+                                  (message "Error getting LSP diagnostics in buffer %s: %s"
+                                           buffer-name
+                                           (error-message-string diag-err))
+                                  nil))))))
+            (unless (get-buffer buffer-name)
+              (error "Buffer %s not found for LSP context" buffer-name))
             (when lsp-diags
               (maphash
                (lambda (file diags-by-line)
@@ -130,8 +143,9 @@ Always returns project-wide diagnostics."
 
         `((diagnostics . ,(nreverse diagnostics))))
     (error
-     ;; Return empty diagnostics list on any error
-     `((diagnostics . ())))))
+     ;; Log error and re-throw it
+     (message "Error in getDiagnostics handler: %s" (error-message-string err))
+     (signal (car err) (cdr err)))))
 
 ;;; Diff Tool Handlers
 

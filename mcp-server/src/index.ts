@@ -6,6 +6,7 @@ import {
   handleGetOpenBuffers,
   handleGetCurrentSelection,
   handleGetDiagnostics,
+  GetDiagnosticsArgs,
   diffTools,
   handleOpenDiff,
   handleOpenDiff3,
@@ -93,10 +94,16 @@ const TOOLS = [
   },
   {
     name: 'getDiagnostics',
-    description: 'Get LSP diagnostics for all project buffers',
+    description: 'Get project-wide LSP diagnostics using specified buffer for LSP context',
     inputSchema: {
       type: 'object',
-      properties: {}
+      properties: {
+        buffer: {
+          type: 'string',
+          description: 'Buffer name to execute lsp-diagnostics in (required for LSP workspace context)'
+        }
+      },
+      required: ['buffer']
     }
   },
   {
@@ -247,7 +254,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
 
       case 'getDiagnostics':
-        result = await handleGetDiagnostics(bridge, args || {});
+        result = await handleGetDiagnostics(bridge, (args || {}) as unknown as GetDiagnosticsArgs);
         break;
 
       case 'openDiff':

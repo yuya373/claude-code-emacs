@@ -1,6 +1,6 @@
 export { handleGetOpenBuffers } from './buffer-tools.js';
 export { handleGetCurrentSelection } from './selection-tools.js';
-export { handleGetDiagnostics } from './diagnostic-tools.js';
+export { handleGetDiagnostics, type GetDiagnosticsArgs } from './diagnostic-tools.js';
 export {
   diffTools,
   handleOpenDiff,

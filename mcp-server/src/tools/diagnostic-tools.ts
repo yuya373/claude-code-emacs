@@ -1,7 +1,8 @@
 import { EmacsBridge } from '../emacs-bridge.js';
 
-// Empty interface as we no longer accept parameters
-interface GetDiagnosticsArgs {}
+interface GetDiagnosticsArgs {
+  buffer: string;  // Buffer name to execute lsp-diagnostics in (required for LSP context)
+}
 
 interface Diagnostic {
   file: string;
@@ -12,13 +13,21 @@ interface Diagnostic {
   source: string;
 }
 
-export async function handleGetDiagnostics(bridge: EmacsBridge, _args: GetDiagnosticsArgs) {
+export { GetDiagnosticsArgs };
+
+export async function handleGetDiagnostics(bridge: EmacsBridge, args: GetDiagnosticsArgs) {
   if (!bridge.isConnected()) {
     throw new Error('Emacs is not connected');
   }
 
-  // Always get project-wide diagnostics
-  const result = await bridge.request('getDiagnostics', {});
+  if (!args.buffer) {
+    throw new Error('Buffer name is required for LSP context');
+  }
+
+  // Get project-wide diagnostics using the specified buffer's LSP context
+  const result = await bridge.request('getDiagnostics', {
+    buffer: args.buffer
+  });
   const diagnostics: Diagnostic[] = result?.diagnostics || [];
 
   if (diagnostics.length === 0) {
@@ -26,7 +35,7 @@ export async function handleGetDiagnostics(bridge: EmacsBridge, _args: GetDiagno
       content: [
         {
           type: 'text',
-          text: 'No diagnostics found in current project'
+          text: `No diagnostics found in project (executed from buffer ${args.buffer})`
         }
       ]
     };
