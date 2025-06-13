@@ -154,13 +154,20 @@ Each path is inserted on a new line with @ prefix."
 (defun claude-code-emacs-at-sign-complete ()
   "Complete file paths after @ symbol."
   (interactive)
-  (let ((project-files (projectile-project-files (claude-code-emacs-normalize-project-root (projectile-project-root)))))
+  ;; NOTE: Don't use `claude-code-emacs-normalize-project-root' when passing project-root to projectile.el functions
+  (let* ((project-files (projectile-project-files
+                         (projectile-project-root))))
     (when project-files
       (let* ((selected (completing-read "File: "
                                         project-files
-                                        nil t)))
-        (when selected
-          (insert "@" selected))))))
+                                        nil nil)))
+        (if selected
+          ;; Check if there's already an @ before point
+          (if (and (> (point) 1)
+                   (eq (char-before) ?@))
+              (insert selected)
+            (insert "@" selected))
+          (insert "@"))))))
 
 (defun claude-code-emacs-self-insert-@ ()
   "Insert @ and trigger file completion."
