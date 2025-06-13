@@ -23,7 +23,6 @@
 ;;; Commentary:
 
 ;; This module implements the MCP tool handlers:
-;; - openFile: Open files with optional text selection
 ;; - getOpenBuffers: List open buffers in project
 ;; - getCurrentSelection: Get current text selection
 ;; - getDiagnostics: Get LSP diagnostics
@@ -39,31 +38,6 @@
 
 ;;; MCP Tool Handlers
 
-(defun claude-code-emacs-mcp-handle-openFile (params)
-  "Handle openFile request with PARAMS."
-  (let* ((path (cdr (assoc 'path params)))
-         (start-text (cdr (assoc 'startText params)))
-         (end-text (cdr (assoc 'endText params)))
-         (full-path (expand-file-name path (claude-code-emacs-normalize-project-root (projectile-project-root)))))
-    (message "Params: %s" params)
-
-    (unless (file-exists-p full-path)
-      (signal 'file-missing (list "File not found" full-path)))
-
-    (find-file-other-window full-path)
-
-    ;; Handle text selection if specified
-    (when (and start-text end-text)
-      (goto-char (point-min))
-      (when (search-forward start-text nil t)
-        (let ((start (match-beginning 0)))
-          (when (search-forward end-text nil t)
-            (let ((end (point)))
-              (goto-char start)
-              (set-mark end))))))
-
-    `((success . t)
-      (path . ,full-path))))
 
 (defun claude-code-emacs-mcp-handle-getOpenBuffers (params)
   "Handle getOpenBuffers request with PARAMS."

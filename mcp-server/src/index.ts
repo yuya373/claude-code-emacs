@@ -3,7 +3,6 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ClientNotificationSchema, ListResourcesRequestSchema, ListToolsRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { EmacsBridge } from './emacs-bridge.js';
 import {
-  handleOpenFile,
   handleGetOpenBuffers,
   handleGetCurrentSelection,
   handleGetDiagnostics,
@@ -13,8 +12,6 @@ import {
   handleOpenRevisionDiff,
   handleOpenCurrentChanges,
   handleApplyPatch,
-  handleRunCommand,
-  RunCommandArgs,
   handleGetDefinition,
   GetDefinitionArgs,
   handleFindReferences,
@@ -73,28 +70,6 @@ const server = new Server(
 // Tool definitions
 const TOOLS = [
   {
-    name: 'openFile',
-    description: 'Open a file in Emacs with optional text selection',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        path: {
-          type: 'string',
-          description: 'File path relative to project root'
-        },
-        startText: {
-          type: 'string',
-          description: 'Text to start selection from (optional)'
-        },
-        endText: {
-          type: 'string',
-          description: 'Text to end selection at (optional)'
-        }
-      },
-      required: ['path']
-    }
-  },
-  {
     name: 'getOpenBuffers',
     description: 'Get list of open buffers in current project',
     inputSchema: {
@@ -122,35 +97,6 @@ const TOOLS = [
     inputSchema: {
       type: 'object',
       properties: {}
-    }
-  },
-  {
-    name: 'runCommand',
-    description: 'Execute an Emacs command',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        command: {
-          type: 'string',
-          description: 'Emacs command name (e.g., "save-buffer", "goto-line")'
-        },
-        args: {
-          type: 'array',
-          description: 'Arguments to pass to the command (optional)',
-          items: {}
-        },
-        interactive: {
-          type: 'boolean',
-          description: 'Run command interactively (optional, default false)',
-          default: false
-        },
-        currentBuffer: {
-          type: 'boolean',
-          description: 'Run in current buffer context (optional, default true)',
-          default: true
-        }
-      },
-      required: ['command']
     }
   },
   {
@@ -291,9 +237,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     let result;
     switch (name) {
-      case 'openFile':
-        result = await handleOpenFile(bridge, args || {});
-        break;
 
       case 'getOpenBuffers':
         result = await handleGetOpenBuffers(bridge, args || {});
@@ -327,9 +270,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         result = await handleApplyPatch(bridge, args || {});
         break;
 
-      case 'runCommand':
-        result = await handleRunCommand(bridge, (args || {}) as unknown as RunCommandArgs);
-        break;
 
       case 'getDefinition':
         result = await handleGetDefinition(bridge, (args || {}) as unknown as GetDefinitionArgs);

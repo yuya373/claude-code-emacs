@@ -103,20 +103,20 @@
   "Test request handling and response."
   (let ((project-root "/test/project/")
         (sent-response nil))
-    (cl-letf (((symbol-function 'claude-code-emacs-mcp-handle-openFile)
-               (lambda (params) '((success . t))))
+    (cl-letf (((symbol-function 'claude-code-emacs-mcp-handle-getOpenBuffers)
+               (lambda (params) '((buffers . ()))))
               ((symbol-function 'claude-code-emacs-mcp-send-response)
                (lambda (id result error root)
                  (setq sent-response (list id result error root)))))
       ;; Handle request
       (claude-code-emacs-mcp-handle-request
        '((id . 123)
-         (method . "openFile")
-         (params . ((path . "/test/file"))))
+         (method . "getOpenBuffers")
+         (params . ()))
        project-root)
       ;; Check response was sent
       (should (equal (nth 0 sent-response) 123))
-      (should (equal (nth 1 sent-response) '((success . t))))
+      (should (equal (nth 1 sent-response) '((buffers . ()))))
       (should-not (nth 2 sent-response))
       (should (equal (nth 3 sent-response) project-root)))))
 
@@ -124,7 +124,7 @@
   "Test request error handling."
   (let ((project-root "/test/project/")
         (sent-response nil))
-    (cl-letf (((symbol-function 'claude-code-emacs-mcp-handle-openFile)
+    (cl-letf (((symbol-function 'claude-code-emacs-mcp-handle-getOpenBuffers)
                (lambda (params) (error "Test error")))
               ((symbol-function 'claude-code-emacs-mcp-send-response)
                (lambda (id result error root)
@@ -132,8 +132,8 @@
       ;; Handle request that will error
       (claude-code-emacs-mcp-handle-request
        '((id . 123)
-         (method . "openFile")
-         (params . ((path . "/test/file"))))
+         (method . "getOpenBuffers")
+         (params . ()))
        project-root)
       ;; Check error response was sent
       (should (equal (nth 0 sent-response) 123))

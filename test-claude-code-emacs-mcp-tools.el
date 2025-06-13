@@ -12,22 +12,6 @@
 
 ;;; Tool handler tests
 
-(ert-deftest test-mcp-handle-openFile ()
-  "Test openFile handler."
-  (let* ((test-file (make-temp-file "test-file"))
-         (params `((path . ,test-file)
-                   (startText . "start")
-                   (endText . "end"))))
-    (unwind-protect
-        (with-temp-buffer
-          (insert "some start text end here")
-          (write-file test-file)
-          (cl-letf (((symbol-function 'projectile-project-root)
-                     (lambda () (file-name-directory test-file))))
-            (let ((result (claude-code-emacs-mcp-handle-openFile params)))
-              (should (assoc 'success result))
-              (should (equal (cdr (assoc 'success result)) t)))))
-      (delete-file test-file))))
 
 (ert-deftest test-mcp-handle-getOpenBuffers ()
   "Test getOpenBuffers handler."

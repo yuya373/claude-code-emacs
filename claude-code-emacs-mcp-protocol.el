@@ -41,7 +41,6 @@
 (declare-function claude-code-emacs-mcp-handle-pong "claude-code-emacs-mcp-connection" (project-root))
 
 ;; Tool handler forward declarations
-(declare-function claude-code-emacs-mcp-handle-openFile "claude-code-emacs-mcp-tools" (params))
 (declare-function claude-code-emacs-mcp-handle-getOpenBuffers "claude-code-emacs-mcp-tools" (params))
 (declare-function claude-code-emacs-mcp-handle-getCurrentSelection "claude-code-emacs-mcp-tools" (params))
 (declare-function claude-code-emacs-mcp-handle-getDiagnostics "claude-code-emacs-mcp-tools" (params))
