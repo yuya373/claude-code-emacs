@@ -29,7 +29,8 @@
 (when (file-exists-p "test-claude-code-emacs-mcp-connection.el")
   (load-file "test-claude-code-emacs-mcp-connection.el")
   (load-file "test-claude-code-emacs-mcp-protocol.el")
-  (load-file "test-claude-code-emacs-mcp-tools.el"))
+  (load-file "test-claude-code-emacs-mcp-tools.el")
+  (load-file "test-claude-code-emacs-mcp-events.el"))
 
 ;; Note: Old test files are no longer loaded to avoid duplicate test definitions
 ;; The tests have been split into module-specific files above

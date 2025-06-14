@@ -67,6 +67,15 @@ const server = new Server(
   }
 );
 
+// Set up notification handler to forward Emacs events to Claude Code
+bridge.setNotificationHandler((method: string, params: any) => {
+  log(`Forwarding Emacs notification to Claude Code: ${method} with params: ${JSON.stringify(params)}`);
+  server.notification({
+    method: method,
+    params: params
+  });
+});
+
 
 // Tool definitions
 const TOOLS = [

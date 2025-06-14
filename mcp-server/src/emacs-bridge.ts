@@ -29,6 +29,7 @@ export class EmacsBridge extends EventEmitter {
   }> = new Map();
   private requestId = 0;
   private log: (message: string) => void;
+  private onNotification?: (method: string, params: any) => void;
 
   constructor(logger?: (message: string) => void) {
     super();
@@ -141,13 +142,18 @@ export class EmacsBridge extends EventEmitter {
         }
       }
     }
-    // Handle JSON-RPC request from Emacs (if needed)
+    // Handle JSON-RPC request/notification from Emacs
     else if ('method' in message) {
-      // Currently we don't expect requests from Emacs
-      this.sendResponse(ws, message.id, null, {
-        code: -32601,
-        message: 'Method not found'
-      });
+      // If no id, it's a notification
+      if (!('id' in message)) {
+        this.handleNotification(message.method, message.params);
+      } else {
+        // Request from Emacs (currently not supported)
+        this.sendResponse(ws, message.id, null, {
+          code: -32601,
+          message: 'Method not found'
+        });
+      }
     }
   }
 
@@ -213,5 +219,18 @@ export class EmacsBridge extends EventEmitter {
 
   async sendRequest(method: string, params?: any): Promise<any> {
     return this.request(method, params);
+  }
+
+  private handleNotification(method: string, params: any): void {
+    this.log(`Received notification from Emacs: ${method}`);
+    if (this.onNotification) {
+      this.onNotification(method, params);
+    }
+    // Emit event for the notification
+    this.emit('notification', method, params);
+  }
+
+  setNotificationHandler(handler: (method: string, params: any) => void): void {
+    this.onNotification = handler;
   }
 }

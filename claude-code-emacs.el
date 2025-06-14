@@ -30,7 +30,7 @@
 ;; - Transient menu for common operations
 ;; - File path completion with @ syntax
 ;; - Custom commands support
-;; - MCP server integration (optional)
+;; - MCP server integration with real-time event notifications
 
 ;;; Code:
 
@@ -41,9 +41,9 @@
 (require 'claude-code-emacs-ui)
 (require 'claude-code-emacs-prompt)
 
-;; Optional MCP integration
-(when (locate-library "claude-code-emacs-mcp")
-  (require 'claude-code-emacs-mcp nil t))
+;; MCP integration (required)
+(require 'claude-code-emacs-mcp)
+(require 'claude-code-emacs-mcp-events)
 
 (provide 'claude-code-emacs)
 ;;; claude-code-emacs.el ends here

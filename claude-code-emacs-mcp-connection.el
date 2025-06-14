@@ -272,5 +272,24 @@ If CALLBACK is provided, call it with connection result."
   ;; Close existing connection
   (claude-code-emacs-mcp-disconnect project-root))
 
+;;; Event notification functions
+
+(defun claude-code-emacs-mcp-send-event-to-project (project-root event-name params)
+  "Send an event notification to a specific project's MCP server.
+PROJECT-ROOT is the root directory of the project.
+EVENT-NAME is the event type (e.g., \"bufferListUpdated\").
+PARAMS is an alist of event parameters."
+  (let ((websocket (claude-code-emacs-mcp-get-websocket project-root)))
+    (when (and websocket (websocket-openp websocket))
+      (condition-case err
+          (let ((message (json-encode
+                          `((jsonrpc . "2.0")
+                            (method . ,(concat "emacs/" event-name))
+                            (params . ,params)))))
+            (websocket-send-text websocket message))
+        (error
+         (message "Error sending event %s to MCP server for project %s: %s"
+                  event-name project-root err))))))
+
 (provide 'claude-code-emacs-mcp-connection)
 ;;; claude-code-emacs-mcp-connection.el ends here

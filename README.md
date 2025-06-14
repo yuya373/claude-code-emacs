@@ -2,7 +2,7 @@
 
 [![CI Tests](https://github.com/yuya373/claude-code-emacs/actions/workflows/test.yml/badge.svg)](https://github.com/yuya373/claude-code-emacs/actions/workflows/test.yml)
 
-An Emacs package to run Claude Code CLI within Emacs. This package provides seamless integration with Claude Code, allowing you to run AI-powered coding sessions directly in your Emacs environment.
+Atn Emacs package to run Claude Code CLI within Emacs. This package provides seamless integration with Claude Code, allowing you to run AI-powered coding sessions directly in your Emacs environment.
 
 ## Features
 
@@ -17,6 +17,12 @@ An Emacs package to run Claude Code CLI within Emacs. This package provides seam
 ### MCP (Model Context Protocol) Integration
 Claude Code Emacs includes MCP server integration, allowing Claude Code to interact directly with your Emacs environment.
 
+**Important**: The MCP features require proper setup to work:
+1. Configure Claude Code to use the MCP server (see "Adding Emacs as an MCP Server" section below)
+2. Once configured, Claude Code automatically starts the MCP server when you begin a session
+3. The MCP server will automatically connect to Emacs by calling `claude-code-emacs-mcp-register-port`
+4. Without this setup, MCP tools and event notifications will not function
+
 #### Available MCP Tools
 - **Get Open Buffers**: List all open buffers in the current project
 - **Get Current Selection**: Retrieve the currently selected text in Emacs
@@ -30,6 +36,14 @@ Claude Code Emacs includes MCP server integration, allowing Claude Code to inter
   - **openRevisionDiff**: Compare file with any git revision
   - **openCurrentChanges**: Show uncommitted changes in ediff
   - **applyPatch**: Apply patch files using ediff
+
+#### Real-time Event Notifications
+The MCP server now sends real-time notifications to Claude Code about Emacs state changes:
+- **Buffer List Updates**: Notifies when buffers are opened, closed, or modified
+- **Buffer Content Changes**: Tracks file modifications with line-level granularity (batched per project)
+- **Diagnostics Updates**: Sends LSP diagnostics changes as they occur (batched per project)
+
+These events are automatically enabled and use efficient debouncing to minimize overhead. Changes are batched by project for optimal performance.
 
 The MCP server uses dynamic port allocation for each project and provides a WebSocket bridge for communication between Claude Code and Emacs.
 
@@ -199,19 +213,34 @@ For detailed MCP setup instructions, see [docs/MCP-SETUP.md](docs/MCP-SETUP.md).
 3. **Create prompts**: `M-x claude-code-emacs-open-prompt-file` to manage project prompts
 
 ### Adding Emacs as an MCP Server
-To enable MCP integration, configure Claude Code:
+To enable MCP integration, you must configure Claude Code to use the MCP server:
 
-```shell
-claude mcp add-json emacs '{
-  "type": "stdio",
-  "command": "node",
-  "args": [
-    "/path/to/claude-code-emacs/mcp-server/dist/index.js"
-  ]
-}'
-```
+1. **Build the MCP server** (if not already built):
+   ```shell
+   cd /path/to/claude-code-emacs
+   make mcp-build
+   ```
 
-Then type `/mcp` in your Claude Code session to activate MCP tools.
+2. **Configure Claude Code**:
+   ```shell
+   claude mcp add-json emacs '{
+     "type": "stdio",
+     "command": "node",
+     "args": [
+       "/path/to/claude-code-emacs/mcp-server/dist/index.js"
+     ]
+   }'
+   ```
+   Replace `/path/to/claude-code-emacs` with the actual path to this package.
+
+3. **MCP server starts automatically**:
+   - Start a Claude Code session in your project
+   - Claude Code automatically starts the configured MCP server
+   - The MCP server will connect to Emacs and call `claude-code-emacs-mcp-register-port`
+   - You'll see a message in Emacs confirming the connection
+   - MCP tools are immediately available without needing to run `/mcp`
+
+**Note**: MCP features (tools, resources, and event notifications) will only work after completing these setup steps.
 
 ## Architecture
 
@@ -227,6 +256,7 @@ The package is organized into focused modules:
 - **claude-code-emacs-mcp-connection.el** - WebSocket connection management with automatic reconnection
 - **claude-code-emacs-mcp-protocol.el** - MCP protocol implementation
 - **claude-code-emacs-mcp-tools.el** - MCP tool handlers (file operations, diagnostics, diff tools)
+- **claude-code-emacs-mcp-events.el** - Real-time event notifications (buffer changes, diagnostics)
 
 ## Contributing
 
@@ -241,8 +271,10 @@ Contributions are welcome! Please:
 
 ### Connection Management
 The MCP server maintains a stable WebSocket connection with automatic health monitoring:
+- **Automatic port registration**: MCP server calls `claude-code-emacs-mcp-register-port` when started
 - **Ping/Pong heartbeat**: Sends periodic ping messages (default 30s interval) to detect connection issues
 - **Configurable timeouts**: Customize ping interval and timeout via `claude-code-emacs-mcp-ping-interval` and `claude-code-emacs-mcp-ping-timeout`
+- **Per-project isolation**: Each project gets its own MCP connection
 
 ### Available MCP Tools
 - **getOpenBuffers**: List all open buffers in the current project
@@ -262,6 +294,44 @@ The MCP server exposes Emacs data as resources that Claude Code can access:
 - **Buffer Resources** (`file://`): Access content of open buffers with unsaved changes
 - **Project Resources** (`emacs://project/`): Project metadata and file listings
 - **Diagnostics Resources** (`emacs://diagnostics/`): LSP diagnostics for buffers and projects
+
+### Real-time Event Notifications
+The MCP server now supports real-time notifications from Emacs to Claude Code:
+
+#### Event Types
+- **emacs/bufferListUpdated**: Notifies when buffers are opened, closed, or their states change
+  - Tracks buffer paths, names, active/modified status
+  - Filtered by project to avoid cross-project noise
+  
+- **emacs/bufferContentModified**: Notifies when buffer content changes
+  - Includes file path, affected line ranges, and change length
+  - Multiple changes are batched per project for efficiency
+  - Changes to the same region are automatically merged
+  
+- **emacs/diagnosticsChanged**: Notifies when LSP diagnostics update
+  - Includes all diagnostics for affected files
+  - Batched by project to reduce notification overhead
+  - Provides line, column, severity, and message for each diagnostic
+
+#### Features
+- **Automatic debouncing**: Events are debounced to avoid overwhelming Claude Code
+  - Buffer changes: 0.5s delay (configurable via `claude-code-emacs-mcp-events-change-delay`)
+  - Buffer list updates: 1.0s delay (configurable via `claude-code-emacs-mcp-events-buffer-list-delay`)
+  - Diagnostics: 1.0s delay (configurable via `claude-code-emacs-mcp-events-diagnostics-delay`)
+  
+- **Project isolation**: Each project connection only receives events relevant to its files
+- **Efficient batching**: Multiple changes are grouped into single notifications per project
+
+#### Enabling Event Notifications
+Event notifications are automatically enabled when the MCP connection is established. To manually control:
+
+```elisp
+;; Enable event notifications
+(claude-code-emacs-mcp-events-enable)
+
+;; Disable event notifications
+(claude-code-emacs-mcp-events-disable)
+```
 
 ### Planned Features
 - **getWorkspaceFolders**: List all project folders

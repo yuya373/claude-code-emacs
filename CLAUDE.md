@@ -19,6 +19,7 @@ The package is modularized into several components:
 - **claude-code-emacs-prompt.el** - Prompt file management and mode
 - **claude-code-emacs-mcp.el** - MCP WebSocket client integration
 - **claude-code-emacs-mcp-*.el** - MCP protocol implementation
+- **claude-code-emacs-mcp-events.el** - Real-time event notifications
 
 ## Development Commands
 
@@ -87,6 +88,7 @@ make test
 - `claude-code-emacs-mcp-connection.el` - WebSocket connection management
 - `claude-code-emacs-mcp-protocol.el` - MCP protocol implementation
 - `claude-code-emacs-mcp-tools.el` - MCP tool handlers
+- `claude-code-emacs-mcp-events.el` - Event notification handlers
 - `test-*.el` - Test files using ERT framework
 
 ### MCP Server (TypeScript)
@@ -222,6 +224,14 @@ When modifying this package:
 - **describeSymbol tool**: Added MCP tool to get symbol documentation using LSP hover with Markdown code block formatting for MarkedString responses
 - **@ completion fix**: Fixed double @ insertion when completing file paths
 - **Error handling improvement**: getDiagnostics now properly logs errors instead of suppressing them
+- **Real-time event notifications**: Added MCP event notifications for Emacs state changes:
+  - `emacs/bufferListUpdated`: Sent when buffers are opened, closed, or modified
+  - `emacs/bufferContentModified`: Sent when buffer content changes with line-level information (batched by project)
+  - `emacs/diagnosticsChanged`: Sent when LSP diagnostics are updated (batched by project)
+  - Events are automatically enabled with efficient debouncing
+  - All project connections receive appropriate events
+  - Performance optimized: project root stored with change info to avoid file operations
+  - Batch sending: Multiple changes and diagnostics are grouped per project for efficiency
 
 ## MCP Server
 
@@ -232,21 +242,41 @@ The MCP server provides a bridge between Claude Code and Emacs:
 - Implements tools: getOpenBuffers, getCurrentSelection, getDiagnostics, getDefinition, findReferences, describeSymbol, diff tools (openDiff, openDiff3, openRevisionDiff, openCurrentChanges, applyPatch)
 - Implements resources: buffer content, project info, diagnostics
 - Per-project WebSocket connections for session isolation
+- Real-time event notifications from Emacs to Claude Code
+
+### How MCP Connection Works
+1. Claude Code automatically starts the MCP server when you begin a session (no need to type `/mcp`)
+2. MCP server starts and creates a WebSocket server on a dynamic port
+3. MCP server calls `claude-code-emacs-mcp-register-port` via emacsclient
+4. Emacs receives the port and establishes WebSocket connection
+5. Connection is now ready for bidirectional communication
+
+**Important**: Claude Code must be configured with the MCP server (see Setup section) for the features to work.
 
 ### Setup
 Claude Code needs to be configured to use the MCP server:
-```bash
-claude mcp add-json emacs '{
-  "type": "stdio",
-  "command": "node",
-  "args": ["/path/to/claude-code-emacs/mcp-server/dist/index.js"]
-}'
-```
+
+1. First build the MCP server:
+   ```bash
+   make mcp-build
+   ```
+
+2. Configure Claude Code:
+   ```bash
+   claude mcp add-json emacs '{
+     "type": "stdio",
+     "command": "node",
+     "args": ["/path/to/claude-code-emacs/mcp-server/dist/index.js"]
+   }'
+   ```
+
+3. The connection is activated automatically when you start Claude Code
 
 ### Logging
 The MCP server logs to a file for debugging purposes:
 - Log file location: `.claude-code-emacs-mcp.log` in project root
 - Logs include timestamps, connection status, and request/response details
+- Event notifications are logged with full parameters
 - Useful for troubleshooting MCP integration issues
 - Previous log location (`/tmp/claude-code-emacs-mcp.log`) is no longer used
 
@@ -263,12 +293,58 @@ When working on the MCP server:
 2. MCP server establishes WebSocket connection to Emacs (dynamic port)
 3. MCP tools translate requests into Emacs Lisp commands
 4. Results are sent back through the same chain
+5. Real-time events flow from Emacs to Claude Code via notifications
 
 ### Connection Health Monitoring
 The MCP connection includes automatic health monitoring:
 - **Ping/Pong mechanism**: Emacs sends ping messages every 30 seconds (configurable via `claude-code-emacs-mcp-ping-interval`)
 - **Timeout detection**: If no pong is received within 10 seconds (configurable via `claude-code-emacs-mcp-ping-timeout`), the connection is considered lost
 - **Session persistence**: Each project maintains its own WebSocket connection for isolation
+
+### Event Notification System
+The MCP server supports real-time notifications from Emacs:
+
+#### Architecture
+- **Emacs side**: `claude-code-emacs-mcp-events.el` hooks into Emacs events
+  - `buffer-list-update-hook`: Monitors buffer state changes
+  - `after-change-functions`: Tracks buffer content modifications
+  - `lsp-diagnostics-updated-hook`: Watches LSP diagnostic updates
+- **Bridge layer**: EmacsBridge forwards notifications via WebSocket
+  - `handleNotification()` processes incoming events from Emacs
+  - `setNotificationHandler()` registers callback for event handling
+- **MCP server**: Forwards notifications to Claude Code via stdio
+  - Notifications are sent as JSON-RPC 2.0 notification messages
+  - Method names follow the `emacs/` namespace convention
+
+#### Event Types
+- **Buffer list updates** (`emacs/bufferListUpdated`): Tracks when buffers are opened, closed, or modified
+  - Includes buffer metadata: path, name, active/modified status
+  - Filtered by project to prevent cross-project noise
+- **Content changes** (`emacs/bufferContentModified`): Monitors file modifications with line-level granularity
+  - Multiple changes are batched into a single notification per project
+  - Format: `{ "changes": [{ "file": "...", "startLine": ..., "endLine": ..., "changeLength": ... }, ...] }`
+  - Overlapping changes are automatically merged to reduce redundancy
+- **Diagnostics updates** (`emacs/diagnosticsChanged`): Forwards LSP diagnostics changes as they occur
+  - All file diagnostics for a project are sent in one notification
+  - Format: `{ "files": [{ "file": "...", "diagnostics": [...] }, ...] }`
+  - Severity levels are translated from LSP numeric codes to strings
+
+#### Performance Optimizations
+- **Efficient debouncing**: Prevents excessive notifications during rapid changes
+  - Configurable delays via `claude-code-emacs-mcp-events-*-delay` variables
+  - Timers are cancelled and reset on each new event
+- **Multi-project support**: Each project connection receives only relevant events
+  - Project root is stored with change data to avoid repeated file operations
+  - Hash table lookup ensures O(1) routing performance
+- **Batch optimization**: Changes and diagnostics are grouped per project to reduce network overhead
+  - Changes to the same file region are merged automatically
+  - All diagnostics for a project are sent in a single notification
+
+#### Implementation Details
+- **Change tracking**: Uses alist to store pending changes with project root information
+- **Timer management**: Separate timers for each event type to allow independent debouncing
+- **Error resilience**: All event handlers use `condition-case` to prevent errors from disrupting Emacs
+- **Hook management**: `claude-code-emacs-mcp-events-enable/disable` functions for runtime control
 
 ### Known Issues and Solutions
 - **WebSocket 400 error**: Fixed by ensuring the WebSocket URL includes a leading slash (e.g., `ws://localhost:port/?session=...`)
@@ -298,3 +374,4 @@ The MCP connection includes automatic health monitoring:
 - **Module consolidation**: Session management moved from separate module into core.el
 - **findReferences tool**: Added MCP tool to find all references to a symbol using LSP with proper 1-based column numbering
 - **describeSymbol tool**: Added MCP tool to get symbol documentation using LSP hover with Markdown code block formatting for MarkedString responses
+- **Real-time event notifications**: Added comprehensive event notification system for Emacs state changes
