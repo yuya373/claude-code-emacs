@@ -375,3 +375,8 @@ The MCP server supports real-time notifications from Emacs:
 - **findReferences tool**: Added MCP tool to find all references to a symbol using LSP with proper 1-based column numbering
 - **describeSymbol tool**: Added MCP tool to get symbol documentation using LSP hover with Markdown code block formatting for MarkedString responses
 - **Real-time event notifications**: Added comprehensive event notification system for Emacs state changes
+- **Fix LSP Diagnostic feature**: Added `claude-code-emacs-fix-diagnostic` function to select and fix LSP diagnostics
+  - Shows all project diagnostics sorted by severity
+  - Sends formatted fix request to Claude Code
+  - Accessible via `f` in transient menu or `M-x claude-code-emacs-fix-diagnostic`
+  - Requires `lsp-mode` to be active

@@ -31,6 +31,7 @@
 ;;; Code:
 
 (require 'projectile)
+(require 'lsp-mode nil t)
 
 ;; Forward declarations
 (declare-function claude-code-emacs-send-string "claude-code-emacs-core" (string &optional paste-p))
@@ -279,6 +280,69 @@ Files are located in the .claude/commands directory."
   "Read the contents of a global command file FILENAME."
   (claude-code-emacs-read-command-file
    (expand-file-name filename (claude-code-emacs-global-commands-directory))))
+
+;;; LSP diagnostics fix functions
+
+;;;###autoload
+(defun claude-code-emacs-fix-diagnostic ()
+  "Select a diagnostic from lsp-diagnostics and send a fix prompt to Claude Code."
+  (interactive)
+  (unless (and (featurep 'lsp-mode) lsp-mode)
+    (user-error "LSP mode is not active in current buffer"))
+  (let* ((diagnostics (lsp-diagnostics))
+         (current-file (buffer-file-name))
+         (all-items '()))
+    ;; Collect all diagnostics from all files
+    (maphash (lambda (file diags)
+               (dolist (diag diags)
+                 (let* ((range (gethash "range" diag))
+                        (start (gethash "start" range))
+                        (line (1+ (gethash "line" start)))
+                        (severity (gethash "severity" diag))
+                        (message (gethash "message" diag))
+                        (severity-str (pcase severity
+                                        (1 "ERROR")
+                                        (2 "WARNING")
+                                        (3 "INFO")
+                                        (4 "HINT")
+                                        (_ "UNKNOWN")))
+                        (display (format "[%s] %s:%d - %s"
+                                         severity-str
+                                         (file-relative-name file (projectile-project-root))
+                                         line
+                                         message)))
+                   (push (list display file line message severity-str) all-items))))
+             diagnostics)
+
+    (if (null all-items)
+        (message "No diagnostics found")
+      ;; Sort by severity (errors first) and then by file/line
+      (setq all-items (sort all-items
+                            (lambda (a b)
+                              (let ((sev-a (nth 4 a))
+                                    (sev-b (nth 4 b)))
+                                (if (string= sev-a sev-b)
+                                    (or (string< (nth 1 a) (nth 1 b))
+                                        (and (string= (nth 1 a) (nth 1 b))
+                                             (< (nth 2 a) (nth 2 b))))
+                                  (string< sev-a sev-b))))))
+
+      (let* ((selected (completing-read "Select diagnostic to fix: "
+                                        (mapcar #'car all-items)
+                                        nil t))
+             (item (cl-find selected all-items :key #'car :test #'string=)))
+        (when item
+          (let* ((file (nth 1 item))
+                 (line (nth 2 item))
+                 (message (nth 3 item))
+                 (severity (nth 4 item))
+                 (relative-path (file-relative-name file (projectile-project-root)))
+                 (prompt (format "Fix the following %s in @%s at line %d:\n\n%s\n\nPlease fix this issue."
+                                 (downcase severity)
+                                 relative-path
+                                 line
+                                 message)))
+            (claude-code-emacs-send-string prompt)))))))
 
 
 (provide 'claude-code-emacs-commands)

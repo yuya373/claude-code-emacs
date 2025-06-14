@@ -67,6 +67,7 @@
 (declare-function claude-code-emacs-logout "claude-code-emacs-commands" ())
 (declare-function claude-code-emacs-bug "claude-code-emacs-commands" ())
 (declare-function claude-code-emacs-doctor "claude-code-emacs-commands" ())
+(declare-function claude-code-emacs-fix-diagnostic "claude-code-emacs-commands" ())
 
 ;; Prompt forward declarations
 (declare-function claude-code-emacs-open-prompt-file "claude-code-emacs-prompt" ())
@@ -201,7 +202,8 @@ Each path is inserted on a new line with @ prefix."
     ("i" "Init project" claude-code-emacs-init)
     ("k" "Clear conversation" claude-code-emacs-clear)
     ("h" "Help" claude-code-emacs-help)
-    ("x" "Execute custom command" claude-code-emacs-execute-custom-command)]
+    ("x" "Execute custom command" claude-code-emacs-execute-custom-command)
+    ("f" "Fix LSP diagnostic" claude-code-emacs-fix-diagnostic)]
    ["Memory & Config"
     ("M" "Memory" claude-code-emacs-memory)
     ("C" "Config" claude-code-emacs-config)

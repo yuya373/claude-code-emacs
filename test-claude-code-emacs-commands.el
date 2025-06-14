@@ -246,6 +246,82 @@
            (should (eq 'user (cdr (assoc 'type user-info))))
            (should (equal "user-cmd1.md" (cdr (assoc 'filename user-info))))))))))
 
+(ert-deftest test-claude-code-emacs-fix-diagnostic ()
+  "Test fixing diagnostics using lsp-diagnostics."
+  (with-claude-mock-buffer
+   (let ((claude-code-emacs-send-string-called nil)
+         (claude-code-emacs-send-string-arg nil)
+         (test-diagnostics (make-hash-table :test 'equal)))
+
+     ;; Mock functions
+     (cl-letf (((symbol-function 'claude-code-emacs-send-string)
+                (lambda (str)
+                  (setq claude-code-emacs-send-string-called t
+                        claude-code-emacs-send-string-arg str)))
+               ((symbol-function 'lsp-mode) nil)
+               ((symbol-value 'lsp-mode) t)
+               ((symbol-function 'buffer-file-name) 
+                (lambda () "/home/user/project/src/main.el"))
+               ((symbol-function 'projectile-project-root)
+                (lambda () "/home/user/project"))
+               ((symbol-function 'file-relative-name)
+                (lambda (file root) "src/main.el"))
+               ((symbol-function 'completing-read)
+                (lambda (prompt collection &rest _)
+                  "[ERROR] src/main.el:10 - Undefined variable 'foo'"))
+               ((symbol-function 'lsp-diagnostics)
+                (lambda ()
+                  ;; Create test diagnostics
+                  (puthash "/home/user/project/src/main.el"
+                           (list (let ((diag (make-hash-table :test 'equal)))
+                                   (puthash "severity" 1 diag)
+                                   (puthash "message" "Undefined variable 'foo'" diag)
+                                   (let ((range (make-hash-table :test 'equal))
+                                         (start (make-hash-table :test 'equal)))
+                                     (puthash "line" 9 start) ; 0-based
+                                     (puthash "start" start range)
+                                     (puthash "range" range diag))
+                                   diag))
+                           test-diagnostics)
+                  test-diagnostics)))
+
+       ;; Call the function
+       (claude-code-emacs-fix-diagnostic)
+       
+       ;; Check the result
+       (should claude-code-emacs-send-string-called)
+       (should (string-match-p "Fix the following error in @src/main\\.el at line 10:" 
+                               claude-code-emacs-send-string-arg))
+       (should (string-match-p "Undefined variable 'foo'" 
+                               claude-code-emacs-send-string-arg))
+       (should (string-match-p "Please fix this issue\\." 
+                               claude-code-emacs-send-string-arg))))))
+
+(ert-deftest test-claude-code-emacs-fix-diagnostic-no-lsp ()
+  "Test fix-diagnostic when LSP is not active."
+  (with-claude-mock-buffer
+   (cl-letf (((symbol-function 'lsp-mode) nil)
+             ((symbol-value 'lsp-mode) nil))
+     (should-error (claude-code-emacs-fix-diagnostic) :type 'user-error))))
+
+(ert-deftest test-claude-code-emacs-fix-diagnostic-no-diagnostics ()
+  "Test fix-diagnostic when no diagnostics are found."
+  (with-claude-mock-buffer
+   (let ((message-called nil)
+         (message-arg nil))
+     (cl-letf (((symbol-function 'message)
+                (lambda (fmt &rest args)
+                  (setq message-called t
+                        message-arg (apply #'format fmt args))))
+               ((symbol-function 'lsp-mode) nil)
+               ((symbol-value 'lsp-mode) t)
+               ((symbol-function 'lsp-diagnostics)
+                (lambda () (make-hash-table :test 'equal))))
+       
+       (claude-code-emacs-fix-diagnostic)
+       (should message-called)
+       (should (equal "No diagnostics found" message-arg))))))
+
 (ert-deftest test-claude-code-emacs-execute-custom-command-unified ()
   "Test custom command execution with both project and user commands."
   (with-claude-mock-buffer

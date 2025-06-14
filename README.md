@@ -84,6 +84,7 @@ For detailed documentation about Claude Code slash commands, see the [official C
 - `Q`: Quit Claude Code session
 - `p`: Open Prompt File
 - `s`: Send Buffer/Region
+- `f`: Fix LSP Diagnostic (requires lsp-mode)
 
 #### Quick Send Keys
 - `1` or `y`: Send "1" (useful for "yes" responses)
@@ -147,6 +148,14 @@ When a command contains `$ARGUMENTS` placeholders, you'll be prompted to provide
 ## Other Features
 ### Send Region
 `claude-code-emacs-send-region` - Send the selected region to Claude Code (error if no region selected)
+
+### Fix LSP Diagnostic
+`claude-code-emacs-fix-diagnostic` - Select an LSP diagnostic from your project and automatically send a fix request to Claude Code. This feature:
+- Shows all diagnostics from the current project (errors, warnings, info, hints)
+- Sorts diagnostics by severity (errors first)
+- Formats the selected diagnostic with file path, line number, and message
+- Sends a properly formatted fix request to Claude Code
+- Requires `lsp-mode` to be active
 
 ## Testing
 ### Running Tests

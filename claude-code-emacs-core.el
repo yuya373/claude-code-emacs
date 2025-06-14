@@ -44,12 +44,12 @@
   :group 'tools
   :prefix "claude-code-emacs-")
 
-(defcustom claude-code-emacs-chunk-size 50
+(defcustom claude-code-emacs-chunk-size 25
   "Size of chunks when sending long strings to vterm."
   :type 'integer
   :group 'claude-code-emacs)
 
-(defcustom claude-code-emacs-chunk-delay 0.05
+(defcustom claude-code-emacs-chunk-delay 0.1
   "Delay in seconds between sending chunks to vterm."
   :type 'number
   :group 'claude-code-emacs)
