@@ -234,14 +234,12 @@ Project commands are prefixed with 'project:' and user commands with 'user:'."
                           (message "All arguments are required for this command")
                         ;; Send with appropriate prefix
                         (claude-code-emacs-send-string
-                         (format "/%s:%s %s"
-                                 (symbol-name type)
+                         (format "/%s %s"
                                  (file-name-sans-extension filename)
                                  (mapconcat #'identity args " ")))))
                   ;; No $ARGUMENTS
                   (claude-code-emacs-send-string
-                   (format "/%s:%s"
-                           (symbol-name type)
+                   (format "/%s"
                            (file-name-sans-extension filename)))))
             (message "Failed to read command file: %s" filename)))
       (message "No custom commands found"))))

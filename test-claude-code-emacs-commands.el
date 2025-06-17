@@ -203,7 +203,7 @@
 
          (claude-code-emacs-execute-custom-command)
          (should claude-code-emacs-send-string-called)
-         (should (equal "/project:multi-arg arg1 arg2" claude-code-emacs-send-string-arg)))))))
+         (should (equal "/multi-arg arg1 arg2" claude-code-emacs-send-string-arg)))))))
 
 
 ;;; Tests for unified command execution
@@ -367,7 +367,7 @@
        ;; Test project command
        (claude-code-emacs-execute-custom-command)
        (should claude-code-emacs-send-string-called)
-       (should (equal "/project:test-project" claude-code-emacs-send-string-arg))
+       (should (equal "/test-project" claude-code-emacs-send-string-arg))
 
        ;; Reset and test user command
        (setq claude-code-emacs-send-string-called nil
@@ -375,8 +375,8 @@
 
        (claude-code-emacs-execute-custom-command)
        (should claude-code-emacs-send-string-called)
-       ;; User commands always use /user: prefix even without $ARGUMENTS
-       (should (equal "/user:commit-push" claude-code-emacs-send-string-arg))))))
+       ;; Commands are sent without prefix
+       (should (equal "/commit-push" claude-code-emacs-send-string-arg))))))
 
 (provide 'test-claude-code-emacs-commands)
 ;;; test-claude-code-emacs-commands.el ends here
