@@ -89,29 +89,36 @@ Each value is an alist with keys:
 
 ;;; Connection info management
 
+(defun claude-code-emacs-mcp-initialize-connection-info (project-root)
+  "Initialize and return connection info for PROJECT-ROOT.
+Creates a new connection info structure with default values."
+  (let* ((normalized-root (claude-code-emacs-normalize-project-root project-root))
+         ;; QUESTION: '((websocket . nil)) みたいな書き方だと setcdr したときに全て変更されるのはなんで？
+         (info (list (cons 'websocket nil)
+                     (cons 'request-id 0)
+                     (cons 'pending-requests (make-hash-table :test 'equal))
+                     (cons 'connection-attempts 0)
+                     (cons 'ping-timer nil)
+                     (cons 'ping-timeout-timer nil)
+                     (cons 'last-pong-time nil))))
+    (puthash normalized-root info claude-code-emacs-mcp-project-connections)
+    info))
+
 (defun claude-code-emacs-mcp-get-connection-info (project-root)
-  "Get connection info for PROJECT-ROOT."
-  (or (gethash (claude-code-emacs-normalize-project-root project-root)
-               claude-code-emacs-mcp-project-connections)
-      (let ((info `((websocket . nil)
-                    (request-id . 0)
-                    (pending-requests . ,(make-hash-table :test 'equal))
-                    (connection-attempts . 0)
-                    (ping-timer . nil)
-                    (ping-timeout-timer . nil)
-                    (last-pong-time . nil))))
-        (puthash (claude-code-emacs-normalize-project-root project-root)
-                 info
-                 claude-code-emacs-mcp-project-connections)
-        info)))
+  "Get connection info for PROJECT-ROOT.
+Returns nil if no connection info exists for the project."
+  (gethash (claude-code-emacs-normalize-project-root project-root)
+           claude-code-emacs-mcp-project-connections))
+
 
 (defun claude-code-emacs-mcp-get-websocket (project-root)
   "Get WebSocket for PROJECT-ROOT."
-  (cdr (assoc 'websocket (claude-code-emacs-mcp-get-connection-info project-root))))
+  (when-let ((info (claude-code-emacs-mcp-get-connection-info project-root)))
+    (cdr (assoc 'websocket info))))
 
 (defun claude-code-emacs-mcp-set-websocket (websocket project-root)
   "Set WEBSOCKET for PROJECT-ROOT."
-  (let ((info (claude-code-emacs-mcp-get-connection-info project-root)))
+  (when-let ((info (claude-code-emacs-mcp-get-connection-info project-root)))
     (setcdr (assoc 'websocket info) websocket)))
 
 ;;; Port Registration
@@ -120,6 +127,8 @@ Each value is an alist with keys:
   "Register PORT for PROJECT-ROOT."
   ;; Normalize project root by removing trailing slash
   (let ((normalized-root (claude-code-emacs-normalize-project-root project-root)))
+    ;; Initialize connection info for this project
+    (claude-code-emacs-mcp-initialize-connection-info normalized-root)
     (message "MCP server registered on port %d for project %s" port normalized-root)
     (claude-code-emacs-mcp-try-connect-async normalized-root port)))
 
@@ -154,35 +163,33 @@ Each value is an alist with keys:
 (defun claude-code-emacs-mcp-connect (project-root port &optional callback)
   "Connect to MCP server WebSocket for PROJECT-ROOT.
 If CALLBACK is provided, call it with connection result."
-  ;; Use project root as session ID
-  (let ((session-id project-root))
-    (condition-case err
-        (progn
-          (websocket-open
-           (format "ws://%s:%d/?session=%s"
-                   claude-code-emacs-mcp-host
-                   port
-                   (url-hexify-string session-id))
-           :on-open (lambda (websocket)
-                      (message "MCP WebSocket opened for project %s" project-root)
-                      (let ((info (claude-code-emacs-mcp-get-connection-info project-root)))
-                        (setcdr (assoc 'connection-attempts info) 0))
-                      (claude-code-emacs-mcp-set-websocket websocket project-root)
-                      ;; Start ping timer
-                      (claude-code-emacs-mcp-start-ping-timer project-root)
-                      (when callback (funcall callback t)))
-           :on-message (lambda (websocket frame)
-                         (claude-code-emacs-mcp-on-message websocket frame project-root))
-           :on-error (lambda (websocket type error)
-                       (claude-code-emacs-mcp-on-error websocket type error project-root))
-           :on-close (lambda (websocket)
-                       (claude-code-emacs-mcp-on-close websocket project-root)))
-          (message "Initiating MCP WebSocket connection on port %d for project %s" port project-root)
-          t)
-      (error
-       (message "Failed to open WebSocket: %s" err)
-       (when callback (funcall callback nil))
-       nil))))
+  (condition-case err
+      (progn
+        (websocket-open
+         (format "ws://%s:%d/?session=%s"
+                 claude-code-emacs-mcp-host
+                 port
+                 (url-hexify-string project-root))
+         :on-open (lambda (websocket)
+                    (message "MCP WebSocket opened for project %s" project-root)
+                    (when-let ((info (claude-code-emacs-mcp-get-connection-info project-root)))
+                      (setcdr (assoc 'connection-attempts info) 0))
+                    (claude-code-emacs-mcp-set-websocket websocket project-root)
+                    ;; Start ping timer
+                    (claude-code-emacs-mcp-start-ping-timer project-root)
+                    (when callback (funcall callback t)))
+         :on-message (lambda (websocket frame)
+                       (claude-code-emacs-mcp-on-message websocket frame project-root))
+         :on-error (lambda (websocket type error)
+                     (claude-code-emacs-mcp-on-error websocket type error project-root))
+         :on-close (lambda (websocket)
+                     (claude-code-emacs-mcp-on-close websocket project-root)))
+        (message "Initiating MCP WebSocket connection on port %d for project %s" port project-root)
+        t)
+    (error
+     (message "Failed to open WebSocket: %s" err)
+     (when callback (funcall callback nil))
+     nil)))
 
 (defun claude-code-emacs-mcp-disconnect (project-root)
   "Disconnect from MCP server for PROJECT-ROOT."
@@ -194,8 +201,8 @@ If CALLBACK is provided, call it with connection result."
     (when websocket
       (websocket-close websocket)
       (claude-code-emacs-mcp-set-websocket nil project-root))
-    (let* ((info (claude-code-emacs-mcp-get-connection-info project-root))
-           (pending-requests (cdr (assoc 'pending-requests info))))
+    (when-let* ((info (claude-code-emacs-mcp-get-connection-info project-root))
+                (pending-requests (cdr (assoc 'pending-requests info))))
       (clrhash pending-requests))
     (message "Disconnected from MCP server for project %s" project-root)))
 

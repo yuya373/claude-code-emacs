@@ -84,15 +84,14 @@
 
          ;; Response to our request
          ((assoc 'id msg)
-          (let* ((id (cdr (assoc 'id msg)))
-                 (info (claude-code-emacs-mcp-get-connection-info project-root))
-                 (pending-requests (cdr (assoc 'pending-requests info)))
-                 (callback (gethash id pending-requests)))
-            (when callback
-              (remhash id pending-requests)
-              (if (assoc 'error msg)
-                  (funcall callback nil (cdr (assoc 'error msg)))
-                (funcall callback (cdr (assoc 'result msg)) nil)))))
+          (when-let* ((id (cdr (assoc 'id msg)))
+                      (info (claude-code-emacs-mcp-get-connection-info project-root))
+                      (pending-requests (cdr (assoc 'pending-requests info)))
+                      (callback (gethash id pending-requests)))
+            (remhash id pending-requests)
+            (if (assoc 'error msg)
+                (funcall callback nil (cdr (assoc 'error msg)))
+              (funcall callback (cdr (assoc 'result msg)) nil))))
 
          ;; Invalid message
          (t

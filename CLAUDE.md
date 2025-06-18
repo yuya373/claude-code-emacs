@@ -196,6 +196,17 @@ Tests use mock implementations to avoid vterm dependencies:
 - Document all public functions
 - Add unit tests for new functionality
 
+### Common Lisp Pitfalls
+- **Avoid quoted lists for mutable data**: Never use `'((key . value))` for data that will be modified with `setcdr`, `setcar`, etc. Quoted lists are constants and shared across all uses.
+  ```elisp
+  ;; BAD - all calls share the same list object
+  (defun make-info () '((websocket . nil)))
+  
+  ;; GOOD - creates a new list each time
+  (defun make-info () (list (cons 'websocket nil)))
+  ```
+- **Use `list` and `cons` for creating fresh data structures**: This ensures each call creates independent objects that can be safely modified.
+
 When modifying this package:
 1. Add tests for new functionality
 2. Use the established macro patterns for new commands

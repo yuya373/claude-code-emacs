@@ -47,6 +47,8 @@
   (skip-unless (not (getenv "CI")))  ; Skip in CI due to mock environment issues
   (claude-code-emacs-mcp-test-with-connection
    (let ((project-root (projectile-project-root)))
+     ;; Initialize connection info first
+     (claude-code-emacs-mcp-initialize-connection-info project-root)
      (claude-code-emacs-mcp-connect project-root 8766)
      (let ((ws (claude-code-emacs-mcp-get-websocket project-root)))
        (should ws)
@@ -56,6 +58,8 @@
   "Test disconnecting from MCP server."
   (claude-code-emacs-mcp-test-with-connection
    (let ((project-root (projectile-project-root)))
+     ;; Initialize connection info first
+     (claude-code-emacs-mcp-initialize-connection-info project-root)
      (claude-code-emacs-mcp-connect project-root 8766)
      (claude-code-emacs-mcp-disconnect project-root)
      (should-not (claude-code-emacs-mcp-get-websocket project-root)))))
@@ -70,11 +74,15 @@
                 (lambda (ws text)
                   (when (string-match "ping" text)
                     (setq ping-sent t)))))
-       ;; Connect first
+       ;; Initialize connection info first
+       (claude-code-emacs-mcp-initialize-connection-info project-root)
+       
+       ;; Connect
        (claude-code-emacs-mcp-connect project-root 8766)
 
        ;; Test ping timer was created
        (let ((info (claude-code-emacs-mcp-get-connection-info project-root)))
+         (should info)
          (should (assoc 'ping-timer info)))
 
        ;; Send ping manually
@@ -92,11 +100,15 @@
                   (setq timeout-cancelled t)))
                ((symbol-function 'timerp)
                 (lambda (timer) t)))
-       ;; Connect first
+       ;; Initialize connection info first
+       (claude-code-emacs-mcp-initialize-connection-info project-root)
+       
+       ;; Connect
        (claude-code-emacs-mcp-connect project-root 8766)
 
        ;; Start ping timeout (mock)
        (let ((info (claude-code-emacs-mcp-get-connection-info project-root)))
+         (should info)
          (setcdr (assoc 'ping-timeout-timer info) 'mock-timer))
 
        ;; Handle pong
@@ -112,16 +124,23 @@
 (ert-deftest test-mcp-get-connection-info ()
   "Test getting connection info for project."
   (claude-code-emacs-mcp-test-with-connection
-   (let* ((project-root (projectile-project-root))
-          (info (claude-code-emacs-mcp-get-connection-info project-root)))
-     ;; Check all expected fields exist
-     (should (assoc 'websocket info))
-     (should (assoc 'request-id info))
-     (should (assoc 'pending-requests info))
-     (should (assoc 'connection-attempts info))
-     (should (assoc 'ping-timer info))
-     (should (assoc 'ping-timeout-timer info))
-     (should (assoc 'last-pong-time info)))))
+   (let* ((project-root (projectile-project-root)))
+     ;; Should return nil when no connection info exists
+     (should-not (claude-code-emacs-mcp-get-connection-info project-root))
+     
+     ;; Initialize connection info
+     (claude-code-emacs-mcp-initialize-connection-info project-root)
+     
+     ;; Now it should return the info
+     (let ((info (claude-code-emacs-mcp-get-connection-info project-root)))
+       ;; Check all expected fields exist
+       (should (assoc 'websocket info))
+       (should (assoc 'request-id info))
+       (should (assoc 'pending-requests info))
+       (should (assoc 'connection-attempts info))
+       (should (assoc 'ping-timer info))
+       (should (assoc 'ping-timeout-timer info))
+       (should (assoc 'last-pong-time info))))))
 
 (ert-deftest test-mcp-register-port ()
   "Test port registration for project."
@@ -146,7 +165,10 @@
   (claude-code-emacs-mcp-test-with-connection
    (let ((project-root (projectile-project-root))
          (disconnect-called nil))
-     ;; Connect first
+     ;; Initialize connection info first
+     (claude-code-emacs-mcp-initialize-connection-info project-root)
+     
+     ;; Connect
      (claude-code-emacs-mcp-connect project-root 8766)
 
      ;; Mock disconnect
@@ -158,19 +180,34 @@
        ;; Should have called disconnect
        (should disconnect-called)))))
 
-(ert-deftest test-mcp-set-and-get-websocket ()
-  "Test setting and getting websocket."
-  (claude-code-emacs-mcp-test-with-connection
-   (let* ((project-root (projectile-project-root))
-          (new-ws '(new-mock-websocket)))
-     ;; Get the initial websocket (may be nil or a default)
-     (let ((initial-ws (claude-code-emacs-mcp-get-websocket project-root)))
-       ;; Set a new websocket
-       (claude-code-emacs-mcp-set-websocket new-ws project-root)
-       ;; Should get the new websocket back
-       (should (equal (claude-code-emacs-mcp-get-websocket project-root) new-ws))
-       ;; Should not be the initial websocket
-       (should-not (equal (claude-code-emacs-mcp-get-websocket project-root) initial-ws))))))
+(ert-deftest test-mcp-get-connection-info-pure-getter ()
+  "Test that get-connection-info is a pure getter that returns nil when no info exists."
+  (let ((claude-code-emacs-mcp-project-connections (make-hash-table :test 'equal))
+        (project-root "/tmp/test-pure-getter/"))
+    ;; Should return nil when no connection info exists
+    (should-not (claude-code-emacs-mcp-get-connection-info project-root))
+    
+    ;; Should still return nil on repeated calls
+    (should-not (claude-code-emacs-mcp-get-connection-info project-root))
+    (should-not (claude-code-emacs-mcp-get-connection-info project-root))))
+
+(ert-deftest test-mcp-websocket-setter ()
+  "Test websocket setter operations without getter."
+  (let ((claude-code-emacs-mcp-project-connections (make-hash-table :test 'equal))
+        (project-root "/tmp/test-ws-setter/"))
+    ;; Initialize first
+    (claude-code-emacs-mcp-initialize-connection-info project-root)
+    
+    ;; Set a websocket and verify via connection info
+    (let ((ws '(test-websocket)))
+      (claude-code-emacs-mcp-set-websocket ws project-root)
+      (let ((info (claude-code-emacs-mcp-get-connection-info project-root)))
+        (should (equal ws (cdr (assoc 'websocket info))))))
+    
+    ;; Set to nil and verify
+    (claude-code-emacs-mcp-set-websocket nil project-root)
+    (let ((info (claude-code-emacs-mcp-get-connection-info project-root)))
+      (should (null (cdr (assoc 'websocket info)))))))
 
 (ert-deftest test-mcp-ping-timer-management ()
   "Test ping timer start and stop."
@@ -188,6 +225,9 @@
                     (setq timer-cancelled t))))
                ((symbol-function 'timerp)
                 (lambda (timer) (eq timer 'mock-timer))))
+       ;; Initialize connection info first
+       (claude-code-emacs-mcp-initialize-connection-info project-root)
+       
        ;; Start timer
        (claude-code-emacs-mcp-start-ping-timer project-root)
        (should timer-created)
@@ -202,6 +242,9 @@
          (test-port 8888)
          (connect-called nil)
          (retry-scheduled nil))
+     ;; Initialize connection info first
+     (claude-code-emacs-mcp-initialize-connection-info project-root)
+     
      ;; Test successful connection
      (cl-letf (((symbol-function 'claude-code-emacs-mcp-connect)
                 (lambda (root port callback)
@@ -248,6 +291,9 @@
                     (setq timeout-timer-cancelled t))))
                ((symbol-function 'timerp)
                 (lambda (timer) (eq timer 'mock-timeout-timer))))
+       ;; Initialize connection info first
+       (claude-code-emacs-mcp-initialize-connection-info project-root)
+       
        ;; Start timeout timer
        (claude-code-emacs-mcp-start-ping-timeout project-root)
        (should timeout-timer-created)
