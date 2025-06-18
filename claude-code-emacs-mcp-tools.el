@@ -396,19 +396,16 @@ PARAMS must include 'file', 'line', and 'symbol' parameters."
 
         ;; Response can be Location, Location[], LocationLink, or LocationLink[]
         (when response
-          (let ((locations (if (listp response)
-                               (if (and (listp (car response))
-                                        (or (plist-get (car response) :uri)
-                                            (plist-get (car response) :targetUri)))
-                                   response  ; Already a list of locations
-                                 (list response))  ; Single location as list
-                             (list response))))  ; Make single item a list
-
+          (let ((locations (pcase response
+                             ((seq (or (lsp-interface Location)
+                                       (lsp-interface LocationLink)))
+                              (append response nil))
+                             ((or (lsp-interface Location)
+                                  (lsp-interface LocationLink))
+                              (list response)))))  ; Make single item a list
             (dolist (loc locations)
-              (let* ((uri (or (plist-get loc :uri)
-                              (plist-get loc :targetUri)))
-                     (range (or (plist-get loc :range)
-                                (plist-get loc :targetRange)))
+              (let* ((uri (lsp--location-uri loc))
+                     (range (lsp--location-range loc))
                      (file (when uri (lsp--uri-to-path uri))))
 
                 (when (and file range)
@@ -442,8 +439,8 @@ PARAMS must include 'file', 'line', and 'symbol' parameters."
 (defun claude-code-emacs-mcp-get-preview-text-internal (range)
   "Internal function to get preview text for RANGE.
 Assumes we're in the correct buffer."
-  (let* ((start-line (plist-get (plist-get range :start) :line))
-         (end-line (plist-get (plist-get range :end) :line))
+  (let* ((start-line (lsp:position-line (lsp:range-start range)))
+         (end-line (lsp:position-line (lsp:range-end range)))
          ;; Calculate preview range with 3 lines padding
          (preview-start-line (max 0 (- start-line 3)))
          (preview-end-line (+ end-line 3))
@@ -533,8 +530,8 @@ Optional: 'includeDeclaration' (boolean)."
 (defun claude-code-emacs-mcp-convert-lsp-references (lsp-references project-root)
   "Convert LSP-REFERENCES to MCP format relative to PROJECT-ROOT."
   (mapcar (lambda (location)
-            (let* ((uri (plist-get location :uri))
-                   (range (plist-get location :range))
+            (let* ((uri (lsp:location-uri location))
+                   (range (lsp:location-range location))
                    (file-path (lsp--uri-to-path uri))
                    (relative-path (file-relative-name file-path project-root)))
               ;; Get preview text for this reference
@@ -609,7 +606,7 @@ PARAMS must include 'file', 'line', and 'symbol' parameters."
              (response (lsp-request "textDocument/hover" params)))
 
         (when response
-          (let* ((contents (or (plist-get response :contents) nil))
+          (let* ((contents (or (lsp:hover-contents response) nil))
                  (documentation nil))
 
             ;; Process contents - can be string, MarkupContent, or MarkedString[]
@@ -619,18 +616,18 @@ PARAMS must include 'file', 'line', and 'symbol' parameters."
               (setq documentation contents))
 
              ;; MarkupContent with kind and value
-             ((and (listp contents) (plist-get contents :kind))
-              (setq documentation (plist-get contents :value)))
+             ((lsp-markup-content? contents)
+              (setq documentation (lsp:markup-content-value contents)))
 
              ;; Array of MarkedString
-             ((and (listp contents) (not (plist-get contents :kind)))
+             (t
               (let ((doc-parts '()))
                 (dolist (item contents)
                   (cond
                    ;; MarkedString with language and value
-                   ((and (listp item) (plist-get item :language))
-                    (let ((lang (plist-get item :language))
-                          (value (plist-get item :value)))
+                   ((lsp-marked-string? item)
+                    (let ((lang (lsp:marked-string-language item))
+                          (value (lsp:marked-string-value item)))
                       ;; Format as markdown code block
                       (push (format "```%s\n%s\n```" lang value) doc-parts)))
                    ;; Simple string

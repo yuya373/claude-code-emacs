@@ -271,17 +271,15 @@
                   "[ERROR] src/main.el:10 - Undefined variable 'foo'"))
                ((symbol-function 'lsp-diagnostics)
                 (lambda ()
-                  ;; Create test diagnostics
+                  ;; Create test diagnostics using lsp-interface structures
+                  (require 'lsp-protocol)
                   (puthash "/home/user/project/src/main.el"
-                           (list (let ((diag (make-hash-table :test 'equal)))
-                                   (puthash "severity" 1 diag)
-                                   (puthash "message" "Undefined variable 'foo'" diag)
-                                   (let ((range (make-hash-table :test 'equal))
-                                         (start (make-hash-table :test 'equal)))
-                                     (puthash "line" 9 start) ; 0-based
-                                     (puthash "start" start range)
-                                     (puthash "range" range diag))
-                                   diag))
+                           (list (lsp-make-diagnostic
+                                  :severity? 1
+                                  :message "Undefined variable 'foo'"
+                                  :range (lsp-make-range
+                                          :start (lsp-make-position :line 9 :character 0)
+                                          :end (lsp-make-position :line 9 :character 10))))
                            test-diagnostics)
                   test-diagnostics)))
 

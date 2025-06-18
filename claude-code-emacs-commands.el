@@ -293,11 +293,11 @@ Files are located in the .claude/commands directory."
     ;; Collect all diagnostics from all files
     (maphash (lambda (file diags)
                (dolist (diag diags)
-                 (let* ((range (gethash "range" diag))
-                        (start (gethash "start" range))
-                        (line (1+ (gethash "line" start)))
-                        (severity (gethash "severity" diag))
-                        (message (gethash "message" diag))
+                 (let* ((range (lsp:diagnostic-range diag))
+                        (start (lsp:range-start range))
+                        (line (1+ (lsp:position-line start)))
+                        (severity (lsp:diagnostic-severity? diag))
+                        (message (lsp:diagnostic-message diag))
                         (severity-str (pcase severity
                                         (1 "ERROR")
                                         (2 "WARNING")
