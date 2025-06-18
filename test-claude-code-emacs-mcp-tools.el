@@ -341,11 +341,18 @@
                                    :end (lsp-make-position :line 0 :character 23))))))
                      ((symbol-function 'lsp--uri-to-path)
                       (lambda (uri) test-file))
-                     ((symbol-function 'claude-code-emacs-mcp-get-definition-info-at)
-                      (lambda (file range)
-                        `((file . ,file)
-                          (preview . "(defun test-func () nil)")
-                          (range . ,range)))))
+                     ;; Mock lsp--location-uri and lsp--location-range
+                     ((symbol-function 'lsp--location-uri)
+                      (lambda (loc) (plist-get loc :uri)))
+                     ((symbol-function 'lsp--location-range)
+                      (lambda (loc) (plist-get loc :range)))
+                     ;; Mock LSP functions for preview
+                     ((symbol-function 'lsp:position-line)
+                      (lambda (pos) (plist-get pos :line)))
+                     ((symbol-function 'lsp:range-start)
+                      (lambda (range) (plist-get range :start)))
+                     ((symbol-function 'lsp:range-end)
+                      (lambda (range) (plist-get range :end))))
             (let ((result (claude-code-emacs-mcp-handle-getDefinition
                            `((symbol . "test-func")
                              (file . ,(file-name-nondirectory test-file))
@@ -464,12 +471,19 @@
             (insert "(defun test-function (arg)\n")
             (insert "  \"Documentation string.\"\n")
             (insert "  (message \"Hello %s\" arg))\n"))
-          (let* ((range '(:start (:line 0 :character 7) :end (:line 0 :character 20)))
-                 (result (claude-code-emacs-mcp-get-definition-info-at test-file range)))
-            (should result)
-            (should (equal (cdr (assoc 'file result)) test-file))
-            (should (string-match "defun test-function" (cdr (assoc 'preview result))))
-            (should (equal (cdr (assoc 'range result)) range))))
+          ;; Mock LSP functions needed for preview
+          (cl-letf (((symbol-function 'lsp:position-line)
+                     (lambda (pos) (plist-get pos :line)))
+                    ((symbol-function 'lsp:range-start)
+                     (lambda (range) (plist-get range :start)))
+                    ((symbol-function 'lsp:range-end)
+                     (lambda (range) (plist-get range :end))))
+            (let* ((range '(:start (:line 0 :character 7) :end (:line 0 :character 20)))
+                   (result (claude-code-emacs-mcp-get-definition-info-at test-file range)))
+              (should result)
+              (should (equal (cdr (assoc 'file result)) test-file))
+              (should (string-match "defun test-function" (cdr (assoc 'preview result))))
+              (should (equal (cdr (assoc 'range result)) range)))))
       (delete-file test-file))))
 
 (ert-deftest test-mcp-get-definition-preview ()
@@ -495,20 +509,27 @@
             (insert ";; Another after\n")
             (insert ";; Third after\n"))
 
-          ;; Create a range for the function definition (line 3 to line 11, 0-based)
-          (let* ((range '(:start (:line 3 :character 7)
-                          :end (:line 11 :character 24)))
-                 (preview (claude-code-emacs-mcp-get-preview-text test-file range)))
-            (should preview)
-            ;; Should include the function definition
-            (should (string-match "defun my-long-function" preview))
-            ;; Should include some context before (comments)
-            (should (string-match ";; Some comment before" preview))
-            ;; Should include some context after
-            (should (string-match ";; Comment after" preview))
-            ;; The preview includes all lines since we have a small test case
-            ;; In real usage, the preview would be truncated for very large functions
-            (should t)))
+          ;; Mock LSP functions needed for preview
+          (cl-letf (((symbol-function 'lsp:position-line)
+                     (lambda (pos) (plist-get pos :line)))
+                    ((symbol-function 'lsp:range-start)
+                     (lambda (range) (plist-get range :start)))
+                    ((symbol-function 'lsp:range-end)
+                     (lambda (range) (plist-get range :end))))
+            ;; Create a range for the function definition (line 3 to line 11, 0-based)
+            (let* ((range '(:start (:line 3 :character 7)
+                            :end (:line 11 :character 24)))
+                   (preview (claude-code-emacs-mcp-get-preview-text test-file range)))
+              (should preview)
+              ;; Should include the function definition
+              (should (string-match "defun my-long-function" preview))
+              ;; Should include some context before (comments)
+              (should (string-match ";; Some comment before" preview))
+              ;; Should include some context after
+              (should (string-match ";; Comment after" preview))
+              ;; The preview includes all lines since we have a small test case
+              ;; In real usage, the preview would be truncated for very large functions
+              (should t))))
       (delete-file test-file))))
 
 ;;; Tests for reference finding
@@ -579,7 +600,19 @@
                                   :range (:start (:line 5 :character 3)
                                           :end (:line 5 :character 12)))))))
                      ((symbol-function 'lsp--uri-to-path)
-                      (lambda (uri) (substring uri 7))))  ;; Remove "file://"
+                      (lambda (uri) (substring uri 7)))  ;; Remove "file://"
+                     ;; Mock LSP location accessors
+                     ((symbol-function 'lsp:location-uri)
+                      (lambda (loc) (plist-get loc :uri)))
+                     ((symbol-function 'lsp:location-range)
+                      (lambda (loc) (plist-get loc :range)))
+                     ;; Mock LSP position/range accessors for preview
+                     ((symbol-function 'lsp:position-line)
+                      (lambda (pos) (plist-get pos :line)))
+                     ((symbol-function 'lsp:range-start)
+                      (lambda (range) (plist-get range :start)))
+                     ((symbol-function 'lsp:range-end)
+                      (lambda (range) (plist-get range :end))))
             
             (let ((result (claude-code-emacs-mcp-handle-findReferences
                            `((file . ,(file-name-nondirectory test-file))
@@ -643,19 +676,35 @@
             (insert "  \"Documentation\"\n")   ;; Line 2
             (insert "  (message \"test\"))\n"))  ;; Line 3
 
-          (require 'lsp-protocol)
-          (let* ((range (lsp-make-range
-                         :start (lsp-make-position :line 1 :character 7)
-                         :end (lsp-make-position :line 1 :character 16)))
-                 (preview (claude-code-emacs-mcp-get-preview-text test-file range)))
-            (should preview)
-            ;; Should include line 0 (3 lines before)
-            (should (string-match ";; Line 0" preview))
-            ;; Should include the actual reference line
-            (should (string-match "defun test-func" preview))
-            ;; Should include lines after
-            (should (string-match "Documentation" preview))
-            (should (string-match "message" preview))))
+          ;; Mock LSP functions instead of requiring lsp-protocol
+          (cl-letf (((symbol-function 'lsp-make-range)
+                     (lambda (&rest args)
+                       (let ((start (plist-get args :start))
+                             (end (plist-get args :end)))
+                         `(:start ,start :end ,end))))
+                    ((symbol-function 'lsp-make-position)
+                     (lambda (&rest args)
+                       (let ((line (plist-get args :line))
+                             (character (plist-get args :character)))
+                         `(:line ,line :character ,character))))
+                    ((symbol-function 'lsp:position-line)
+                     (lambda (pos) (plist-get pos :line)))
+                    ((symbol-function 'lsp:range-start)
+                     (lambda (range) (plist-get range :start)))
+                    ((symbol-function 'lsp:range-end)
+                     (lambda (range) (plist-get range :end))))
+            (let* ((range (lsp-make-range
+                           :start (lsp-make-position :line 1 :character 7)
+                           :end (lsp-make-position :line 1 :character 16)))
+                   (preview (claude-code-emacs-mcp-get-preview-text test-file range)))
+              (should preview)
+              ;; Should include line 0 (3 lines before)
+              (should (string-match ";; Line 0" preview))
+              ;; Should include the actual reference line
+              (should (string-match "defun test-func" preview))
+              ;; Should include lines after
+              (should (string-match "Documentation" preview))
+              (should (string-match "message" preview)))))
       (delete-file test-file))))
 
 ;;; Tests for symbol description
