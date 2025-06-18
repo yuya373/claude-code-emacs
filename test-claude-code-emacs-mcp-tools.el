@@ -352,7 +352,15 @@
                      ((symbol-function 'lsp:range-start)
                       (lambda (range) (plist-get range :start)))
                      ((symbol-function 'lsp:range-end)
-                      (lambda (range) (plist-get range :end))))
+                      (lambda (range) (plist-get range :end)))
+                     ;; Mock the function that actually calls lsp-request
+                     ((symbol-function 'claude-code-emacs-mcp-get-lsp-definitions-with-request)
+                      (lambda ()
+                        ;; Return a list with one definition
+                        (list `((file . ,test-file)
+                                (preview . "(defun test-func () nil)")
+                                (range . (:start (:line 0 :character 0)
+                                          :end (:line 0 :character 23))))))))
             (let ((result (claude-code-emacs-mcp-handle-getDefinition
                            `((symbol . "test-func")
                              (file . ,(file-name-nondirectory test-file))
