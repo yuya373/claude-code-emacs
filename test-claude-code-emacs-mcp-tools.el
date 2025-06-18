@@ -620,8 +620,10 @@
             (insert "  \"Documentation\"\n")   ;; Line 2
             (insert "  (message \"test\"))\n"))  ;; Line 3
           
-          (let* ((range '(:start (:line 1 :character 7)
-                          :end (:line 1 :character 16)))
+          (require 'lsp-protocol)
+          (let* ((range (lsp-make-range
+                         :start (lsp-make-position :line 1 :character 7)
+                         :end (lsp-make-position :line 1 :character 16)))
                  (preview (claude-code-emacs-mcp-get-preview-text test-file range)))
             (should preview)
             ;; Should include line 0 (3 lines before)
