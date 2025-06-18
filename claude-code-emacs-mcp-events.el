@@ -33,6 +33,8 @@
 (require 'claude-code-emacs-core)
 (require 'claude-code-emacs-mcp-connection)
 (require 'projectile)
+(require 'lsp-mode nil t)
+(require 'lsp-protocol nil t)
 
 (defvar claude-code-emacs-mcp-events-buffer-change-timer nil
   "Timer for debouncing buffer change notifications.")
@@ -202,15 +204,14 @@ OLD-LEN is the length of the text before the change."
 (defun claude-code-emacs-mcp-events-send-diagnostics-update ()
   "Send diagnostics update notification to all relevant MCP servers."
   (condition-case err
-      (when (and (fboundp 'lsp-diagnostics)
-                 (fboundp 'lsp:diagnostic-message))
+      (when (fboundp 'lsp-diagnostics)
         ;; Group diagnostics by project
         (let ((diagnostics-by-project (make-hash-table :test 'equal))
               (lsp-diags (ignore-errors (lsp-diagnostics))))
           (when lsp-diags
             ;; First, group all diagnostics by their project root
             (maphash
-             (lambda (file diags-by-line)
+             (lambda (file diags)
                (let ((project-root (ignore-errors
                                      (with-current-buffer (or (find-buffer-visiting file)
                                                               (find-file-noselect file))
@@ -218,27 +219,21 @@ OLD-LEN is the length of the text before the change."
                                         (projectile-project-root))))))
                  (when project-root
                    (let ((file-diagnostics '()))
-                     (maphash
-                      (lambda (line diags)
-                        (dolist (diag diags)
-                          (push `((line . ,line)
-                                  (column . ,(if (and (fboundp 'lsp:position-character)
-                                                      (fboundp 'lsp:range-start)
-                                                      (fboundp 'lsp:diagnostic-range))
-                                                 (or (lsp:position-character
-                                                      (lsp:range-start
-                                                       (lsp:diagnostic-range diag)))
-                                                     0)
-                                               0))
-                                  (severity . ,(if (fboundp 'lsp:diagnostic-severity)
-                                                   (pcase (lsp:diagnostic-severity diag)
-                                                     (1 "error")
-                                                     (2 "warning")
-                                                     (_ "info"))
-                                                 "info"))
-                                  (message . ,(lsp:diagnostic-message diag)))
-                                file-diagnostics)))
-                      diags-by-line)
+                     (dolist (diag diags)
+                       (let* ((range (lsp:diagnostic-range diag))
+                              (start (lsp:range-start range))
+                              (line (1+ (lsp:position-line start))))
+                         (push `((line . ,line)
+                                 (column . ,(lsp:position-character start))
+                                 (severity . ,(pcase (lsp:diagnostic-severity? diag)
+                                                (1 "error")
+                                                (2 "warning")
+                                                (3 "information")
+                                                (4 "hint")
+                                                (5 "max")
+                                                (_ "")))
+                                 (message . ,(lsp:diagnostic-message diag)))
+                               file-diagnostics)))
                      (when file-diagnostics
                        ;; Store diagnostics by project and file
                        (let ((project-files (or (gethash project-root diagnostics-by-project)

@@ -93,54 +93,50 @@ Returns project-wide diagnostics using specified buffer for LSP context."
   (condition-case err
       (let ((diagnostics '())
             (buffer-name (cdr (assoc 'buffer params))))
-        
+
         ;; Buffer parameter is required for LSP context
         (unless buffer-name
           (error "Buffer name is required for LSP context"))
 
-        (when (and (fboundp 'lsp-diagnostics)
-                   (fboundp 'lsp:diagnostic-message))
-          (let ((lsp-diags (when-let ((buffer (get-buffer buffer-name)))
-                             (with-current-buffer buffer
-                               (condition-case diag-err
-                                   (lsp-diagnostics)
-                                 (error
-                                  (message "Error getting LSP diagnostics in buffer %s: %s"
-                                           buffer-name
-                                           (error-message-string diag-err))
-                                  nil))))))
-            (unless (get-buffer buffer-name)
-              (error "Buffer %s not found for LSP context" buffer-name))
-            (when lsp-diags
-              (maphash
-               (lambda (file diags-by-line)
-                 (maphash
-                  (lambda (line diags)
-                    (dolist (diag diags)
-                      (push `((file . ,file)
-                              (line . ,line)
-                              (column . ,(if (and (fboundp 'lsp:position-character)
-                                                  (fboundp 'lsp:range-start)
-                                                  (fboundp 'lsp:diagnostic-range))
-                                             (or (lsp:position-character
-                                                  (lsp:range-start
-                                                   (lsp:diagnostic-range diag)))
-                                                 0)
-                                           0))
-                              (severity . ,(if (fboundp 'lsp:diagnostic-severity)
-                                               (pcase (lsp:diagnostic-severity diag)
-                                                 (1 "error")
-                                                 (2 "warning")
-                                                 (_ "info"))
-                                             "info"))
-                              (message . ,(lsp:diagnostic-message diag))
-                              (source . ,(if (fboundp 'lsp:diagnostic-source)
-                                             (or (lsp:diagnostic-source diag) "lsp")
-                                           "lsp")))
-                            diagnostics)))
-                  diags-by-line))
-               lsp-diags))))
+        ;; Check buffer exists first
+        (unless (get-buffer buffer-name)
+          (error "Buffer %s not found for LSP context" buffer-name))
 
+        (when (fboundp 'lsp-diagnostics)
+          (let ((lsp-diags (with-current-buffer (get-buffer buffer-name)
+                             (condition-case diag-err
+                                 (lsp-diagnostics t)
+                               (error
+                                (message "Error getting LSP diagnostics in buffer %s: %s"
+                                         buffer-name
+                                         (error-message-string diag-err))
+                                nil)))))
+            (when lsp-diags
+              (maphash (lambda (file diags)
+                         (dolist (diag diags)
+                           (let* ((message (lsp:diagnostic-message diag))
+                                  (severity (lsp:diagnostic-severity? diag))
+                                  (source (lsp:diagnostic-source? diag))
+                                  (range (lsp:diagnostic-range diag))
+                                  (start (lsp:range-start range))
+                                  (line (1+ (lsp:position-line start)))
+                                  (column (lsp:position-character start)))
+                             (when (and file line)
+                               (push `((file . ,file)
+                                       (line . ,line)
+                                       (column . ,(or column 0))
+                                       (severity . ,(pcase severity
+                                                      (1 "error")
+                                                      (2 "warning")
+                                                      (3 "information")
+                                                      (4 "hint")
+                                                      (5 "max")
+                                                      (_ "")))
+                                       (message . ,message)
+                                       (source . ,(or source "lsp")))
+                                     diagnostics))
+                             )))
+                       lsp-diags))))
         `((diagnostics . ,(nreverse diagnostics))))
     (error
      ;; Log error and re-throw it
@@ -505,7 +501,7 @@ Optional: 'includeDeclaration' (boolean)."
             (with-current-buffer buffer
               ;; Move to the specified position
               (goto-char (point-min))
-              (forward-line (1- line))  ;; line is 1-based
+              (forward-line (1- line))
 
               ;; Search for the symbol on this line
               (let ((line-end (line-end-position)))
@@ -521,7 +517,7 @@ Optional: 'includeDeclaration' (boolean)."
               ;; Find references using LSP
               (let* ((context `(:includeDeclaration ,(if include-declaration t :json-false)))
                      (params (append (lsp--text-document-position-params)
-                                    `(:context ,context)))
+                                     `(:context ,context)))
                      (lsp-response (lsp-request "textDocument/references" params)))
 
                 (when lsp-response
