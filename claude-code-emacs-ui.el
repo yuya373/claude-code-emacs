@@ -48,6 +48,7 @@
 (declare-function claude-code-emacs-send-2 "claude-code-emacs-commands" ())
 (declare-function claude-code-emacs-send-3 "claude-code-emacs-commands" ())
 (declare-function claude-code-emacs-send-commit "claude-code-emacs-commands" ())
+(declare-function claude-code-emacs-send-push "claude-code-emacs-commands" ())
 (declare-function claude-code-emacs-send-escape "claude-code-emacs-commands" ())
 (declare-function claude-code-emacs-send-return "claude-code-emacs-commands" ())
 (declare-function claude-code-emacs-send-ctrl-r "claude-code-emacs-commands" ())
@@ -73,6 +74,8 @@
 (declare-function claude-code-emacs-open-prompt-file "claude-code-emacs-prompt" ())
 (declare-function claude-code-emacs-send-prompt-at-point "claude-code-emacs-prompt" ())
 (declare-function claude-code-emacs-send-prompt-region "claude-code-emacs-prompt" ())
+(declare-function claude-code-emacs-insert-region-path-to-prompt "claude-code-emacs-prompt" ())
+(declare-function claude-code-emacs-insert-current-file-path-to-prompt "claude-code-emacs-prompt" ())
 
 ;;; Major modes
 
@@ -133,6 +136,7 @@ Returns nil if buffer has no file or is outside project."
       (let ((relative-path (file-relative-name file-path project-root)))
         (concat "@" relative-path)))))
 
+;;;###autoload
 (defun claude-code-emacs-insert-file-path ()
   "Insert a file path from current project buffers at point.
 Presents a list of project files with @ prefix for selection."
@@ -143,6 +147,7 @@ Presents a list of project files with @ prefix for selection."
     (when selected
       (insert selected))))
 
+;;;###autoload
 (defun claude-code-emacs-insert-open-buffer-paths ()
   "Insert all open buffer file paths at point.
 Each path is inserted on a new line with @ prefix."
@@ -186,9 +191,10 @@ Each path is inserted on a new line with @ prefix."
     ("b" "Switch to Claude Code buffer" claude-code-emacs-switch-to-buffer)
     ("q" "Close Claude Code window" claude-code-emacs-close)
     ("Q" "Quit Claude Code session" claude-code-emacs-quit)
-    ("p" "Open Prompt File" claude-code-emacs-open-prompt-file)
-    ("s" "Send Text" claude-code-emacs-send-string)
-    ("r" "Send Region" claude-code-emacs-send-region)]
+    ("p" "Open Prompt File" claude-code-emacs-open-prompt-file)]
+   ["Actions"
+    ("s" "Send menu" claude-code-emacs-send-transient)
+    ("i" "Insert menu" claude-code-emacs-insert-transient)]
    ["Quick Send"
     ("1" "Send 1" claude-code-emacs-send-1)
     ("y" "Send 1 (yes)" claude-code-emacs-send-1)
@@ -199,27 +205,33 @@ Each path is inserted on a new line with @ prefix."
     ("R" "Send Ctrl+R (toggle expand)" claude-code-emacs-send-ctrl-r)
     ("a" "Toggle auto accept (Shift+Tab)" claude-code-emacs-send-shift-tab)]
    ["Commands"
-    ("i" "Init project" claude-code-emacs-init)
-    ("k" "Clear conversation" claude-code-emacs-clear)
-    ("h" "Help" claude-code-emacs-help)
+    ("/" "Slash commands" claude-code-emacs-slash-commands-transient)
     ("x" "Execute custom command" claude-code-emacs-execute-custom-command)
     ("f" "Fix LSP diagnostic" claude-code-emacs-fix-diagnostic)]
-   ["Memory & Config"
-    ("M" "Memory" claude-code-emacs-memory)
-    ("C" "Config" claude-code-emacs-config)
-    ("o" "Compact" claude-code-emacs-compact)]
    ["Git & GitHub"
     ("g" "Git & GitHub" claude-code-emacs-git-menu-transient)]
-   ["Info & Review"
-    ("$" "Cost" claude-code-emacs-cost)
-    ("S" "Status" claude-code-emacs-status)]
-   ["Account"
-    ("l" "Login" claude-code-emacs-login)
-    ("L" "Logout" claude-code-emacs-logout)]
-   ["Other"
-    ("B" "Report bug" claude-code-emacs-bug)
-    ("D" "Doctor" claude-code-emacs-doctor)]
    ])
+
+(transient-define-prefix claude-code-emacs-slash-commands-transient ()
+  "Claude Code Emacs slash commands menu."
+  ["Claude Code Slash Commands"
+   ["Project & Session"
+    ("i" "Init project (/init)" claude-code-emacs-init)
+    ("k" "Clear conversation (/clear)" claude-code-emacs-clear)
+    ("h" "Help (/help)" claude-code-emacs-help)]
+   ["Memory & Config"
+    ("m" "Memory (/memory)" claude-code-emacs-memory)
+    ("c" "Config (/config)" claude-code-emacs-config)
+    ("o" "Compact (/compact)" claude-code-emacs-compact)]
+   ["Info & Status"
+    ("$" "Cost (/cost)" claude-code-emacs-cost)
+    ("s" "Status (/status)" claude-code-emacs-status)]
+   ["Account"
+    ("l" "Login (/login)" claude-code-emacs-login)
+    ("L" "Logout (/logout)" claude-code-emacs-logout)]
+   ["Other"
+    ("b" "Report bug (/bug)" claude-code-emacs-bug)
+    ("d" "Doctor (/doctor)" claude-code-emacs-doctor)]])
 
 (transient-define-prefix claude-code-emacs-git-menu-transient ()
   "Claude Code Emacs git menu."
@@ -230,6 +242,18 @@ Each path is inserted on a new line with @ prefix."
    ["GitHub"
     ("r" "Review" claude-code-emacs-review)
     ("c" "PR comments" claude-code-emacs-pr-comments)]])
+
+(transient-define-prefix claude-code-emacs-send-transient ()
+  "Claude Code Emacs send menu."
+  ["Claude Code Send"
+   [("s" "Send text" claude-code-emacs-send-string)]
+   [("r" "Send region" claude-code-emacs-send-region)]])
+
+(transient-define-prefix claude-code-emacs-insert-transient ()
+  "Claude Code Emacs insert menu."
+  ["Claude Code Insert to prompt"
+   [("r" "Insert region and path" claude-code-emacs-insert-region-path-to-prompt)]
+   [("i" "Insert current file path" claude-code-emacs-insert-current-file-path-to-prompt)]])
 
 (transient-define-prefix claude-code-emacs-prompt-transient ()
   "Claude Code prompt buffer menu."

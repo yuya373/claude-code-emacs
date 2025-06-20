@@ -85,5 +85,54 @@ Returns text from current heading to next heading or end of buffer."
                     (point-max)))))
       (buffer-substring-no-properties start end))))
 
+;;;###autoload
+(defun claude-code-emacs-insert-region-path-to-prompt ()
+  "Insert the project-relative path and content of the selected region into prompt buffer."
+  (interactive)
+  (if (use-region-p)
+      (let* ((source-buffer (current-buffer))
+             (source-file (buffer-file-name source-buffer))
+             (project-root (when source-file
+                             (claude-code-emacs-normalize-project-root
+                              (projectile-project-root (file-name-directory source-file)))))
+             (relative-path (when (and source-file project-root)
+                              (file-relative-name source-file project-root)))
+             (region-start (region-beginning))
+             (region-end (region-end))
+             (start-line (line-number-at-pos region-start))
+             (end-line (line-number-at-pos region-end))
+             (region-content (buffer-substring-no-properties region-start region-end)))
+        (if relative-path
+            (let ((path-with-lines (format "%s:%d-%d" relative-path start-line end-line)))
+              ;; Find or create the prompt buffer
+              (claude-code-emacs-open-prompt-file)
+              (goto-char (point-max))
+              (insert "\n" path-with-lines "\n```\n"
+                      region-content
+                      (if (string-suffix-p "\n" region-content) "" "\n")
+                      "```\n")
+              (message "Inserted: %s with content" path-with-lines))
+          (message "Cannot determine project-relative path for current buffer")))
+    (message "No region selected")))
+
+;;;###autoload
+(defun claude-code-emacs-insert-current-file-path-to-prompt ()
+  "Insert the current file's @-prefixed path into prompt buffer."
+  (interactive)
+  (let* ((current-file (buffer-file-name))
+         (project-root (when current-file
+                        (claude-code-emacs-normalize-project-root
+                         (projectile-project-root (file-name-directory current-file)))))
+         (relative-path (when (and current-file project-root)
+                         (file-relative-name current-file project-root))))
+    (if relative-path
+        (let ((at-path (concat "@" relative-path)))
+          ;; Find or create the prompt buffer
+          (claude-code-emacs-open-prompt-file)
+          (goto-char (point-max))
+          (insert "\n" at-path "\n")
+          (message "Inserted: %s" at-path))
+      (message "Cannot determine project-relative path for current buffer"))))
+
 (provide 'claude-code-emacs-prompt)
 ;;; claude-code-emacs-prompt.el ends here

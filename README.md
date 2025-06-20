@@ -83,8 +83,12 @@ For detailed documentation about Claude Code slash commands, see the [official C
 - `q`: Close Claude Code window
 - `Q`: Quit Claude Code session
 - `p`: Open Prompt File
-- `s`: Send Buffer/Region
 - `f`: Fix LSP Diagnostic (requires lsp-mode)
+
+#### Actions
+- `s`: Send menu - Access send-related functions
+- `i`: Insert menu - Access insert-related functions
+- `/`: Slash commands menu - Access all Claude Code slash commands
 
 #### Quick Send Keys
 - `1` or `y`: Send "1" (useful for "yes" responses)
@@ -97,28 +101,37 @@ For detailed documentation about Claude Code slash commands, see the [official C
 - `TAB`: Send Shift+Tab (toggle auto accept)
 
 #### Commands
-- `i`: /init
-- `k`: /clear
-- `h`: /help
 - `x`: Execute custom project command
 - `X`: Execute global command (/user:)
 
-#### Memory & Config
-- `M`: /memory
-- `C`: /config
-- `o`: /compact
+#### Git & GitHub
+- `g`: Git & GitHub menu - Access git-related commands
 
-#### Review
-- `R`: /review
-- `P`: /pr_comments
+### Send Menu
+Access with `s` from main menu or `M-x claude-code-emacs-send-transient`
+- `s`: Send text to Claude Code
+- `r`: Send region to Claude Code
 
-#### Info & Account
-- `$`: /cost
-- `S`: /status
-- `l`: /login
-- `L`: /logout
-- `B`: /bug
-- `D`: /doctor
+### Insert Menu
+Access with `i` from main menu or `M-x claude-code-emacs-insert-transient`
+- `r`: Insert region path with content to prompt buffer
+- `i`: Insert current file path (@-prefixed) to prompt buffer
+
+### Slash Commands Menu
+Access with `/` from main menu or `M-x claude-code-emacs-slash-commands-transient`
+Contains all Claude Code slash commands organized by category:
+- Project & Session: `/init`, `/clear`, `/help`
+- Memory & Config: `/memory`, `/config`, `/compact`
+- Info & Status: `/cost`, `/status`
+- Account: `/login`, `/logout`
+- Other: `/bug`, `/doctor`
+
+### Git & GitHub Menu
+Access with `g` from main menu or `M-x claude-code-emacs-git-menu-transient`
+- `g`: Send commit
+- `p`: Send push
+- `r`: Review
+- `c`: PR comments
 
 ### Prompt Buffer Menu
 In prompt buffers, display the menu with `C-c C-t` or `M-x claude-code-emacs-prompt-transient`

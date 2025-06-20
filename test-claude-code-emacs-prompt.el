@@ -108,5 +108,123 @@
     (should (eq (lookup-key claude-code-emacs-prompt-mode-map (kbd "C-c C-t"))
                 'claude-code-emacs-prompt-transient))))
 
+(ert-deftest test-claude-code-emacs-insert-region-path-to-prompt ()
+  "Test inserting region path to prompt buffer."
+  (let ((test-file "/home/user/project/src/main.el")
+        (prompt-file "/home/user/project/.claude-code-emacs.prompt.md")
+        (prompt-buffer-content nil)
+        (test-prompt-buffer nil))
+    ;; Create test buffers
+    (with-temp-buffer
+      (setq buffer-file-name test-file)
+      (insert "line1\nline2\nline3\nline4\nline5")
+      (goto-char (point-min))
+      (forward-line 1)  ; Go to line 2
+      (set-mark (point))
+      (forward-line 2)  ; Select lines 2-3
+      
+      ;; Mock functions
+      (cl-letf* (((symbol-function 'projectile-project-root)
+                  (lambda (&optional _) "/home/user/project/"))
+                 ((symbol-function 'claude-code-emacs-open-prompt-file)
+                  (lambda ()
+                    (setq test-prompt-buffer (get-buffer-create "*test-prompt*"))
+                    (switch-to-buffer test-prompt-buffer)
+                    (setq buffer-file-name prompt-file)
+                    (claude-code-emacs-prompt-mode))))
+        
+        ;; Call the function
+        (claude-code-emacs-insert-region-path-to-prompt)
+        
+        ;; Check the result
+        (when test-prompt-buffer
+          (setq prompt-buffer-content
+                (with-current-buffer test-prompt-buffer
+                  (prog1 (buffer-string)
+                    (kill-buffer))))
+          
+          ;; Verify the path was inserted correctly
+          (should (string-match-p "src/main\\.el:2-4" prompt-buffer-content))
+          ;; Verify the content was inserted
+          (should (string-match-p "line2\nline3\nline4" prompt-buffer-content))
+          ;; Verify markdown code blocks were added
+          (should (string-match-p "```" prompt-buffer-content))
+          ;; Verify no duplicate newlines before closing ```
+          (should-not (string-match-p "\n\n```" prompt-buffer-content)))))))
+
+(ert-deftest test-claude-code-emacs-insert-region-path-to-prompt-with-trailing-newline ()
+  "Test inserting region path when content has trailing newline."
+  (let ((test-file "/home/user/project/src/main.el")
+        (prompt-file "/home/user/project/.claude-code-emacs.prompt.md")
+        (prompt-buffer-content nil)
+        (test-prompt-buffer nil))
+    ;; Create test buffers
+    (with-temp-buffer
+      (setq buffer-file-name test-file)
+      (insert "line1\nline2\nline3\n")  ; Content with trailing newline
+      (goto-char (point-min))
+      (forward-line 1)  ; Go to line 2
+      (set-mark (point))
+      (goto-char (point-max))  ; Select to end including newline
+      
+      ;; Mock functions
+      (cl-letf* (((symbol-function 'projectile-project-root)
+                  (lambda (&optional _) "/home/user/project/"))
+                 ((symbol-function 'claude-code-emacs-open-prompt-file)
+                  (lambda ()
+                    (setq test-prompt-buffer (get-buffer-create "*test-prompt*"))
+                    (switch-to-buffer test-prompt-buffer)
+                    (setq buffer-file-name prompt-file)
+                    (claude-code-emacs-prompt-mode))))
+        
+        ;; Call the function
+        (claude-code-emacs-insert-region-path-to-prompt)
+        
+        ;; Check the result
+        (when test-prompt-buffer
+          (setq prompt-buffer-content
+                (with-current-buffer test-prompt-buffer
+                  (prog1 (buffer-string)
+                    (kill-buffer))))
+          
+          ;; Verify no duplicate newlines before closing ```
+          (should-not (string-match-p "\n\n```" prompt-buffer-content))
+          ;; Verify single newline before closing ```
+          (should (string-match-p "line3\n```" prompt-buffer-content)))))))
+
+(ert-deftest test-claude-code-emacs-insert-current-file-path-to-prompt ()
+  "Test inserting current file @-path to prompt buffer."
+  (let ((test-file "/home/user/project/docs/MCP-SETUP.md")
+        (prompt-file "/home/user/project/.claude-code-emacs.prompt.md")
+        (prompt-buffer-content nil)
+        (test-prompt-buffer nil))
+    ;; Create test buffer
+    (with-temp-buffer
+      (setq buffer-file-name test-file)
+      (insert "# MCP Setup Documentation")
+      
+      ;; Mock functions
+      (cl-letf* (((symbol-function 'projectile-project-root)
+                  (lambda (&optional _) "/home/user/project/"))
+                 ((symbol-function 'claude-code-emacs-open-prompt-file)
+                  (lambda ()
+                    (setq test-prompt-buffer (get-buffer-create "*test-prompt*"))
+                    (switch-to-buffer test-prompt-buffer)
+                    (setq buffer-file-name prompt-file)
+                    (claude-code-emacs-prompt-mode))))
+        
+        ;; Call the function
+        (claude-code-emacs-insert-current-file-path-to-prompt)
+        
+        ;; Check the result
+        (when test-prompt-buffer
+          (setq prompt-buffer-content
+                (with-current-buffer test-prompt-buffer
+                  (prog1 (buffer-string)
+                    (kill-buffer))))
+          
+          ;; Verify the @-path was inserted correctly
+          (should (string-match-p "@docs/MCP-SETUP\\.md" prompt-buffer-content)))))))
+
 (provide 'test-claude-code-emacs-prompt)
 ;;; test-claude-code-emacs-prompt.el ends here

@@ -154,6 +154,10 @@ The `@` symbol triggers project file completion:
 
 ### Transient Menu System
 - Main menu: `claude-code-emacs-transient`
+- Send menu: `claude-code-emacs-send-transient` - Send text/region to Claude Code
+- Insert menu: `claude-code-emacs-insert-transient` - Insert file paths to prompt buffer
+- Slash commands menu: `claude-code-emacs-slash-commands-transient` - All Claude Code slash commands
+- Git & GitHub menu: `claude-code-emacs-git-menu-transient` - Git-related commands
 - Prompt menu: `claude-code-emacs-prompt-transient`
 - Organized into logical groups with mnemonic key bindings
 
