@@ -4,6 +4,31 @@ Use English for commit, code comment, pull request.
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Notification Policy
+
+When completing tasks that take more than a few seconds, use the `sendNotification` MCP tool to notify the user:
+- After successful completion of builds, tests, or other long-running operations
+- When all requested tasks have been completed
+- When encountering errors that require user attention
+- After fixing multiple issues or making multiple file changes
+
+Examples of when to send notifications:
+```
+# After running tests
+sendNotification(title: "Tests Complete", message: "All 94 tests passed successfully!")
+
+# After implementing a feature
+sendNotification(title: "Feature Complete", message: "User authentication feature implemented and tested")
+
+# After fixing errors
+sendNotification(title: "Errors Fixed", message: "Fixed 5 TypeScript errors in the codebase")
+
+# When task requires user action
+sendNotification(title: "Action Required", message: "Please review the pull request before merging")
+```
+
+Note: The notification will appear according to the user's Emacs alert configuration (popup, notification center, etc.)
+
 ## Project Overview
 
 This is an Emacs package that provides integration with Claude Code CLI. The package allows running Claude Code sessions within Emacs using vterm mode, with each project getting its own isolated session. Additionally, it includes an MCP (Model Context Protocol) server that enables Claude Code to interact directly with the Emacs environment.
@@ -219,6 +244,10 @@ When modifying this package:
 5. Update relevant documentation (README, CLAUDE.md)
 
 ### Recent Changes
+- **sendNotification tool**: Added MCP tool to send notifications to users via Emacs alert package
+  - Takes `title` and `message` parameters
+  - Always uses `claude-code` category for consistent alert handling
+  - Useful for notifying users when Claude Code completes tasks
 - **getDefinition tool**: Added MCP tool to find symbol definitions using LSP with preview (shows 3 lines before/after)
 - **Diff tools suite**: Added comprehensive ediff integration tools:
   - `openDiff`: Compare two files or buffers
@@ -254,7 +283,7 @@ When modifying this package:
 The MCP server provides a bridge between Claude Code and Emacs:
 - WebSocket server on dynamic port for Emacs connection
 - stdio interface for Claude Code MCP protocol
-- Implements tools: getOpenBuffers, getCurrentSelection, getDiagnostics, getDefinition, findReferences, describeSymbol, diff tools (openDiff, openDiff3, openRevisionDiff, openCurrentChanges, applyPatch)
+- Implements tools: getOpenBuffers, getCurrentSelection, getDiagnostics, getDefinition, findReferences, describeSymbol, diff tools (openDiff, openDiff3, openRevisionDiff, openCurrentChanges, applyPatch), sendNotification
 - Implements resources: buffer content, project info, diagnostics
 - Per-project WebSocket connections for session isolation
 - Real-time event notifications from Emacs to Claude Code

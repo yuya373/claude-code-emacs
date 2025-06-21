@@ -18,7 +18,9 @@ import {
   handleFindReferences,
   FindReferencesArgs,
   handleDescribeSymbol,
-  DescribeSymbolArgs
+  DescribeSymbolArgs,
+  handleSendNotification,
+  NotificationArgs
 } from './tools/index.js';
 import {
   bufferResourceHandler,
@@ -185,6 +187,24 @@ const TOOLS = [
       required: ['file', 'line', 'symbol']
     }
   },
+  {
+    name: 'sendNotification',
+    description: 'Send a notification to the user via Emacs alert',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: {
+          type: 'string',
+          description: 'Title of the notification'
+        },
+        message: {
+          type: 'string',
+          description: 'Message content of the notification'
+        }
+      },
+      required: ['title', 'message']
+    }
+  },
   // Add diff tools
   ...Object.values(diffTools).map(tool => ({
     name: tool.name,
@@ -297,6 +317,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'describeSymbol':
         result = await handleDescribeSymbol(bridge, (args || {}) as unknown as DescribeSymbolArgs);
+        break;
+
+      case 'sendNotification':
+        result = await handleSendNotification(bridge, (args || {}) as unknown as NotificationArgs);
         break;
 
       default:

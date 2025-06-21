@@ -30,6 +30,10 @@ Claude Code EmacsにはMCPサーバー統合が含まれており、Claude Code�
   - **openRevisionDiff**: ファイルを任意のgitリビジョンと比較
   - **openCurrentChanges**: ediffでコミットされていない変更を表示
   - **applyPatch**: ediffを使用してパッチファイルを適用
+- **通知を送信**: Emacsのアラートシステムを使用してユーザーに通知を送信
+  - `alert`パッケージが利用可能な場合は使用、なければ`message`関数にフォールバック
+  - タスクの完了やエラーの通知に便利
+  - 常に`claude-code`カテゴリを使用して一貫したアラート処理を実現
 
 MCPサーバーは各プロジェクトごとに動的にポートを割り当て、Claude CodeとEmacs間の通信のためのWebSocketブリッジを提供します。
 
@@ -156,6 +160,7 @@ make all
 - `markdown-mode` - プロンプトファイルのベースモード
 - `websocket` - MCPサーバー通信用
 - `lsp-mode`（オプション） - 診断情報用
+- `alert`（オプション） - デスクトップ通知用（利用できない場合は`message`にフォールバック）
 
 ## インストール
 

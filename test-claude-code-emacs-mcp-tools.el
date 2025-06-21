@@ -11,6 +11,11 @@
 (require 'cl-lib)
 ;; Optional requirement for lsp-protocol structures
 (require 'lsp-protocol nil t)
+;; Mock alert for testing
+(unless (fboundp 'alert)
+  (defun alert (message &rest args)
+    "Mock alert function for testing."
+    (list 'alert message args)))
 
 ;;; Tool handler tests
 
@@ -62,7 +67,7 @@
   (cl-letf (((symbol-function 'fboundp)
              (lambda (sym) (or (memq sym '(lsp-diagnostics lsp:diagnostic-message
                                            lsp:diagnostic-severity lsp:diagnostic-source
-                                           lsp:diagnostic-range lsp:range-start 
+                                           lsp:diagnostic-range lsp:range-start
                                            lsp:position-line lsp:position-character))
                                (and (boundp sym) (symbol-value sym))))))
     (should-error
@@ -76,7 +81,7 @@
         (cl-letf (((symbol-function 'fboundp)
                    (lambda (sym) (or (memq sym '(lsp-diagnostics lsp:diagnostic-message
                                                  lsp:diagnostic-severity lsp:diagnostic-source
-                                                 lsp:diagnostic-range lsp:range-start 
+                                                 lsp:diagnostic-range lsp:range-start
                                                  lsp:position-line lsp:position-character
                                                  lsp-make-diagnostic lsp-make-range lsp-make-position))
                                      (and (boundp sym) (symbol-value sym)))))
@@ -621,7 +626,7 @@
                       (lambda (range) (plist-get range :start)))
                      ((symbol-function 'lsp:range-end)
                       (lambda (range) (plist-get range :end))))
-            
+
             (let ((result (claude-code-emacs-mcp-handle-findReferences
                            `((file . ,(file-name-nondirectory test-file))
                              (line . 1)
@@ -874,7 +879,7 @@
       '((file . "test.el")
         (line . 1)
         (symbol . "test-symbol")))
-     :type 'error))
+     :type 'error)))
 
 (ert-deftest test-mcp-handle-describeSymbol-missing-params ()
   "Test describing symbol with missing parameters."
@@ -894,7 +899,86 @@
   (should-error
    (claude-code-emacs-mcp-handle-describeSymbol
     '((file . "test.el") (line . 1)))
-   :type 'error)))
+   :type 'error))
+
+;;; Tests for notification handler
+
+(ert-deftest test-mcp-handle-sendNotification ()
+  "Test sendNotification handler."
+  ;; Store alerts for testing
+  (let ((alert-calls '()))
+    (cl-letf (((symbol-function 'alert)
+               (lambda (message &rest args)
+                 (push (list 'message message 'args args) alert-calls))))
+
+      ;; Test successful notification
+      (let ((result (claude-code-emacs-mcp-handle-sendNotification
+                     '((title . "Test Title")
+                       (message . "Test message content")))))
+        (should (equal (cdr (assoc 'success result)) t))
+        (should (equal (cdr (assoc 'message result)) "Notification sent"))
+
+        ;; Check that alert was called with correct parameters
+        (should (= (length alert-calls) 1))
+        (let ((call (car alert-calls)))
+          (should (equal (plist-get call 'message) "Test message content"))
+          (let ((args (plist-get call 'args)))
+            (should (equal (plist-get args :title) "Test Title"))
+            (should (eq (plist-get args :category) 'claude-code))))))))
+
+(ert-deftest test-mcp-handle-sendNotification-default-category ()
+  "Test sendNotification uses claude-code category when not provided."
+  (let ((alert-calls '()))
+    (cl-letf (((symbol-function 'alert)
+               (lambda (message &rest args)
+                 (push (list 'message message 'args args) alert-calls))))
+
+      ;; Call without category parameter
+      (claude-code-emacs-mcp-handle-sendNotification
+       '((title . "Test")
+         (message . "Message")))
+
+      ;; Check that claude-code category was used
+      (let* ((call (car alert-calls))
+             (args (plist-get call 'args)))
+        (should (eq (plist-get args :category) 'claude-code))))))
+
+(ert-deftest test-mcp-handle-sendNotification-missing-title ()
+  "Test sendNotification with missing title."
+  (should-error
+   (claude-code-emacs-mcp-handle-sendNotification
+    '((message . "Test message")))
+   :type 'error))
+
+(ert-deftest test-mcp-handle-sendNotification-missing-message ()
+  "Test sendNotification with missing message."
+  (should-error
+   (claude-code-emacs-mcp-handle-sendNotification
+    '((title . "Test Title")))
+   :type 'error))
+
+(ert-deftest test-mcp-handle-sendNotification-fallback-to-message ()
+  "Test sendNotification falls back to message when alert is not available."
+  (let ((message-calls '()))
+    (cl-letf (((symbol-function 'fboundp)
+               (lambda (sym)
+                 (if (eq sym 'alert)
+                     nil  ;; Pretend alert is not available
+                   (funcall #'fboundp sym))))
+              ((symbol-function 'message)
+               (lambda (format &rest args)
+                 (push (list 'format format 'args args) message-calls))))
+      
+      (let ((result (claude-code-emacs-mcp-handle-sendNotification
+                     '((title . "Test Title")
+                       (message . "Test message")))))
+        (should (equal (cdr (assoc 'success result)) t))
+        
+        ;; Check that message was called with correct format
+        (should (= (length message-calls) 1))
+        (let ((call (car message-calls)))
+          (should (equal (plist-get call 'format) "[%s] %s"))
+          (should (equal (plist-get call 'args) '("Test Title" "Test message"))))))))
 
 (provide 'test-claude-code-emacs-mcp-tools)
 ;;; test-claude-code-emacs-mcp-tools.el ends here

@@ -26,6 +26,7 @@
 ;; - getOpenBuffers: List open buffers in project
 ;; - getCurrentSelection: Get current text selection
 ;; - getDiagnostics: Get LSP diagnostics
+;; - sendNotification: Send notifications to user via alert
 
 ;;; Code:
 
@@ -35,6 +36,7 @@
 (require 'lsp-protocol nil t)
 (require 'vc)
 (require 'ediff)
+(require 'alert nil t)  ;; Optional dependency
 
 ;;; MCP Tool Handlers
 
@@ -641,6 +643,32 @@ PARAMS must include 'file', 'line', and 'symbol' parameters."
               `((documentation . ,documentation))))))
 
     (error nil)))
+
+;;; Notification handler
+
+(defun claude-code-emacs-mcp-handle-sendNotification (params)
+  "Handle sendNotification request with PARAMS.
+PARAMS should include 'title' and 'message'."
+  (let ((title (cdr (assoc 'title params)))
+        (message-text (cdr (assoc 'message params))))
+
+    ;; Validate required parameters
+    (unless title
+      (error "Title is required"))
+    (unless message-text
+      (error "Message is required"))
+
+    ;; Send notification using alert if available, otherwise use message
+    (if (fboundp 'alert)
+        (alert message-text
+               :title title
+               :category 'claude-code)
+      ;; Fallback to message if alert is not available
+      (message "[%s] %s" title message-text))
+
+    ;; Return success response
+    `((success . t)
+      (message . "Notification sent"))))
 
 (provide 'claude-code-emacs-mcp-tools)
 ;;; claude-code-emacs-mcp-tools.el ends here

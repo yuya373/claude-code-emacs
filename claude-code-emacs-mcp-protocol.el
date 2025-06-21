@@ -49,6 +49,13 @@
 (declare-function claude-code-emacs-mcp-handle-get-project-files "claude-code-emacs-mcp-tools" (params))
 (declare-function claude-code-emacs-mcp-handle-getDefinition "claude-code-emacs-mcp-tools" (params))
 (declare-function claude-code-emacs-mcp-handle-findReferences "claude-code-emacs-mcp-tools" (params))
+(declare-function claude-code-emacs-mcp-handle-describeSymbol "claude-code-emacs-mcp-tools" (params))
+(declare-function claude-code-emacs-mcp-handle-openDiff "claude-code-emacs-mcp-tools" (params))
+(declare-function claude-code-emacs-mcp-handle-openDiff3 "claude-code-emacs-mcp-tools" (params))
+(declare-function claude-code-emacs-mcp-handle-openRevisionDiff "claude-code-emacs-mcp-tools" (params))
+(declare-function claude-code-emacs-mcp-handle-openCurrentChanges "claude-code-emacs-mcp-tools" (params))
+(declare-function claude-code-emacs-mcp-handle-applyPatch "claude-code-emacs-mcp-tools" (params))
+(declare-function claude-code-emacs-mcp-handle-sendNotification "claude-code-emacs-mcp-tools" (params))
 
 ;;; JSON-RPC Communication
 

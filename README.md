@@ -36,6 +36,10 @@ Claude Code Emacs includes MCP server integration, allowing Claude Code to inter
   - **openRevisionDiff**: Compare file with any git revision
   - **openCurrentChanges**: Show uncommitted changes in ediff
   - **applyPatch**: Apply patch files using ediff
+- **Send Notification**: Send notifications to the user via Emacs alert system
+  - Uses `alert` package if available, falls back to `message` function
+  - Useful for notifying task completion or errors
+  - Always uses `claude-code` category for consistent alert handling
 
 #### Real-time Event Notifications
 The MCP server now sends real-time notifications to Claude Code about Emacs state changes:
@@ -192,6 +196,7 @@ make all
 - `markdown-mode` - Base mode for prompt files
 - `websocket` - For MCP server communication
 - `lsp-mode` (optional) - For diagnostic information
+- `alert` (optional) - For desktop notifications (falls back to `message` if not available)
 
 ## Installation
 
