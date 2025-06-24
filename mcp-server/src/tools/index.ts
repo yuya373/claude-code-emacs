@@ -7,7 +7,8 @@ export {
   handleOpenDiff3,
   handleOpenRevisionDiff,
   handleOpenCurrentChanges,
-  handleApplyPatch
+  handleApplyPatch,
+  handleOpenDiffContent
 } from './diff-tools.js';
 export { handleGetDefinition, type GetDefinitionArgs } from './definition-tools.js';
 export { handleFindReferences, type FindReferencesArgs } from './reference-tools.js';

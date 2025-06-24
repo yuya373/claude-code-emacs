@@ -142,28 +142,60 @@
       (delete-file test-file-a)
       (delete-file test-file-b))))
 
-(ert-deftest test-mcp-handle-openDiff-buffers ()
-  "Test openDiff handler with buffers."
-  (let ((buffer-a (generate-new-buffer "*test-buffer-a*"))
-        (buffer-b (generate-new-buffer "*test-buffer-b*")))
-    (unwind-protect
-        (progn
-          (with-current-buffer buffer-a
-            (insert "Buffer A content"))
-          (with-current-buffer buffer-b
-            (insert "Buffer B content"))
-          (cl-letf (((symbol-function 'ediff-buffers)
-                     (lambda (buf-a buf-b)
-                       (should (get-buffer buf-a))
-                       (should (get-buffer buf-b)))))
-            (let* ((params `((mode . "buffers")
-                            (bufferA . ,(buffer-name buffer-a))
-                            (bufferB . ,(buffer-name buffer-b))))
-                   (result (claude-code-emacs-mcp-handle-openDiff params)))
-              (should (assoc 'status result))
-              (should (equal (cdr (assoc 'status result)) "success")))))
-      (kill-buffer buffer-a)
-      (kill-buffer buffer-b))))
+(ert-deftest test-mcp-handle-openDiffContent ()
+  "Test openDiffContent handler."
+  (cl-letf* ((ediff-called nil)
+             ((symbol-function 'ediff-buffers)
+              (lambda (buf-a buf-b)
+                (setq ediff-called t)
+                (should (get-buffer buf-a))
+                (should (get-buffer buf-b))
+                (should (equal (buffer-name buf-a) "Test Buffer A"))
+                (should (equal (buffer-name buf-b) "Test Buffer B"))
+                (with-current-buffer buf-a
+                  (should (equal (buffer-string) "Content A\nLine 2")))
+                (with-current-buffer buf-b
+                  (should (equal (buffer-string) "Content B\nLine 2 modified"))))))
+    (let* ((params '((contentA . "Content A\nLine 2")
+                     (contentB . "Content B\nLine 2 modified")
+                     (titleA . "Test Buffer A")
+                     (titleB . "Test Buffer B")))
+           (result (claude-code-emacs-mcp-handle-openDiffContent params)))
+      (should ediff-called)
+      (should (assoc 'status result))
+      (should (equal (cdr (assoc 'status result)) "success"))
+      (should (assoc 'message result))
+      (should (string-match "Test Buffer A.*Test Buffer B" (cdr (assoc 'message result))))
+      ;; Clean up created buffers
+      (when (get-buffer "Test Buffer A")
+        (kill-buffer "Test Buffer A"))
+      (when (get-buffer "Test Buffer B")
+        (kill-buffer "Test Buffer B")))))
+
+(ert-deftest test-mcp-handle-openDiffContent-error ()
+  "Test openDiffContent handler error cases."
+  ;; Test missing parameters
+  (let ((result (claude-code-emacs-mcp-handle-openDiffContent '())))
+    (should (assoc 'status result))
+    (should (equal (cdr (assoc 'status result)) "error"))
+    (should (assoc 'message result))
+    (should (string-match "Missing required parameters" (cdr (assoc 'message result)))))
+
+  ;; Test missing contentB
+  (let ((result (claude-code-emacs-mcp-handle-openDiffContent
+                 '((contentA . "test")
+                   (titleA . "A")
+                   (titleB . "B")))))
+    (should (assoc 'status result))
+    (should (equal (cdr (assoc 'status result)) "error")))
+
+  ;; Test missing titleA
+  (let ((result (claude-code-emacs-mcp-handle-openDiffContent
+                 '((contentA . "test")
+                   (contentB . "test")
+                   (titleB . "B")))))
+    (should (assoc 'status result))
+    (should (equal (cdr (assoc 'status result)) "error"))))
 
 (ert-deftest test-mcp-handle-openDiff3 ()
   "Test openDiff3 handler."
@@ -968,12 +1000,12 @@
               ((symbol-function 'message)
                (lambda (format &rest args)
                  (push (list 'format format 'args args) message-calls))))
-      
+
       (let ((result (claude-code-emacs-mcp-handle-sendNotification
                      '((title . "Test Title")
                        (message . "Test message")))))
         (should (equal (cdr (assoc 'success result)) t))
-        
+
         ;; Check that message was called with correct format
         (should (= (length message-calls) 1))
         (let ((call (car message-calls)))

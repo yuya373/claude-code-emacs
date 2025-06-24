@@ -149,34 +149,19 @@ Returns project-wide diagnostics using specified buffer for LSP context."
 
 (defun claude-code-emacs-mcp-handle-openDiff (params)
   "Handle openDiff request with PARAMS."
-  (let ((mode (or (cdr (assoc 'mode params)) "files"))
-        (file-a (cdr (assoc 'fileA params)))
-        (file-b (cdr (assoc 'fileB params)))
-        (buffer-a (cdr (assoc 'bufferA params)))
-        (buffer-b (cdr (assoc 'bufferB params))))
+  (let ((file-a (cdr (assoc 'fileA params)))
+        (file-b (cdr (assoc 'fileB params))))
     (condition-case err
         (progn
-          (cond
-           ((string= mode "files")
-            (unless (and file-a file-b)
-              (error "Missing required parameters: fileA and fileB"))
-            (let ((path-a (expand-file-name file-a (claude-code-emacs-normalize-project-root (projectile-project-root))))
-                  (path-b (expand-file-name file-b (claude-code-emacs-normalize-project-root (projectile-project-root)))))
-              (unless (file-exists-p path-a)
-                (error "File not found: %s" path-a))
-              (unless (file-exists-p path-b)
-                (error "File not found: %s" path-b))
-              (ediff-files path-a path-b)))
-           ((string= mode "buffers")
-            (unless (and buffer-a buffer-b)
-              (error "Missing required parameters: bufferA and bufferB"))
-            (unless (get-buffer buffer-a)
-              (error "Buffer not found: %s" buffer-a))
-            (unless (get-buffer buffer-b)
-              (error "Buffer not found: %s" buffer-b))
-            (ediff-buffers buffer-a buffer-b))
-           (t
-            (error "Unsupported diff mode: %s" mode)))
+          (unless (and file-a file-b)
+            (error "Missing required parameters: fileA and fileB"))
+          (let ((path-a (expand-file-name file-a (claude-code-emacs-normalize-project-root (projectile-project-root))))
+                (path-b (expand-file-name file-b (claude-code-emacs-normalize-project-root (projectile-project-root)))))
+            (unless (file-exists-p path-a)
+              (error "File not found: %s" path-a))
+            (unless (file-exists-p path-b)
+              (error "File not found: %s" path-b))
+            (ediff-files path-a path-b))
           `((status . "success")
             (message . "Opened ediff session")))
       (error
@@ -282,6 +267,36 @@ Returns project-wide diagnostics using specified buffer for LSP context."
             (ediff-patch-file patch-path target-path))
           `((status . "success")
             (message . "Patch session started")))
+      (error
+       `((status . "error")
+         (message . ,(error-message-string err)))))))
+
+(defun claude-code-emacs-mcp-handle-openDiffContent (params)
+  "Handle openDiffContent request with PARAMS."
+  (let ((content-a (cdr (assoc 'contentA params)))
+        (content-b (cdr (assoc 'contentB params)))
+        (title-a (cdr (assoc 'titleA params)))
+        (title-b (cdr (assoc 'titleB params))))
+    (condition-case err
+        (progn
+          (unless (and content-a content-b title-a title-b)
+            (error "Missing required parameters: contentA, contentB, titleA, and titleB"))
+          (let* ((buf-a (get-buffer-create title-a))
+                 (buf-b (get-buffer-create title-b)))
+            ;; Set up buffer A
+            (with-current-buffer buf-a
+              (erase-buffer)
+              (insert content-a)
+              (goto-char (point-min)))
+            ;; Set up buffer B
+            (with-current-buffer buf-b
+              (erase-buffer)
+              (insert content-b)
+              (goto-char (point-min)))
+            ;; Start ediff
+            (ediff-buffers buf-a buf-b))
+          `((status . "success")
+            (message . ,(format "Opened ediff session for buffers: %s and %s" title-a title-b))))
       (error
        `((status . "error")
          (message . ,(error-message-string err)))))))

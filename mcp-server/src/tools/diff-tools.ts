@@ -9,29 +9,15 @@ interface DiffToolResponse {
 // Helper function for openDiff
 export async function handleOpenDiff(bridge: EmacsBridge, params: any) {
   // Validate parameters
-  if (!params.fileA && !params.bufferA) {
+  if (!params.fileA || !params.fileB) {
     return {
-      content: [{ type: 'text', text: 'Error: Either fileA/fileB or bufferA/bufferB must be provided' }]
+      content: [{ type: 'text', text: 'Error: Both fileA and fileB are required' }]
     };
   }
-  
-  if (params.fileA && !params.fileB) {
-    return {
-      content: [{ type: 'text', text: 'Error: fileB is required when fileA is provided' }]
-    };
-  }
-  
-  if (params.bufferA && !params.bufferB) {
-    return {
-      content: [{ type: 'text', text: 'Error: bufferB is required when bufferA is provided' }]
-    };
-  }
-  
-  const mode = params.fileA ? 'files' : 'buffers';
 
   const response = await bridge.request('openDiff', {
-    ...params,
-    mode
+    fileA: params.fileA,
+    fileB: params.fileB
   }) as DiffToolResponse;
 
   if (response.status === 'error') {
@@ -40,12 +26,8 @@ export async function handleOpenDiff(bridge: EmacsBridge, params: any) {
     };
   }
 
-  const items = mode === 'files'
-    ? `files: ${params.fileA} and ${params.fileB}`
-    : `buffers: ${params.bufferA} and ${params.bufferB}`;
-
   return {
-    content: [{ type: 'text', text: `Opened ediff session for ${items}` }]
+    content: [{ type: 'text', text: `Opened ediff session for files: ${params.fileA} and ${params.fileB}` }]
   };
 }
 
@@ -121,10 +103,37 @@ export async function handleApplyPatch(bridge: EmacsBridge, params: any) {
   };
 }
 
+// Helper function for openDiffContent
+export async function handleOpenDiffContent(bridge: EmacsBridge, params: any) {
+  // Validate parameters
+  if (!params.contentA || !params.contentB || !params.titleA || !params.titleB) {
+    return {
+      content: [{ type: 'text', text: 'Error: contentA, contentB, titleA, and titleB are all required' }]
+    };
+  }
+
+  const response = await bridge.request('openDiffContent', {
+    contentA: params.contentA,
+    contentB: params.contentB,
+    titleA: params.titleA,
+    titleB: params.titleB
+  }) as DiffToolResponse;
+
+  if (response.status === 'error') {
+    return {
+      content: [{ type: 'text', text: `Error: ${response.message}` }]
+    };
+  }
+
+  return {
+    content: [{ type: 'text', text: `Opened ediff session for buffers: ${params.titleA} and ${params.titleB}` }]
+  };
+}
+
 export const diffTools = {
   openDiff: {
     name: 'openDiff',
-    description: 'Open ediff to compare two files or buffers',
+    description: 'Open ediff to compare two files',
     inputSchema: {
       type: 'object',
       properties: {
@@ -135,16 +144,9 @@ export const diffTools = {
         fileB: {
           type: 'string',
           description: 'Path to second file (relative to project root)'
-        },
-        bufferA: {
-          type: 'string',
-          description: 'Name of first buffer (alternative to fileA)'
-        },
-        bufferB: {
-          type: 'string',
-          description: 'Name of second buffer (alternative to fileB)'
         }
-      }
+      },
+      required: ['fileA', 'fileB']
     },
     handler: handleOpenDiff
   },
@@ -231,5 +233,33 @@ export const diffTools = {
       required: ['patchFile', 'targetFile']
     },
     handler: handleApplyPatch
+  },
+
+  openDiffContent: {
+    name: 'openDiffContent',
+    description: 'Open ediff to compare two text contents in temporary buffers',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        contentA: {
+          type: 'string',
+          description: 'Content for the first buffer'
+        },
+        contentB: {
+          type: 'string',
+          description: 'Content for the second buffer'
+        },
+        titleA: {
+          type: 'string',
+          description: 'Title for the first buffer'
+        },
+        titleB: {
+          type: 'string',
+          description: 'Title for the second buffer'
+        }
+      },
+      required: ['contentA', 'contentB', 'titleA', 'titleB']
+    },
+    handler: handleOpenDiffContent
   }
 };

@@ -7,7 +7,8 @@ import {
   handleOpenDiff3, 
   handleOpenRevisionDiff, 
   handleOpenCurrentChanges, 
-  handleApplyPatch 
+  handleApplyPatch,
+  handleOpenDiffContent
 } from '../../src/tools/diff-tools';
 
 // Mock WebSocket
@@ -71,8 +72,7 @@ describe('diff-tools', () => {
       // Verify the message sent to Emacs
       expect(mockSend).toHaveBeenCalledWith('openDiff', {
         fileA: 'src/old.js',
-        fileB: 'src/new.js',
-        mode: 'files'
+        fileB: 'src/new.js'
       });
       
       // Simulate Emacs response
@@ -84,27 +84,6 @@ describe('diff-tools', () => {
       });
     });
 
-    it('should compare two buffers', async () => {
-      const params = {
-        bufferA: '*scratch*',
-        bufferB: '*Messages*'
-      };
-      
-      const resultPromise = handleOpenDiff(mockBridge, params);
-      
-      expect(mockSend).toHaveBeenCalledWith('openDiff', {
-        bufferA: '*scratch*',
-        bufferB: '*Messages*',
-        mode: 'buffers'
-      });
-      
-      resolveResponse({ status: 'success', message: 'Opened ediff session' });
-      
-      const result = await resultPromise;
-      expect(result).toEqual({
-        content: [{ type: 'text', text: 'Opened ediff session for buffers: *scratch* and *Messages*' }]
-      });
-    });
 
     it('should handle errors', async () => {
       const params = {
@@ -126,19 +105,19 @@ describe('diff-tools', () => {
       // Test missing all parameters
       let result = await handleOpenDiff(mockBridge, {});
       expect(result).toEqual({
-        content: [{ type: 'text', text: 'Error: Either fileA/fileB or bufferA/bufferB must be provided' }]
+        content: [{ type: 'text', text: 'Error: Both fileA and fileB are required' }]
       });
       
       // Test missing fileB
       result = await handleOpenDiff(mockBridge, { fileA: 'test.js' });
       expect(result).toEqual({
-        content: [{ type: 'text', text: 'Error: fileB is required when fileA is provided' }]
+        content: [{ type: 'text', text: 'Error: Both fileA and fileB are required' }]
       });
       
-      // Test missing bufferB
-      result = await handleOpenDiff(mockBridge, { bufferA: '*scratch*' });
+      // Test missing fileA
+      result = await handleOpenDiff(mockBridge, { fileB: 'test.js' });
       expect(result).toEqual({
-        content: [{ type: 'text', text: 'Error: bufferB is required when bufferA is provided' }]
+        content: [{ type: 'text', text: 'Error: Both fileA and fileB are required' }]
       });
     });
   });
@@ -298,6 +277,89 @@ describe('diff-tools', () => {
       const result = await resultPromise;
       expect(result).toEqual({
         content: [{ type: 'text', text: 'Error: Invalid patch format' }]
+      });
+    });
+  });
+
+  describe('openDiffContent', () => {
+    it('should compare two text contents', async () => {
+      const params = {
+        contentA: 'Hello World\nLine 2',
+        contentB: 'Hello World!\nLine 2 modified',
+        titleA: 'Original Content',
+        titleB: 'Modified Content'
+      };
+      
+      const resultPromise = handleOpenDiffContent(mockBridge, params);
+      
+      expect(mockSend).toHaveBeenCalledWith('openDiffContent', {
+        contentA: 'Hello World\nLine 2',
+        contentB: 'Hello World!\nLine 2 modified',
+        titleA: 'Original Content',
+        titleB: 'Modified Content'
+      });
+      
+      resolveResponse({ status: 'success', message: 'Opened ediff session' });
+      
+      const result = await resultPromise;
+      expect(result).toEqual({
+        content: [{ type: 'text', text: 'Opened ediff session for buffers: Original Content and Modified Content' }]
+      });
+    });
+
+    it('should handle errors', async () => {
+      const params = {
+        contentA: 'content',
+        contentB: 'content',
+        titleA: 'Title A',
+        titleB: 'Title B'
+      };
+      
+      const resultPromise = handleOpenDiffContent(mockBridge, params);
+      
+      resolveResponse({ status: 'error', message: 'Failed to create buffers' });
+      
+      const result = await resultPromise;
+      expect(result).toEqual({
+        content: [{ type: 'text', text: 'Error: Failed to create buffers' }]
+      });
+    });
+
+    it('should validate missing parameters', async () => {
+      // Test missing all parameters
+      let result = await handleOpenDiffContent(mockBridge, {});
+      expect(result).toEqual({
+        content: [{ type: 'text', text: 'Error: contentA, contentB, titleA, and titleB are all required' }]
+      });
+      
+      // Test missing contentB
+      result = await handleOpenDiffContent(mockBridge, { 
+        contentA: 'test',
+        titleA: 'Title A',
+        titleB: 'Title B' 
+      });
+      expect(result).toEqual({
+        content: [{ type: 'text', text: 'Error: contentA, contentB, titleA, and titleB are all required' }]
+      });
+      
+      // Test missing titleA
+      result = await handleOpenDiffContent(mockBridge, { 
+        contentA: 'test',
+        contentB: 'test',
+        titleB: 'Title B' 
+      });
+      expect(result).toEqual({
+        content: [{ type: 'text', text: 'Error: contentA, contentB, titleA, and titleB are all required' }]
+      });
+      
+      // Test missing titleB
+      result = await handleOpenDiffContent(mockBridge, { 
+        contentA: 'test',
+        contentB: 'test',
+        titleA: 'Title A' 
+      });
+      expect(result).toEqual({
+        content: [{ type: 'text', text: 'Error: contentA, contentB, titleA, and titleB are all required' }]
       });
     });
   });

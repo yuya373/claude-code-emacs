@@ -13,6 +13,7 @@ import {
   handleOpenRevisionDiff,
   handleOpenCurrentChanges,
   handleApplyPatch,
+  handleOpenDiffContent,
   handleGetDefinition,
   GetDefinitionArgs,
   handleFindReferences,
@@ -306,6 +307,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         result = await handleApplyPatch(bridge, args || {});
         break;
 
+      case 'openDiffContent':
+        result = await handleOpenDiffContent(bridge, args || {});
+        break;
 
       case 'getDefinition':
         result = await handleGetDefinition(bridge, (args || {}) as unknown as GetDefinitionArgs);
