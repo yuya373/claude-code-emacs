@@ -190,7 +190,7 @@ const TOOLS = [
   },
   {
     name: 'sendNotification',
-    description: 'Send a notification to the user via Emacs alert',
+    description: 'Send a desktop notification to alert the user when tasks complete or need attention',
     inputSchema: {
       type: 'object',
       properties: {

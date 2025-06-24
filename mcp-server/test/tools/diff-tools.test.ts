@@ -80,7 +80,7 @@ describe('diff-tools', () => {
       
       const result = await resultPromise;
       expect(result).toEqual({
-        content: [{ type: 'text', text: 'Opened ediff session for files: src/old.js and src/new.js' }]
+        content: [{ type: 'text', text: 'Opened diff comparison for files: src/old.js and src/new.js' }]
       });
     });
 
@@ -303,7 +303,7 @@ describe('diff-tools', () => {
       
       const result = await resultPromise;
       expect(result).toEqual({
-        content: [{ type: 'text', text: 'Opened ediff session for buffers: Original Content and Modified Content' }]
+        content: [{ type: 'text', text: 'Opened diff comparison for: Original Content and Modified Content' }]
       });
     });
 

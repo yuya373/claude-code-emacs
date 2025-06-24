@@ -27,7 +27,7 @@ export async function handleOpenDiff(bridge: EmacsBridge, params: any) {
   }
 
   return {
-    content: [{ type: 'text', text: `Opened ediff session for files: ${params.fileA} and ${params.fileB}` }]
+    content: [{ type: 'text', text: `Opened diff comparison for files: ${params.fileA} and ${params.fileB}` }]
   };
 }
 
@@ -126,14 +126,14 @@ export async function handleOpenDiffContent(bridge: EmacsBridge, params: any) {
   }
 
   return {
-    content: [{ type: 'text', text: `Opened ediff session for buffers: ${params.titleA} and ${params.titleB}` }]
+    content: [{ type: 'text', text: `Opened diff comparison for: ${params.titleA} and ${params.titleB}` }]
   };
 }
 
 export const diffTools = {
   openDiff: {
     name: 'openDiff',
-    description: 'Open ediff to compare two files',
+    description: 'Open a visual diff tool to compare two files side-by-side',
     inputSchema: {
       type: 'object',
       properties: {
@@ -153,7 +153,7 @@ export const diffTools = {
 
   openDiff3: {
     name: 'openDiff3',
-    description: 'Open ediff3 to compare three files',
+    description: 'Open a three-way comparison tool for merge conflict resolution',
     inputSchema: {
       type: 'object',
       properties: {
@@ -181,7 +181,7 @@ export const diffTools = {
 
   openRevisionDiff: {
     name: 'openRevisionDiff',
-    description: 'Compare file with its git revision',
+    description: 'Compare a file with a previous version from git history',
     inputSchema: {
       type: 'object',
       properties: {
@@ -202,7 +202,7 @@ export const diffTools = {
 
   openCurrentChanges: {
     name: 'openCurrentChanges',
-    description: 'Show current uncommitted changes in ediff',
+    description: 'Display uncommitted changes in a visual diff tool',
     inputSchema: {
       type: 'object',
       properties: {
@@ -217,7 +217,7 @@ export const diffTools = {
 
   applyPatch: {
     name: 'applyPatch',
-    description: 'Apply a patch file using ediff',
+    description: 'Apply a patch file with interactive review of changes',
     inputSchema: {
       type: 'object',
       properties: {
@@ -237,7 +237,7 @@ export const diffTools = {
 
   openDiffContent: {
     name: 'openDiffContent',
-    description: 'Open ediff to compare two text contents in temporary buffers',
+    description: 'Compare two text snippets side-by-side without creating files',
     inputSchema: {
       type: 'object',
       properties: {
