@@ -310,11 +310,13 @@ The MCP server maintains a stable WebSocket connection with automatic health mon
 - **getDefinition**: Find symbol definitions using LSP with preview (shows 3 lines before/after)
 - **findReferences**: Find all references to a symbol using LSP (requires `lsp-mode`)
 - **describeSymbol**: Get symbol documentation using LSP hover, with Markdown formatting for code blocks
-- **openDiff**: Compare two files or buffers using ediff
+- **openDiff**: Compare two files using ediff
 - **openDiff3**: Three-way file comparison
 - **openRevisionDiff**: Compare file with git revision
 - **openCurrentChanges**: Show uncommitted changes
 - **applyPatch**: Apply patch files using ediff
+- **openDiffContent**: Compare two text contents in temporary buffers without needing files
+- **sendNotification**: Send desktop notifications to user via Emacs alert package
 
 ### Available MCP Resources
 The MCP server exposes Emacs data as resources that Claude Code can access:

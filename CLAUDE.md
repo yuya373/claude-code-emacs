@@ -244,17 +244,26 @@ When modifying this package:
 5. Update relevant documentation (README, CLAUDE.md)
 
 ### Recent Changes
+- **openDiffContent tool**: Added MCP tool to compare two text contents in temporary buffers
+  - Takes `contentA`, `contentB`, `titleA`, and `titleB` parameters
+  - Creates temporary buffers for text comparison without needing files
+  - Useful for comparing code snippets, configurations, or any text content
 - **sendNotification tool**: Added MCP tool to send notifications to users via Emacs alert package
   - Takes `title` and `message` parameters
   - Always uses `claude-code` category for consistent alert handling
   - Useful for notifying users when Claude Code completes tasks
+- **Transient menu reorganization**: Improved menu structure and added new functions
+  - Added region and file path insert functions to prompt buffer
+  - Better organized menu groups for improved usability
+  - New keybindings for quick access to common operations
 - **getDefinition tool**: Added MCP tool to find symbol definitions using LSP with preview (shows 3 lines before/after)
 - **Diff tools suite**: Added comprehensive ediff integration tools:
-  - `openDiff`: Compare two files or buffers
+  - `openDiff`: Compare two files
   - `openDiff3`: Three-way file comparison for merge conflicts
   - `openRevisionDiff`: Compare file with any git revision
   - `openCurrentChanges`: Show uncommitted changes in ediff
   - `applyPatch`: Apply patch files using ediff
+  - `openDiffContent`: Compare two text contents in temporary buffers
 - **Interactive claude-code-emacs-run**: Added prefix argument support (`C-u`) for interactive option selection (model, verbose, resume, etc.)
 - **CI/CD**: Added GitHub Actions workflow for automated testing
 - **getDiagnostics requires buffer**: Buffer parameter is now required for LSP context (still returns project-wide diagnostics)
@@ -283,7 +292,7 @@ When modifying this package:
 The MCP server provides a bridge between Claude Code and Emacs:
 - WebSocket server on dynamic port for Emacs connection
 - stdio interface for Claude Code MCP protocol
-- Implements tools: getOpenBuffers, getCurrentSelection, getDiagnostics, getDefinition, findReferences, describeSymbol, diff tools (openDiff, openDiff3, openRevisionDiff, openCurrentChanges, applyPatch), sendNotification
+- Implements tools: getOpenBuffers, getCurrentSelection, getDiagnostics, getDefinition, findReferences, describeSymbol, diff tools (openDiff, openDiff3, openRevisionDiff, openCurrentChanges, applyPatch, openDiffContent), sendNotification
 - Implements resources: buffer content, project info, diagnostics
 - Per-project WebSocket connections for session isolation
 - Real-time event notifications from Emacs to Claude Code
@@ -404,11 +413,12 @@ The MCP server supports real-time notifications from Emacs:
   - Clarified that buffer is for LSP context, not filtering (returns project-wide diagnostics)
 - **getDefinition tool**: Added MCP tool to find symbol definitions using LSP with preview (shows 3 lines before/after)
 - **Diff tools suite**: Added comprehensive ediff integration tools:
-  - `openDiff`: Compare two files or buffers
+  - `openDiff`: Compare two files
   - `openDiff3`: Three-way file comparison for merge conflicts
   - `openRevisionDiff`: Compare file with any git revision
   - `openCurrentChanges`: Show uncommitted changes in ediff
   - `applyPatch`: Apply patch files using ediff
+  - `openDiffContent`: Compare two text contents in temporary buffers
 - **Interactive claude-code-emacs-run**: Added prefix argument support (`C-u`) for interactive option selection (model, verbose, resume, etc.)
 - **CI/CD**: Added GitHub Actions workflow for automated testing
 - **MCP Resources**: Added support for MCP resources (buffer content, project info, diagnostics)
