@@ -143,8 +143,8 @@
                   (prog1 (buffer-string)
                     (kill-buffer))))
           
-          ;; Verify the path was inserted correctly
-          (should (string-match-p "src/main\\.el:2-4" prompt-buffer-content))
+          ;; Verify the path was inserted correctly with @ prefix and #L format
+          (should (string-match-p "@src/main\\.el#L2-3" prompt-buffer-content))
           ;; Verify the content was inserted
           (should (string-match-p "line2\nline3\nline4" prompt-buffer-content))
           ;; Verify markdown code blocks were added
@@ -225,6 +225,172 @@
           
           ;; Verify the @-path was inserted correctly
           (should (string-match-p "@docs/MCP-SETUP\\.md" prompt-buffer-content)))))))
+
+(ert-deftest test-claude-code-emacs-insert-current-file-path-to-prompt-with-region ()
+  "Test inserting current file @-path with line range when region is selected."
+  (let ((test-file "/home/user/project/src/utils.el")
+        (prompt-file "/home/user/project/.claude-code-emacs.prompt.md")
+        (prompt-buffer-content nil)
+        (test-prompt-buffer nil))
+    ;; Create test buffer
+    (with-temp-buffer
+      (setq buffer-file-name test-file)
+      (insert "line1\nline2\nline3\nline4\nline5")
+      (goto-char (point-min))
+      (forward-line 1)  ; Go to line 2
+      (set-mark (point))
+      (forward-line 1)  ; Move to line 3
+      (end-of-line)     ; Move to end of line 3
+      (activate-mark)
+      
+      ;; Mock functions
+      (cl-letf* (((symbol-function 'projectile-project-root)
+                  (lambda (&optional _) "/home/user/project/"))
+                 ((symbol-function 'claude-code-emacs-open-prompt-file)
+                  (lambda ()
+                    (setq test-prompt-buffer (get-buffer-create "*test-prompt*"))
+                    (switch-to-buffer test-prompt-buffer)
+                    (setq buffer-file-name prompt-file)
+                    (claude-code-emacs-prompt-mode))))
+        
+        ;; Call the function
+        (claude-code-emacs-insert-current-file-path-to-prompt)
+        
+        ;; Check the result
+        (when test-prompt-buffer
+          (setq prompt-buffer-content
+                (with-current-buffer test-prompt-buffer
+                  (prog1 (buffer-string)
+                    (kill-buffer))))
+          
+          ;; Verify the @-path with line range was inserted correctly
+          (should (string-match-p "@src/utils\\.el#L2-3" prompt-buffer-content)))))))
+
+(ert-deftest test-claude-code-emacs-insert-current-file-path-to-prompt-with-region-ending-newline ()
+  "Test inserting current file @-path with line range when region ends with newline."
+  (let ((test-file "/home/user/project/src/utils.el")
+        (prompt-file "/home/user/project/.claude-code-emacs.prompt.md")
+        (prompt-buffer-content nil)
+        (test-prompt-buffer nil))
+    ;; Create test buffer
+    (with-temp-buffer
+      (setq buffer-file-name test-file)
+      (insert "line1\nline2\nline3\nline4\nline5")
+      (goto-char (point-min))
+      (forward-line 1)  ; Go to line 2
+      (set-mark (point))
+      (forward-line 3)  ; Move to start of line 5 (after line 4's newline)
+      (activate-mark)
+      
+      ;; Mock functions
+      (cl-letf* (((symbol-function 'projectile-project-root)
+                  (lambda (&optional _) "/home/user/project/"))
+                 ((symbol-function 'claude-code-emacs-open-prompt-file)
+                  (lambda ()
+                    (setq test-prompt-buffer (get-buffer-create "*test-prompt*"))
+                    (switch-to-buffer test-prompt-buffer)
+                    (setq buffer-file-name prompt-file)
+                    (claude-code-emacs-prompt-mode))))
+        
+        ;; Call the function
+        (claude-code-emacs-insert-current-file-path-to-prompt)
+        
+        ;; Check the result
+        (when test-prompt-buffer
+          (setq prompt-buffer-content
+                (with-current-buffer test-prompt-buffer
+                  (prog1 (buffer-string)
+                    (kill-buffer))))
+          
+          ;; Verify the @-path with line range was inserted correctly
+          ;; Should be L2-4, not L2-5, since region ends at start of line 5
+          (should (string-match-p "@src/utils\\.el#L2-4" prompt-buffer-content)))))))
+
+(ert-deftest test-claude-code-emacs-insert-current-file-path-to-prompt-with-single-line-region ()
+  "Test inserting current file @-path with single line selection."
+  (let ((test-file "/home/user/project/src/utils.el")
+        (prompt-file "/home/user/project/.claude-code-emacs.prompt.md")
+        (prompt-buffer-content nil)
+        (test-prompt-buffer nil))
+    ;; Create test buffer
+    (with-temp-buffer
+      (setq buffer-file-name test-file)
+      (insert "line1\nline2\nline3\nline4\nline5")
+      (goto-char (point-min))
+      (forward-line 2)  ; Go to line 3
+      (beginning-of-line)
+      (set-mark (point))
+      (end-of-line)     ; Select only line 3
+      (activate-mark)
+      
+      ;; Mock functions
+      (cl-letf* (((symbol-function 'projectile-project-root)
+                  (lambda (&optional _) "/home/user/project/"))
+                 ((symbol-function 'claude-code-emacs-open-prompt-file)
+                  (lambda ()
+                    (setq test-prompt-buffer (get-buffer-create "*test-prompt*"))
+                    (switch-to-buffer test-prompt-buffer)
+                    (setq buffer-file-name prompt-file)
+                    (claude-code-emacs-prompt-mode))))
+        
+        ;; Call the function
+        (claude-code-emacs-insert-current-file-path-to-prompt)
+        
+        ;; Check the result
+        (when test-prompt-buffer
+          (setq prompt-buffer-content
+                (with-current-buffer test-prompt-buffer
+                  (prog1 (buffer-string)
+                    (kill-buffer))))
+          
+          ;; Verify the @-path with single line number was inserted correctly
+          ;; Should be L3, not L3-3
+          (should (string-match-p "@src/utils\\.el#L3\\b" prompt-buffer-content))
+          (should-not (string-match-p "@src/utils\\.el#L3-3" prompt-buffer-content)))))))
+
+(ert-deftest test-claude-code-emacs-insert-region-path-to-prompt-single-line ()
+  "Test inserting region path to prompt buffer with single line selection."
+  (let ((test-file "/home/user/project/src/main.el")
+        (prompt-file "/home/user/project/.claude-code-emacs.prompt.md")
+        (prompt-buffer-content nil)
+        (test-prompt-buffer nil))
+    ;; Create test buffers
+    (with-temp-buffer
+      (setq buffer-file-name test-file)
+      (insert "line1\nline2\nline3\nline4\nline5")
+      (goto-char (point-min))
+      (forward-line 2)  ; Go to line 3
+      (beginning-of-line)
+      (set-mark (point))
+      (end-of-line)     ; Select only line 3
+      
+      ;; Mock functions
+      (cl-letf* (((symbol-function 'projectile-project-root)
+                  (lambda (&optional _) "/home/user/project/"))
+                 ((symbol-function 'claude-code-emacs-open-prompt-file)
+                  (lambda ()
+                    (setq test-prompt-buffer (get-buffer-create "*test-prompt*"))
+                    (switch-to-buffer test-prompt-buffer)
+                    (setq buffer-file-name prompt-file)
+                    (claude-code-emacs-prompt-mode))))
+        
+        ;; Call the function
+        (claude-code-emacs-insert-region-path-to-prompt)
+        
+        ;; Check the result
+        (when test-prompt-buffer
+          (setq prompt-buffer-content
+                (with-current-buffer test-prompt-buffer
+                  (prog1 (buffer-string)
+                    (kill-buffer))))
+          
+          ;; Verify the path was inserted correctly with single line format
+          (should (string-match-p "@src/main\\.el#L3\\b" prompt-buffer-content))
+          (should-not (string-match-p "@src/main\\.el#L3-3" prompt-buffer-content))
+          ;; Verify the content was inserted
+          (should (string-match-p "line3" prompt-buffer-content))
+          ;; Verify markdown code blocks were added
+          (should (string-match-p "```" prompt-buffer-content)))))))
 
 (provide 'test-claude-code-emacs-prompt)
 ;;; test-claude-code-emacs-prompt.el ends here

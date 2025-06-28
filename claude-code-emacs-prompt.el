@@ -85,25 +85,51 @@ Returns text from current heading to next heading or end of buffer."
                     (point-max)))))
       (buffer-substring-no-properties start end))))
 
+(defun claude-code-emacs--calculate-end-line (position)
+  "Calculate the line number at POSITION, adjusting for newline at end.
+If POSITION is at the beginning of a line (after a newline),
+return the previous line number."
+  (save-excursion
+    (goto-char position)
+    ;; If we're at the beginning of a line (column 0)
+    ;; and not at the beginning of the buffer,
+    ;; use the previous line number
+    (if (and (bolp) (not (bobp)))
+        (1- (line-number-at-pos))
+      (line-number-at-pos))))
+
+(defun claude-code-emacs--format-file-path-with-lines (relative-path start-line end-line)
+  "Format RELATIVE-PATH with line numbers.
+If START-LINE equals END-LINE, format as @file#L10.
+Otherwise, format as @file#L10-15."
+  (if (= start-line end-line)
+      (format "@%s#L%d" relative-path start-line)
+    (format "@%s#L%d-%d" relative-path start-line end-line)))
+
+(defun claude-code-emacs--get-relative-path (&optional file)
+  "Get the project-relative path for FILE (or current buffer's file).
+Returns nil if no file or project root cannot be determined."
+  (let* ((target-file (or file (buffer-file-name)))
+         (project-root (when target-file
+                        (claude-code-emacs-normalize-project-root
+                         (projectile-project-root (file-name-directory target-file))))))
+    (when (and target-file project-root)
+      (file-relative-name target-file project-root))))
+
 ;;;###autoload
 (defun claude-code-emacs-insert-region-path-to-prompt ()
   "Insert the project-relative path and content of the selected region into prompt buffer."
   (interactive)
   (if (use-region-p)
-      (let* ((source-buffer (current-buffer))
-             (source-file (buffer-file-name source-buffer))
-             (project-root (when source-file
-                             (claude-code-emacs-normalize-project-root
-                              (projectile-project-root (file-name-directory source-file)))))
-             (relative-path (when (and source-file project-root)
-                              (file-relative-name source-file project-root)))
+      (let* ((relative-path (claude-code-emacs--get-relative-path))
              (region-start (region-beginning))
              (region-end (region-end))
              (start-line (line-number-at-pos region-start))
-             (end-line (line-number-at-pos region-end))
+             (end-line (claude-code-emacs--calculate-end-line region-end))
              (region-content (buffer-substring-no-properties region-start region-end)))
         (if relative-path
-            (let ((path-with-lines (format "%s:%d-%d" relative-path start-line end-line)))
+            (let ((path-with-lines (claude-code-emacs--format-file-path-with-lines
+                                   relative-path start-line end-line)))
               ;; Find or create the prompt buffer
               (claude-code-emacs-open-prompt-file)
               (goto-char (point-max))
@@ -117,16 +143,20 @@ Returns text from current heading to next heading or end of buffer."
 
 ;;;###autoload
 (defun claude-code-emacs-insert-current-file-path-to-prompt ()
-  "Insert the current file's @-prefixed path into prompt buffer."
+  "Insert the current file's @-prefixed path into prompt buffer.
+If region is selected, append line number range (e.g., @file.el#L10-15)."
   (interactive)
-  (let* ((current-file (buffer-file-name))
-         (project-root (when current-file
-                        (claude-code-emacs-normalize-project-root
-                         (projectile-project-root (file-name-directory current-file)))))
-         (relative-path (when (and current-file project-root)
-                         (file-relative-name current-file project-root))))
+  (let* ((relative-path (claude-code-emacs--get-relative-path))
+         (has-region (use-region-p))
+         (region-start (when has-region (region-beginning)))
+         (region-end (when has-region (region-end)))
+         (start-line (when has-region (line-number-at-pos region-start)))
+         (end-line (when has-region (claude-code-emacs--calculate-end-line region-end))))
     (if relative-path
-        (let ((at-path (concat "@" relative-path)))
+        (let ((at-path (if has-region
+                          (claude-code-emacs--format-file-path-with-lines
+                           relative-path start-line end-line)
+                        (concat "@" relative-path))))
           ;; Find or create the prompt buffer
           (claude-code-emacs-open-prompt-file)
           (goto-char (point-max))
