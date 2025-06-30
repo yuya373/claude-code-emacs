@@ -122,6 +122,45 @@ See [docs/MCP-SETUP.md](docs/MCP-SETUP.md) for detailed MCP configuration.
 4. Run `make test` to ensure all tests pass
 5. Submit a pull request
 
+## Release Process
+
+Releases are automated using GitHub Actions:
+
+### Creating a New Release
+
+#### Option 1: Using GitHub CLI (Recommended)
+```bash
+# Create a draft release
+./scripts/create-release.sh 0.2.0
+
+# Or create and publish immediately
+./scripts/create-release.sh 0.2.0 --publish
+```
+
+#### Option 2: Using GitHub Actions
+1. Go to Actions → Create Release Draft → Run workflow
+2. Enter version number (e.g., 0.2.0)
+
+#### Final Steps
+1. Review the auto-generated release notes
+2. Edit if needed
+3. Click "Publish release" (if using draft)
+
+3. **Automated Steps** (After publishing):
+   - Git tag is created automatically
+   - Version numbers are updated in:
+     - `claude-code-emacs.el`
+     - `mcp-server/package.json`
+   - MCP server is published to npm
+   - MELPA recipe is generated
+
+### Manual Version Update
+
+For local version updates:
+```bash
+./scripts/update-version.sh 0.2.0
+```
+
 ## License
 
 GPL-3.0-or-later

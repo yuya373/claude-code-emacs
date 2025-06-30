@@ -1,0 +1,29 @@
+name: Create Release Draft
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 0.2.0)'
+        required: true
+        type: string
+
+jobs:
+  create-draft:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Create release draft using gh CLI
+      run: |
+        # Create a draft release with auto-generated notes
+        gh release create "v${{ inputs.version }}" \
+          --draft \
+          --generate-notes \
+          --title "Release v${{ inputs.version }}" \
+          --notes-start-tag "$(git describe --tags --abbrev=0 2>/dev/null || echo '')"
