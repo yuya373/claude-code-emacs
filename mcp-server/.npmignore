@@ -1,0 +1,29 @@
+# Source files
+src/
+test/
+
+# Config files
+tsconfig.json
+jest.config.js
+.gitignore
+
+# Test files
+*.test.ts
+*.test.js
+__tests__/
+
+# Development files
+*.log
+.DS_Store
+node_modules/
+.env
+.env.local
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build artifacts that shouldn't be published
+*.tsbuildinfo

@@ -1,6 +1,6 @@
-# Claude Code Emacs MCP Server
+# claude-code-emacs-mcp-server
 
-This MCP (Model Context Protocol) server enables Claude Code to interact with Emacs.
+MCP (Model Context Protocol) server that enables Claude Code to interact with Emacs. This package provides a bridge between Claude Code and your Emacs editor, allowing Claude to read files, navigate code, and use LSP features directly from Emacs.
 
 ## Features
 
@@ -19,37 +19,55 @@ This MCP (Model Context Protocol) server enables Claude Code to interact with Em
 - **openRevisionDiff**: Compare file with git revision
 - **openCurrentChanges**: Show uncommitted changes
 - **applyPatch**: Apply patch files using ediff
+- **openDiffContent**: Compare two text contents in temporary buffers
+
+### Other Tools
+- **sendNotification**: Send notifications to Emacs (using the alert package)
+- **describeSymbol**: Get documentation for symbols using LSP hover
 
 ### Resources
 - Buffer content access
 - Project information
 - LSP diagnostics
 
+## Installation
+
+```bash
+npm install -g claude-code-emacs-mcp-server
+```
+
+Or install locally:
+
+```bash
+npm install claude-code-emacs-mcp-server
+```
+
 ## Setup
 
-1. Build the MCP server:
-   ```bash
-   cd mcp-server
-   npm install
-   npm run build
-   ```
-
-2. Configure Claude Code to use this MCP server:
+1. Configure Claude Code to use this MCP server:
    
-   Method 1: Use the CLI wizard
+   For global installation:
    ```bash
    claude mcp add-json emacs '{
      "type": "stdio",
-     "command": "node",
-     "args": ["/absolute/path/to/claude-code-emacs/mcp-server/dist/index.js"]
+     "command": "claude-code-emacs-mcp"
    }'
    ```
    
-   Note: Replace `/absolute/path/to/claude-code-emacs` with the actual path
+   For local installation:
+   ```bash
+   claude mcp add-json emacs '{
+     "type": "stdio",
+     "command": "npx",
+     "args": ["claude-code-emacs-mcp-server"]
+   }'
+   ```
 
-3. Start Emacs with the claude-code-emacs package loaded
+2. Install and configure the Emacs package:
+   - Install `claude-code-emacs` from MELPA or GitHub
+   - The package will automatically handle the WebSocket connection
 
-4. Start Claude Code and the MCP server will automatically start when Claude requests MCP tools
+3. Start Claude Code and the MCP server will automatically start when Claude requests MCP tools
 
 ## Architecture
 
@@ -64,17 +82,32 @@ Claude Code <--(stdio/JSON-RPC)--> MCP Server <--(WebSocket:8766)--> Emacs
 - Emacs handles the actual file operations and provides editor state
 - The server automatically starts when Claude Code needs to use Emacs tools
 
+## Requirements
+
+- Node.js 16 or higher
+- Emacs 28.1 or higher with `claude-code-emacs` package
+- Claude Code CLI
+
 ## Development
 
+To contribute or modify:
+
 ```bash
+# Clone the repository
+git clone https://github.com/yuya373/claude-code-emacs.git
+cd claude-code-emacs/mcp-server
+
+# Install dependencies
+npm install
+
 # Run in development mode with auto-rebuild
 npm run dev
 
 # Run tests
 npm test
 
-# Clean build artifacts
-npm run clean
+# Build
+npm run build
 ```
 
 ## Debugging
@@ -99,5 +132,15 @@ The default WebSocket port is 8766. To use a different port:
 
 2. Pass the port as an argument in the MCP configuration:
    ```json
-   "args": ["/path/to/mcp-server/dist/index.js", "8767"]
+   "args": ["claude-code-emacs-mcp-server", "8767"]
    ```
+
+## License
+
+GPL-3.0-or-later
+
+## Links
+
+- [GitHub Repository](https://github.com/yuya373/claude-code-emacs)
+- [Emacs Package Documentation](https://github.com/yuya373/claude-code-emacs#readme)
+- [Issue Tracker](https://github.com/yuya373/claude-code-emacs/issues)

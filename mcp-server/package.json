@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "MCP server for Claude Code Emacs integration",
   "main": "dist/index.js",
+  "bin": {
+    "claude-code-emacs-mcp": "dist/index.js"
+  },
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
@@ -13,9 +16,23 @@
   "keywords": [
     "mcp",
     "emacs",
-    "claude"
+    "claude",
+    "claude-code",
+    "model-context-protocol"
   ],
-  "author": "",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "author": "Yuya Minami",
+  "homepage": "https://github.com/yuya373/claude-code-emacs#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yuya373/claude-code-emacs.git",
+    "directory": "mcp-server"
+  },
+  "bugs": {
+    "url": "https://github.com/yuya373/claude-code-emacs/issues"
+  },
   "license": "GPL-3.0-or-later",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^0.5.0",
@@ -32,5 +49,12 @@
     "tsc-watch": "^6.0.4",
     "typescript": "^5.3.3"
   },
-  "packageManager": "pnpm@10.10.0+sha512.d615db246fe70f25dcfea6d8d73dee782ce23e2245e3c4f6f888249fb568149318637dca73c2c5c8ef2a4ca0d5657fb9567188bfab47f566d1ee6ce987815c39"
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
 }
