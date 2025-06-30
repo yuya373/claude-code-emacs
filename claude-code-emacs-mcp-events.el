@@ -35,6 +35,14 @@
 (require 'lsp-mode nil t)
 (require 'lsp-protocol nil t)
 
+;; LSP function declarations
+(declare-function lsp:diagnostic-range "lsp-protocol" (diagnostic))
+(declare-function lsp:range-start "lsp-protocol" (range))
+(declare-function lsp:position-line "lsp-protocol" (position))
+(declare-function lsp:position-character "lsp-protocol" (position))
+(declare-function lsp:diagnostic-severity? "lsp-protocol" (diagnostic))
+(declare-function lsp:diagnostic-message "lsp-protocol" (diagnostic))
+
 (defvar claude-code-emacs-mcp-events-buffer-change-timer nil
   "Timer for debouncing buffer change notifications.")
 

@@ -122,6 +122,23 @@ See [docs/MCP-SETUP.md](docs/MCP-SETUP.md) for detailed MCP configuration.
 4. Run `make test` to ensure all tests pass
 5. Submit a pull request
 
+### Development Commands
+
+```bash
+# Compile with all dependencies (including optional ones)
+make compile
+
+# Compile without optional dependencies (websocket, lsp-mode)
+# Useful for testing MELPA compatibility
+make compile-minimal
+
+# Run tests
+make test
+
+# Run package-lint
+make lint
+```
+
 ## Release Process
 
 Releases are automated using GitHub Actions:

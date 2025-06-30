@@ -33,6 +33,9 @@
 (require 'websocket nil t)
 (require 'projectile)
 
+;; Declare websocket functions to avoid eager macro-expansion failures
+(declare-function websocket-send-text "websocket" (websocket text))
+
 ;; Forward declarations
 (declare-function claude-code-emacs-mcp-get-connection-info "claude-code-emacs-mcp-connection" (project-root))
 (declare-function claude-code-emacs-mcp-get-websocket "claude-code-emacs-mcp-connection" (project-root))

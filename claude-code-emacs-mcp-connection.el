@@ -36,6 +36,12 @@
 (require 'json)
 (require 'claude-code-emacs-core)
 
+;; Declare websocket functions to avoid eager macro-expansion failures
+(declare-function websocket-open "websocket" (url &rest args))
+(declare-function websocket-send-text "websocket" (websocket text))
+(declare-function websocket-close "websocket" (websocket))
+(declare-function websocket-openp "websocket" (websocket))
+
 ;; Forward declarations
 (declare-function claude-code-emacs-mcp-on-message "claude-code-emacs-mcp-protocol" (_websocket frame project-root))
 (declare-function claude-code-emacs-mcp-on-error "claude-code-emacs-mcp-protocol" (_websocket type error &optional _project-root))

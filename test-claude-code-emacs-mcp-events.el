@@ -6,6 +6,7 @@
 ;;; Code:
 
 (require 'ert)
+
 (require 'claude-code-emacs-mcp-events)
 (require 'claude-code-emacs-mcp)
 (require 'claude-code-emacs-mcp-connection)
@@ -51,14 +52,14 @@
       ;; Mock project connections
       (let ((claude-code-emacs-mcp-project-connections (make-hash-table :test 'equal)))
         (puthash "/test/project" t claude-code-emacs-mcp-project-connections)
-        
+
         (with-test-buffer "/test/project/file1.el" "content1"
           (with-test-buffer "/test/project/file2.el" "content2"
             (claude-code-emacs-mcp-events-send-buffer-list-update)
-            
+
             ;; Should send one notification
             (should (= 1 (length test-mcp-sent-messages)))
-            
+
             (let* ((msg (car test-mcp-sent-messages))
                    (buffers (cdr (assoc 'buffers (plist-get msg :params)))))
               (should (equal (plist-get msg :event) "bufferListUpdated"))
@@ -75,11 +76,11 @@
       ;; Mock project connections
       (let ((claude-code-emacs-mcp-project-connections (make-hash-table :test 'equal)))
         (puthash "/test/project" t claude-code-emacs-mcp-project-connections)
-        
+
         (with-test-buffer "/test/project/file1.el" "content1"
           (with-test-buffer "/other/project/file2.el" "content2"
             (claude-code-emacs-mcp-events-send-buffer-list-update)
-            
+
             (let* ((msg (car test-mcp-sent-messages))
                    (buffers (cdr (assoc 'buffers (plist-get msg :params)))))
               ;; Should only include buffer from the target project
@@ -94,23 +95,23 @@
     (with-mock-project-root "/test/project"
       (let ((claude-code-emacs-mcp-project-connections (make-hash-table :test 'equal)))
         (puthash "/test/project" t claude-code-emacs-mcp-project-connections)
-        
+
         (with-test-buffer "/test/project/file.el" "line1\nline2\nline3"
           ;; Track a change
           (claude-code-emacs-mcp-events-after-change 7 13 0)
-          
+
           ;; Trigger batch send
           (claude-code-emacs-mcp-events-send-buffer-changes)
-          
+
           ;; Should send one notification
           (should (= 1 (length test-mcp-sent-messages)))
-          
+
           (let* ((msg (car test-mcp-sent-messages))
                  (changes (cdr (assoc 'changes (plist-get msg :params)))))
             (should (equal (plist-get msg :event) "bufferContentModified"))
             (should (equal (plist-get msg :project) "/test/project"))
             (should (= 1 (length changes)))
-            
+
             (let ((change (car changes)))
               (should (equal (cdr (assoc 'file change)) "/test/project/file.el"))
               (should (= (cdr (assoc 'startLine change)) 2))
@@ -124,7 +125,7 @@
       (let ((claude-code-emacs-mcp-project-connections (make-hash-table :test 'equal))
             (claude-code-emacs-mcp-events-pending-changes nil))
         (puthash "/test/project" t claude-code-emacs-mcp-project-connections)
-        
+
         (with-test-buffer "/test/project/file1.el" "content"
           (with-test-buffer "/test/project/file2.el" "content"
             ;; Manually add changes to pending list
@@ -132,17 +133,17 @@
                   claude-code-emacs-mcp-events-pending-changes)
             (push (list "/test/project/file2.el" 5 6 20 "/test/project")
                   claude-code-emacs-mcp-events-pending-changes)
-            
+
             ;; Trigger batch send
             (claude-code-emacs-mcp-events-send-buffer-changes)
-            
+
             ;; Should send one notification with both changes
             (should (= 1 (length test-mcp-sent-messages)))
-            
+
             (let* ((msg (car test-mcp-sent-messages))
                    (changes (cdr (assoc 'changes (plist-get msg :params)))))
               (should (= 2 (length changes)))
-              
+
               ;; Verify both changes are included
               (let ((files (mapcar (lambda (c) (cdr (assoc 'file c))) changes)))
                 (should (member "/test/project/file1.el" files))
@@ -155,21 +156,21 @@
       (let ((claude-code-emacs-mcp-project-connections (make-hash-table :test 'equal))
             (claude-code-emacs-mcp-events-pending-changes nil))
         (puthash "/test/project" t claude-code-emacs-mcp-project-connections)
-        
+
         (with-test-buffer "/test/project/file.el" "line1\nline2\nline3\nline4\nline5\n"
           ;; Simulate after-change calls that update the same change
           (claude-code-emacs-mcp-events-after-change 7 13 0)  ;; Line 2-3
           ;; This should merge with the existing change
           (claude-code-emacs-mcp-events-after-change 14 20 0) ;; Line 3-4
-          
+
           ;; Trigger batch send
           (claude-code-emacs-mcp-events-send-buffer-changes)
-          
+
           ;; Should send one merged change
           (let* ((msg (car test-mcp-sent-messages))
                  (changes (cdr (assoc 'changes (plist-get msg :params)))))
             (should (= 1 (length changes)))
-            
+
             (let ((change (car changes)))
               ;; Should merge to cover lines 2-4
               (should (= (cdr (assoc 'startLine change)) 2))
@@ -182,7 +183,7 @@
     (with-mock-project-root "/test/project"
       (let ((claude-code-emacs-mcp-project-connections (make-hash-table :test 'equal)))
         (puthash "/test/project" t claude-code-emacs-mcp-project-connections)
-        
+
         ;; Mock LSP diagnostics
         (cl-letf (((symbol-function 'fboundp)
                    (lambda (sym)
@@ -217,19 +218,19 @@
                    (lambda (pos) (plist-get pos :character)))
                   ((symbol-function 'find-buffer-visiting)
                    (lambda (file) (get-buffer-create file))))
-          
+
           ;; Trigger diagnostics send
           (claude-code-emacs-mcp-events-send-diagnostics-update)
-          
+
           ;; Should send one notification
           (should (= 1 (length test-mcp-sent-messages)))
-          
+
           (let* ((msg (car test-mcp-sent-messages))
                  (files (cdr (assoc 'files (plist-get msg :params)))))
             (should (equal (plist-get msg :event) "diagnosticsChanged"))
             (should (equal (plist-get msg :project) "/test/project"))
             (should (= 1 (length files)))
-            
+
             (let* ((file-diag (car files))
                    (diags (cdr (assoc 'diagnostics file-diag))))
               (should (equal (cdr (assoc 'file file-diag)) "/test/project/file.el"))
@@ -242,7 +243,7 @@
     (let ((claude-code-emacs-mcp-project-connections (make-hash-table :test 'equal)))
       (puthash "/project1" t claude-code-emacs-mcp-project-connections)
       (puthash "/project2" t claude-code-emacs-mcp-project-connections)
-      
+
       ;; Mock LSP diagnostics for multiple files
       (cl-letf (((symbol-function 'fboundp)
                  (lambda (sym)
@@ -276,13 +277,13 @@
                    (cond ((string-match "^/project1/" buffer-file-name) "/project1")
                          ((string-match "^/project2/" buffer-file-name) "/project2")
                          (t nil)))))
-        
+
         ;; Trigger batch send
         (claude-code-emacs-mcp-events-send-diagnostics-update)
-        
+
         ;; Should send two notifications (one per project)
         (should (= 2 (length test-mcp-sent-messages)))
-        
+
         ;; Verify each project gets its own notification
         (let ((projects (mapcar (lambda (msg)
                                   (plist-get msg :project))
@@ -302,20 +303,20 @@
       (let ((claude-code-emacs-mcp-project-connections (make-hash-table :test 'equal))
             (claude-code-emacs-mcp-events-pending-changes nil))
         (puthash "/test/project" t claude-code-emacs-mcp-project-connections)
-        
+
         ;; Setup initial state
         (with-test-buffer "/test/project/file.el" "initial content"
           ;; Enable event tracking
           (claude-code-emacs-mcp-events-enable)
-          
+
           ;; Simulate various events
           ;; 1. Buffer list update
           (claude-code-emacs-mcp-events-send-buffer-list-update)
-          
+
           ;; 2. Content change
           (claude-code-emacs-mcp-events-after-change 1 15 0)
           (claude-code-emacs-mcp-events-send-buffer-changes)
-          
+
           ;; 3. Mock diagnostics update
           (cl-letf (((symbol-function 'fboundp)
                      (lambda (sym) t))
@@ -324,16 +325,16 @@
                        (let ((diags (make-hash-table :test 'equal)))
                          diags))))
             (claude-code-emacs-mcp-events-send-diagnostics-update))
-          
+
           ;; Should have sent multiple notifications
           (should (>= (length test-mcp-sent-messages) 2))
-          
+
           ;; Verify we got each type of notification
           (let ((events (mapcar (lambda (msg) (plist-get msg :event))
                                 test-mcp-sent-messages)))
             (should (member "bufferListUpdated" events))
             (should (member "bufferContentModified" events)))
-          
+
           ;; Disable events
           (claude-code-emacs-mcp-events-disable)))))))
 
@@ -346,22 +347,22 @@
         (let ((claude-code-emacs-mcp-project-connections (make-hash-table :test 'equal))
               (claude-code-emacs-mcp-events-pending-changes nil))
           (puthash "/test/project" t claude-code-emacs-mcp-project-connections)
-          
+
           (with-test-buffer "/test/project/file.el" "content"
             ;; Track multiple rapid changes
             (claude-code-emacs-mcp-events-after-change 1 2 0)
             (claude-code-emacs-mcp-events-after-change 3 4 0)
             (claude-code-emacs-mcp-events-after-change 5 6 0)
-            
+
             ;; No messages should be sent immediately
             (should (= 0 (length test-mcp-sent-messages)))
-            
+
             ;; Force send
             (claude-code-emacs-mcp-events-send-buffer-changes)
-            
+
             ;; Should batch all changes into one message
             (should (= 1 (length test-mcp-sent-messages)))
-            
+
             (let* ((msg (car test-mcp-sent-messages))
                    (changes (cdr (assoc 'changes (plist-get msg :params)))))
               ;; All changes should be in one notification

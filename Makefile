@@ -48,6 +48,25 @@ compile: install-deps
 		--eval "(package-initialize)" \
 		-f batch-byte-compile $(MCP_EL_FILES)
 
+# Compile without optional dependencies (for MELPA testing)
+compile-minimal:
+	@echo "Compiling without optional dependencies (websocket, lsp-mode)..."
+	@echo "Installing minimal dependencies..."
+	@$(BATCH) --eval "(progn (package-initialize) \
+			      (add-to-list 'package-archives '(\"melpa\" . \"https://melpa.org/packages/\") t) \
+			      (package-refresh-contents) \
+			      (dolist (pkg '(projectile vterm transient markdown-mode)) \
+				(unless (package-installed-p pkg) \
+				  (package-install pkg))))"
+	@echo "Compiling core files..."
+	@$(BATCH) -l package \
+		--eval "(package-initialize)" \
+		-f batch-byte-compile $(EL_FILES)
+	@echo "Compiling MCP files (optional)..."
+	@$(BATCH) -l package \
+		--eval "(package-initialize)" \
+		-f batch-byte-compile $(MCP_EL_FILES) || true
+
 # Run package-lint on all elisp files
 package-lint:
 	@echo "Running package-lint..."

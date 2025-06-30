@@ -37,6 +37,30 @@
 (require 'ediff)
 (require 'alert nil t)  ;; Optional dependency
 
+;; LSP function declarations
+(declare-function lsp-diagnostics "lsp-mode" (&optional all-workspaces))
+(declare-function lsp:diagnostic-range "lsp-protocol" (diagnostic))
+(declare-function lsp:range-start "lsp-protocol" (range))
+(declare-function lsp:position-line "lsp-protocol" (position))
+(declare-function lsp:position-character "lsp-protocol" (position))
+(declare-function lsp:diagnostic-severity? "lsp-protocol" (diagnostic))
+(declare-function lsp:diagnostic-source? "lsp-protocol" (diagnostic))
+(declare-function lsp:diagnostic-message "lsp-protocol" (diagnostic))
+(declare-function lsp-request "lsp-mode" (method &optional params))
+(declare-function lsp--text-document-position-params "lsp-mode" ())
+(declare-function lsp--location-uri "lsp-mode" (location))
+(declare-function lsp--location-range "lsp-mode" (location))
+(declare-function lsp--uri-to-path "lsp-mode" (uri))
+(declare-function lsp:range-end "lsp-protocol" (range))
+(declare-function lsp:location-uri "lsp-protocol" (location))
+(declare-function lsp:location-range "lsp-protocol" (location))
+(declare-function lsp:hover-contents "lsp-protocol" (hover))
+(declare-function lsp-markup-content? "lsp-protocol" (obj))
+(declare-function lsp:markup-content-value "lsp-protocol" (content))
+(declare-function lsp-marked-string? "lsp-protocol" (obj))
+(declare-function lsp:marked-string-language "lsp-protocol" (marked-string))
+(declare-function lsp:marked-string-value "lsp-protocol" (marked-string))
+
 ;;; MCP Tool Handlers
 
 
@@ -349,7 +373,7 @@ Returns project-wide diagnostics using specified buffer for LSP context."
 
 (defun claude-code-emacs-mcp-handle-getDefinition (params)
   "Handle getDefinition request with PARAMS using LSP.
-PARAMS must include 'file', 'line', and 'symbol' parameters."
+PARAMS must include \\='file\\=', \\='line\\=', and \\='symbol\\=' parameters."
   (let* ((symbol-name (cdr (assoc 'symbol params)))
          (file-path (cdr (assoc 'file params)))
          (line (cdr (assoc 'line params)))
@@ -411,13 +435,18 @@ PARAMS must include 'file', 'line', and 'symbol' parameters."
 
         ;; Response can be Location, Location[], LocationLink, or LocationLink[]
         (when response
-          (let ((locations (pcase response
-                             ((seq (or (lsp-interface Location)
-                                       (lsp-interface LocationLink)))
-                              (append response nil))
-                             ((or (lsp-interface Location)
-                                  (lsp-interface LocationLink))
-                              (list response)))))  ; Make single item a list
+          (let ((locations (if (listp response)
+                               (if (and (listp (car response))
+                                        (assoc 'uri (car response)))
+                                   ;; Array of locations
+                                   response
+                                 ;; Single location in a list
+                                 (if (assoc 'uri response)
+                                     (list response)
+                                   ;; Might be wrapped
+                                   response))
+                             ;; Single location
+                             (list response))))
             (dolist (loc locations)
               (let* ((uri (lsp--location-uri loc))
                      (range (lsp--location-range loc))
@@ -482,8 +511,8 @@ Assumes we're in the correct buffer."
 
 (defun claude-code-emacs-mcp-handle-findReferences (params)
   "Handle findReferences request with PARAMS using LSP.
-PARAMS must include 'file', 'line', 'symbol' parameters.
-Optional: 'includeDeclaration' (boolean)."
+PARAMS must include \\='file\\=', \\='line\\=', \\='symbol\\=' parameters.
+Optional: \\='includeDeclaration\\=' (boolean)."
   (let* ((file-path (cdr (assoc 'file params)))
          (line (cdr (assoc 'line params)))
          (symbol-name (cdr (assoc 'symbol params)))
@@ -561,7 +590,7 @@ Optional: 'includeDeclaration' (boolean)."
 
 (defun claude-code-emacs-mcp-handle-describeSymbol (params)
   "Handle describeSymbol request with PARAMS using LSP hover.
-PARAMS must include 'file', 'line', and 'symbol' parameters."
+PARAMS must include \\='file\\=', \\='line\\=', and \\='symbol\\=' parameters."
   (let* ((symbol-name (cdr (assoc 'symbol params)))
          (file-path (cdr (assoc 'file params)))
          (line (cdr (assoc 'line params)))
@@ -661,7 +690,7 @@ PARAMS must include 'file', 'line', and 'symbol' parameters."
 
 (defun claude-code-emacs-mcp-handle-sendNotification (params)
   "Handle sendNotification request with PARAMS.
-PARAMS should include 'title' and 'message'."
+PARAMS should include \\='title\\=' and \\='message\\='."
   (let ((title (cdr (assoc 'title params)))
         (message-text (cdr (assoc 'message params))))
 

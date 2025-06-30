@@ -31,15 +31,22 @@
 
 (require 'projectile)
 (require 'lsp-mode nil t)
+(require 'lsp-protocol nil t)
+(require 'vterm)
 
 ;; Forward declarations
 (declare-function claude-code-emacs-send-string "claude-code-emacs-core" (string &optional paste-p))
 (declare-function claude-code-emacs-ensure-buffer "claude-code-emacs-core" ())
 (declare-function claude-code-emacs-with-vterm-buffer "claude-code-emacs-core" (body-fn))
 (declare-function claude-code-emacs-normalize-project-root "claude-code-emacs-core" (root))
-(declare-function vterm-send-escape "vterm" ())
-(declare-function vterm-send-return "vterm" ())
-(declare-function vterm-send-key "vterm" (key))
+
+;; LSP function declarations
+(declare-function lsp-diagnostics "lsp-mode" (&optional all-workspaces))
+(declare-function lsp:diagnostic-range "lsp-protocol" (diagnostic))
+(declare-function lsp:range-start "lsp-protocol" (range))
+(declare-function lsp:position-line "lsp-protocol" (position))
+(declare-function lsp:diagnostic-severity? "lsp-protocol" (diagnostic))
+(declare-function lsp:diagnostic-message "lsp-protocol" (diagnostic))
 
 ;;; Slash command definitions
 
@@ -210,7 +217,8 @@ contains the type (project/user), filename, and directory."
 
 (defun claude-code-emacs-execute-custom-command ()
   "Select and execute a custom command from both project and user commands.
-Project commands are prefixed with 'project:' and user commands with 'user:'."
+Commands are displayed with \\='project:\\=' or \\='user:\\=' prefix for clarity,
+but sent to Claude Code as plain command names (e.g., /command-name)."
   (interactive)
   (let ((commands (claude-code-emacs-get-custom-commands)))
     (if commands
@@ -218,7 +226,6 @@ Project commands are prefixed with 'project:' and user commands with 'user:'."
                                           (mapcar #'car commands)
                                           nil t))
                (command-info (cdr (assoc selected commands)))
-               (type (cdr (assoc 'type command-info)))
                (filename (cdr (assoc 'filename command-info)))
                (directory (cdr (assoc 'directory command-info)))
                (filepath (expand-file-name filename directory))
@@ -284,10 +291,9 @@ Files are located in the .claude/commands directory."
 (defun claude-code-emacs-fix-diagnostic ()
   "Select a diagnostic from lsp-diagnostics and send a fix prompt to Claude Code."
   (interactive)
-  (unless (and (featurep 'lsp-mode) lsp-mode)
+  (unless (and (featurep 'lsp-mode) (bound-and-true-p lsp-mode))
     (user-error "LSP mode is not active in current buffer"))
   (let* ((diagnostics (lsp-diagnostics))
-         (current-file (buffer-file-name))
          (all-items '()))
     ;; Collect all diagnostics from all files
     (maphash (lambda (file diags)

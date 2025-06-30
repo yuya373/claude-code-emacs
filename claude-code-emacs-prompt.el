@@ -117,7 +117,7 @@ Returns nil if no file or project root cannot be determined."
 
 ;;;###autoload
 (defun claude-code-emacs-insert-region-path-to-prompt ()
-  "Insert the project-relative path and content of the selected region into prompt buffer."
+  "Insert project-relative path and content of selected region into prompt buffer."
   (interactive)
   (if (use-region-p)
       (let* ((relative-path (claude-code-emacs--get-relative-path))
