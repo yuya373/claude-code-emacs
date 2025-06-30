@@ -20,6 +20,8 @@ jobs:
         fetch-depth: 0
     
     - name: Create release draft using gh CLI
+      env:
+        GH_TOKEN: ${{ github.token }}
       run: |
         # Create a draft release with auto-generated notes
         gh release create "v${{ inputs.version }}" \
