@@ -137,22 +137,15 @@ With prefix argument, select from available options."
                                 (car (split-string selected " - "))))))
          (extra-input (when (and selected-option
                                  (string-match-p "--resume" selected-option))
-                        (read-string "Session ID: "))))
+                        (read-string "Session ID: ")))
+         (vterm-shell (concat claude-code-emacs-executable
+                              (when selected-option
+                                (concat " " selected-option))
+                              (when extra-input
+                                (concat " " extra-input)))))
     (with-current-buffer buf
       (unless (eq major-mode 'claude-code-emacs-vterm-mode)
-        (claude-code-emacs-vterm-mode))
-      ;; Wait for vterm to be ready
-      (run-at-time 0.1 nil
-                   (lambda ()
-                     (when (buffer-live-p buf)
-                       (with-current-buffer buf
-                         (let ((command (concat claude-code-emacs-executable
-                                                (when selected-option
-                                                  (concat " " selected-option))
-                                                (when extra-input
-                                                  (concat " " extra-input)))))
-                           (vterm-send-string command)
-                           (vterm-send-return)))))))
+        (claude-code-emacs-vterm-mode)))
     (switch-to-buffer-other-window buffer-name)))
 
 ;;;###autoload
