@@ -78,7 +78,7 @@
 ;;; Message Handling
 
 (defun claude-code-emacs-mcp-handle-message (message project-root)
-  "Handle incoming JSON-RPC message for PROJECT-ROOT."
+  "Handle incoming JSON-RPC MESSAGE for PROJECT-ROOT."
   (condition-case err
       (let* ((json-object-type 'alist)
              (json-array-type 'list)
@@ -110,7 +110,7 @@
      (message "Error handling MCP message: %s" err))))
 
 (defun claude-code-emacs-mcp-handle-request (request project-root)
-  "Handle incoming request from MCP server for PROJECT-ROOT."
+  "Handle incoming REQUEST from MCP server for PROJECT-ROOT."
   (let* ((id (cdr (assoc 'id request)))
          (method (cdr (assoc 'method request)))
          (params (cdr (assoc 'params request)))

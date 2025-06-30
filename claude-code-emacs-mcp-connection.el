@@ -138,6 +138,10 @@ Returns nil if no connection info exists for the project."
     (claude-code-emacs-mcp-try-connect-async normalized-root port)))
 
 (defun claude-code-emacs-mcp-unregister-port (project-root)
+  "Unregister the MCP port for PROJECT-ROOT and disconnect.
+This function is called when the MCP server shuts down or when
+the Claude Code session ends.  It normalizes the project root
+and disconnects the WebSocket connection for that project."
   (let* ((normalized-root (claude-code-emacs-normalize-project-root project-root)))
     (claude-code-emacs-mcp-disconnect normalized-root)))
 

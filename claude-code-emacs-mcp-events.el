@@ -120,7 +120,7 @@
 ;;; Buffer Content Change Handler
 
 (defun claude-code-emacs-mcp-events-after-change (beg end old-len)
-  "Handle buffer content changes.
+  "Handle buffer content change.
 BEG and END are the beginning and end of the changed region.
 OLD-LEN is the length of the text before the change."
   (when (and claude-code-emacs-mcp-events-enabled

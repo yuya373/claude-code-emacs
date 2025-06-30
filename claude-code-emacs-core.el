@@ -85,7 +85,7 @@
 (defun claude-code-emacs-ensure-buffer ()
   "Ensure Claude Code buffer exists, error if not."
   (or (claude-code-emacs-get-buffer)
-      (error "No Claude Code session for this project. Use 'claude-code-emacs-run' to start one")))
+      (error "No Claude Code session for this project.  Use 'claude-code-emacs-run' to start one")))
 
 (defun claude-code-emacs-with-vterm-buffer (body-fn)
   "Execute BODY-FN in the Claude Code vterm buffer."

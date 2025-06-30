@@ -22,7 +22,7 @@
 ;;; Commentary:
 
 ;; This module provides slash command definitions and custom command execution
-;; functionality for Claude Code Emacs. It includes:
+;; functionality for Claude Code Emacs.  It includes:
 ;; - Built-in slash commands (/init, /clear, /help, etc.)
 ;; - Custom project commands from .claude/commands/*.md
 ;; - Global commands from ~/.claude/commands/*.md
@@ -289,7 +289,7 @@ Files are located in the .claude/commands directory."
 
 ;;;###autoload
 (defun claude-code-emacs-fix-diagnostic ()
-  "Select a diagnostic from lsp-diagnostics and send a fix prompt to Claude Code."
+  "Select a diagnostic from `lsp-diagnostics' and send a fix prompt to Claude Code."
   (interactive)
   (unless (and (featurep 'lsp-mode) (bound-and-true-p lsp-mode))
     (user-error "LSP mode is not active in current buffer"))

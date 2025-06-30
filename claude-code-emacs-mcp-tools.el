@@ -384,7 +384,7 @@ PARAMS must include \\='file\\=', \\='line\\=', and \\='symbol\\=' parameters."
           ;; Check if LSP is available
           (unless (and (fboundp 'lsp-mode)
                        (fboundp 'lsp-request))
-            (error "LSP mode is not available. Please install and configure lsp-mode"))
+            (error "LSP mode is not available.  Please install and configure lsp-mode"))
 
           ;; file-path, line, and symbol are required
           (unless file-path
@@ -426,7 +426,7 @@ PARAMS must include \\='file\\=', \\='line\\=', and \\='symbol\\=' parameters."
        (error "Failed to find definition: %s" (error-message-string err))))))
 
 (defun claude-code-emacs-mcp-get-lsp-definitions-with-request ()
-  "Get definitions using lsp-request."
+  "Get definitions using `lsp-request'."
   (require 'lsp-mode)
   (condition-case _
       (let* ((params (lsp--text-document-position-params))
@@ -528,11 +528,11 @@ Optional: \\='includeDeclaration\\=' (boolean)."
 
           ;; Validate required parameters
           (unless file-path
-            (error "file parameter is required"))
+            (error "File parameter is required"))
           (unless line
-            (error "line parameter is required"))
+            (error "Line parameter is required"))
           (unless symbol-name
-            (error "symbol parameter is required"))
+            (error "Symbol parameter is required"))
 
           ;; Find the file
           (let* ((project-root (claude-code-emacs-normalize-project-root (projectile-project-root)))
@@ -601,7 +601,7 @@ PARAMS must include \\='file\\=', \\='line\\=', and \\='symbol\\=' parameters."
           ;; Check if LSP is available
           (unless (and (fboundp 'lsp-mode)
                        (fboundp 'lsp-request))
-            (error "LSP mode is not available. Please install and configure lsp-mode"))
+            (error "LSP mode is not available.  Please install and configure lsp-mode"))
 
           ;; file-path, line, and symbol are required
           (unless file-path
@@ -643,7 +643,7 @@ PARAMS must include \\='file\\=', \\='line\\=', and \\='symbol\\=' parameters."
        (error "Failed to describe symbol: %s" (error-message-string err))))))
 
 (defun claude-code-emacs-mcp-get-lsp-hover-info ()
-  "Get hover information using lsp-request."
+  "Get hover information using `lsp-request'."
   (require 'lsp-mode)
   (condition-case nil
       (let* ((params (lsp--text-document-position-params))
