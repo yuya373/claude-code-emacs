@@ -2,7 +2,7 @@
 
 [![CI Tests](https://github.com/yuya373/claude-code-emacs/actions/workflows/test.yml/badge.svg)](https://github.com/yuya373/claude-code-emacs/actions/workflows/test.yml)
 
-Atn Emacs package to run Claude Code CLI within Emacs. This package provides seamless integration with Claude Code, allowing you to run AI-powered coding sessions directly in your Emacs environment.
+An Emacs package to run Claude Code CLI within Emacs. This package provides seamless integration with Claude Code, allowing you to run AI-powered coding sessions directly in your Emacs environment.
 
 ## Features
 
