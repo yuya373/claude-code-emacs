@@ -4,7 +4,7 @@
 
 ;; Author: Yuya Minami
 ;; Keywords: tools, convenience
-;; Version: 0.1.2
+;; Version: 0.1.3
 ;; URL: https://github.com/yuya373/claude-code-emacs
 ;; Package-Requires: ((emacs "28.1") (projectile "2.5.0") (vterm "0.0.2") (transient "0.4.0") (markdown-mode "2.5"))
 
