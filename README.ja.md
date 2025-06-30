@@ -97,8 +97,11 @@ Transientメニューで`x` → "refactor"を選択して実行
 - Emacs 28.1以上
 - [Claude Code CLI](https://docs.anthropic.com/ja/docs/claude-code)インストール済み
 - Node.js 16以上（MCP用）
-- パッケージ: `projectile`、`vterm`、`transient`、`markdown-mode`、`websocket`
-- オプション: `lsp-mode`、`alert`
+- 必須パッケージ: `projectile`、`vterm`、`transient`、`markdown-mode`
+- オプションパッケージ:
+  - `lsp-mode` (9.0.0以上): LSP診断修正とMCPツール統合用
+  - `websocket` (1.15以上): MCPサーバーのWebSocket通信用
+  - `alert`: デスクトップ通知用
 
 ## インストールの詳細
 

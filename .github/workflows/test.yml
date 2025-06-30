@@ -42,6 +42,7 @@ jobs:
     - name: Install dependencies
       run: make install-deps
 
+
     - name: Build libvterm
       run: |
         # Find vterm.el location
@@ -57,6 +58,9 @@ jobs:
 
     - name: Compile
       run: make compile
+
+    - name: Run package-lint
+      run: make lint
 
     - name: Run tests
       run: make test

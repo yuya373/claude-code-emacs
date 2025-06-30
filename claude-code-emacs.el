@@ -1,10 +1,11 @@
-;;; claude-code-emacs.el --- Run Claude Code sessions within Emacs -*- lexical-binding: t; -*-
+;;; claude-code-emacs.el --- Run Claude Code sessions -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025
 
 ;; Author: Yuya Minami
 ;; Keywords: tools, convenience
 ;; Version: 0.1.0
+;; URL: https://github.com/yuya373/claude-code-emacs
 ;; Package-Requires: ((emacs "28.1") (projectile "2.5.0") (vterm "0.0.2") (transient "0.4.0") (markdown-mode "2.5"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -31,6 +32,12 @@
 ;; - File path completion with @ syntax
 ;; - Custom commands support
 ;; - MCP server integration with real-time event notifications
+;;
+;; Optional dependencies:
+;; - lsp-mode (9.0.0): For LSP diagnostic fixing and MCP tools
+;; - websocket (1.15): For MCP server WebSocket communication
+;;
+;; These are only required if you want to use MCP features or LSP diagnostics.
 
 ;;; Code:
 
@@ -41,7 +48,7 @@
 (require 'claude-code-emacs-ui)
 (require 'claude-code-emacs-prompt)
 
-;; MCP integration (required)
+;; MCP integration
 (require 'claude-code-emacs-mcp)
 (require 'claude-code-emacs-mcp-events)
 

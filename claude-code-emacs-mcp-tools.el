@@ -5,7 +5,6 @@
 ;; Author: DESKTOP2 <yuya373@DESKTOP2>
 ;; Keywords: tools, convenience
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "28.1") (projectile "2.9.1") (lsp-mode "9.0.0"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -136,8 +135,7 @@ Returns project-wide diagnostics using specified buffer for LSP context."
                                                       (_ "")))
                                        (message . ,message)
                                        (source . ,(or source "lsp")))
-                                     diagnostics))
-                             )))
+                                     diagnostics))))
                        lsp-diags))))
         `((diagnostics . ,(nreverse diagnostics))))
     (error

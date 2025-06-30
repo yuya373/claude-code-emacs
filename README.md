@@ -97,8 +97,11 @@ Press `g` in main menu for git commands:
 - Emacs 28.1+
 - [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) installed
 - Node.js 16+ (for MCP)
-- Packages: `projectile`, `vterm`, `transient`, `markdown-mode`, `websocket`
-- Optional: `lsp-mode`, `alert`
+- Required packages: `projectile`, `vterm`, `transient`, `markdown-mode`
+- Optional packages:
+  - `lsp-mode` (9.0.0+): For LSP diagnostic fixing and MCP tools integration
+  - `websocket` (1.15+): For MCP server WebSocket communication
+  - `alert`: For desktop notifications
 
 ## Installation Details
 

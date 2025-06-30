@@ -5,7 +5,6 @@
 ;; Author: Yuya Minami
 ;; Keywords: tools, convenience
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "28.1") (projectile "2.5.0") (lsp-mode "9.0.0") (websocket "1.15"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
