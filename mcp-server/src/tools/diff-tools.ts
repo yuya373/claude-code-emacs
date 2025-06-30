@@ -133,17 +133,17 @@ export async function handleOpenDiffContent(bridge: EmacsBridge, params: any) {
 export const diffTools = {
   openDiff: {
     name: 'openDiff',
-    description: 'Open a visual diff tool to compare two files side-by-side',
+    description: 'Compare two DIFFERENT files side-by-side in Emacs ediff. Use this to see differences between two distinct files. For comparing a file with its git history, use openRevisionDiff instead.',
     inputSchema: {
       type: 'object',
       properties: {
         fileA: {
           type: 'string',
-          description: 'Path to first file (relative to project root)'
+          description: 'Path to the first file to compare (must be different from fileB)'
         },
         fileB: {
           type: 'string',
-          description: 'Path to second file (relative to project root)'
+          description: 'Path to the second file to compare (must be different from fileA)'
         }
       },
       required: ['fileA', 'fileB']
@@ -181,17 +181,17 @@ export const diffTools = {
 
   openRevisionDiff: {
     name: 'openRevisionDiff',
-    description: 'Compare a file with a previous version from git history',
+    description: 'Compare a file with its previous version from git history. Use this when you want to see what changed in a file over time, not for comparing two different files.',
     inputSchema: {
       type: 'object',
       properties: {
         file: {
           type: 'string',
-          description: 'File to compare'
+          description: 'File to compare with its git history'
         },
         revision: {
           type: 'string',
-          description: 'Git revision (e.g., HEAD, HEAD~1, branch-name)',
+          description: 'Git revision to compare against (e.g., HEAD, HEAD~1, branch-name, commit-hash)',
           default: 'HEAD'
         }
       },
@@ -202,13 +202,13 @@ export const diffTools = {
 
   openCurrentChanges: {
     name: 'openCurrentChanges',
-    description: 'Display uncommitted changes in a visual diff tool',
+    description: 'Show uncommitted git changes for a file in ediff. This compares the working copy with the last committed version (git diff).',
     inputSchema: {
       type: 'object',
       properties: {
         file: {
           type: 'string',
-          description: 'File to show changes for (optional, defaults to current)'
+          description: 'File to show uncommitted changes for (optional, defaults to current file)'
         }
       }
     },
@@ -237,25 +237,25 @@ export const diffTools = {
 
   openDiffContent: {
     name: 'openDiffContent',
-    description: 'Compare two text snippets side-by-side without creating files',
+    description: 'Compare two text snippets or code blocks in temporary buffers. Use this for comparing content that is not saved in files, such as different versions of code snippets, API responses, or generated content.',
     inputSchema: {
       type: 'object',
       properties: {
         contentA: {
           type: 'string',
-          description: 'Content for the first buffer'
+          description: 'First text content to compare'
         },
         contentB: {
           type: 'string',
-          description: 'Content for the second buffer'
+          description: 'Second text content to compare (should be different from contentA)'
         },
         titleA: {
           type: 'string',
-          description: 'Title for the first buffer'
+          description: 'Descriptive title for the first content (e.g., "Original Code", "Version 1")'
         },
         titleB: {
           type: 'string',
-          description: 'Title for the second buffer'
+          description: 'Descriptive title for the second content (e.g., "Modified Code", "Version 2")'
         }
       },
       required: ['contentA', 'contentB', 'titleA', 'titleB']
