@@ -38,6 +38,29 @@
 ;; - websocket (1.15): For MCP server WebSocket communication
 ;;
 ;; These are only required if you want to use MCP features or LSP diagnostics.
+;;
+;; Quick start:
+;;
+;;   (require 'claude-code-emacs)
+;;   (global-set-key (kbd "C-c c") 'claude-code-emacs-transient)
+;;
+;; Basic usage:
+;;
+;;   M-x claude-code-emacs-run      ; Start Claude Code session
+;;   C-c c                          ; Open transient menu
+;;   C-u M-x claude-code-emacs-run  ; Start with options (model, resume, etc.)
+;;
+;; In prompt buffer (.claude-code-emacs.prompt.md):
+;;   @ TAB                          ; Complete file paths
+;;   C-c C-s                        ; Send section at point
+;;   C-c C-b                        ; Send entire buffer
+;;
+;; MCP integration (optional):
+;;
+;;   M-x claude-code-emacs-install-mcp-server  ; Install MCP server
+;;   ;; Then configure Claude Code as instructed
+;;
+;; For more information, see README.md
 
 ;;; Code:
 
