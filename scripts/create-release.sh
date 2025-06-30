@@ -37,6 +37,10 @@ if ! git rev-parse --git-dir > /dev/null 2>&1; then
     exit 1
 fi
 
+# Fetch tags to ensure we have the latest
+echo "Fetching tags from remote..."
+git fetch --tags
+
 # Get the previous tag for release notes generation
 PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
 
