@@ -5,13 +5,13 @@ MCP (Model Context Protocol) server that enables Claude Code to interact with Em
 ## Features
 
 ### Tools
-- **openFile**: Open files in Emacs with optional text selection
 - **getOpenBuffers**: List all open buffers in the current project
 - **getCurrentSelection**: Get the currently selected text in Emacs
-- **getDiagnostics**: Retrieve LSP diagnostics for the project
-- **getDefinition**: Find symbol definitions using LSP
+- **getDiagnostics**: Retrieve LSP diagnostics for the project (requires buffer parameter)
+- **getDefinition**: Find symbol definitions using LSP with preview
 - **findReferences**: Find all references to a symbol using LSP
-- **runCommand**: Execute Emacs commands via emacsclient subprocess (with security restrictions)
+- **describeSymbol**: Get documentation for symbols using LSP hover
+- **sendNotification**: Send notifications to Emacs (using the alert package)
 
 ### Diff Tools
 - **openDiff**: Compare two files or buffers
@@ -21,9 +21,10 @@ MCP (Model Context Protocol) server that enables Claude Code to interact with Em
 - **applyPatch**: Apply patch files using ediff
 - **openDiffContent**: Compare two text contents in temporary buffers
 
-### Other Tools
-- **sendNotification**: Send notifications to Emacs (using the alert package)
-- **describeSymbol**: Get documentation for symbols using LSP hover
+### Real-time Events
+- **emacs/bufferListUpdated**: Notifies when buffers are opened, closed, or modified
+- **emacs/bufferContentModified**: Notifies when buffer content changes with line-level information
+- **emacs/diagnosticsChanged**: Notifies when LSP diagnostics are updated
 
 ### Resources
 - Buffer content access
@@ -74,11 +75,13 @@ npm install claude-code-emacs-mcp-server
 The MCP server acts as a bridge between Claude Code and Emacs:
 
 ```
-Claude Code <--(stdio/JSON-RPC)--> MCP Server <--(WebSocket:8766)--> Emacs
+Claude Code <--(stdio/JSON-RPC)--> MCP Server <--(WebSocket:dynamic port)--> Emacs
 ```
 
 - Claude Code communicates with the MCP server using stdio (JSON-RPC protocol)
-- The MCP server maintains a WebSocket connection to Emacs on port 8766
+- The MCP server creates a WebSocket server on a dynamic port
+- Port information is registered with Emacs via emacsclient
+- Each project maintains its own isolated WebSocket connection
 - Emacs handles the actual file operations and provides editor state
 - The server automatically starts when Claude Code needs to use Emacs tools
 
@@ -123,17 +126,13 @@ The MCP server logs to a file for troubleshooting:
 
 ## Port Configuration
 
-The default WebSocket port is 8766. To use a different port:
+The MCP server uses dynamic port allocation for the WebSocket connection. When the server starts:
 
-1. In Emacs, set `claude-code-emacs-mcp-port`:
-   ```elisp
-   (setq claude-code-emacs-mcp-port 8767)
-   ```
+1. It automatically finds an available port
+2. Registers the port with Emacs via `emacsclient`
+3. Emacs connects to the registered port
 
-2. Pass the port as an argument in the MCP configuration:
-   ```json
-   "args": ["claude-code-emacs-mcp-server", "8767"]
-   ```
+This eliminates port conflicts and allows multiple projects to run simultaneously. No manual port configuration is needed.
 
 ## License
 
