@@ -30,7 +30,7 @@
 ;;; Code:
 
 (require 'json)
-(require 'websocket)
+(require 'websocket nil t)
 (require 'projectile)
 
 ;; Forward declarations

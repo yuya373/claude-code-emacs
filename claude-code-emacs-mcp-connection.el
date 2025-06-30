@@ -31,7 +31,7 @@
 
 ;;; Code:
 
-(require 'websocket)
+(require 'websocket nil t)
 (require 'projectile)
 (require 'json)
 (require 'claude-code-emacs-core)
