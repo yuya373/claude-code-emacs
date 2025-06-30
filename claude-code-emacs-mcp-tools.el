@@ -135,9 +135,9 @@ Returns project-wide diagnostics using specified buffer for LSP context."
                                                       (_ "")))
                                        (message . ,message)
                                        (source . ,(or source "lsp")))
-                                     diagnostics))))
-                       lsp-diags))))
-        `((diagnostics . ,(nreverse diagnostics))))
+                                     diagnostics)))))
+                       lsp-diags)))
+          `((diagnostics . ,(nreverse diagnostics)))))
     (error
      ;; Log error and re-throw it
      (message "Error in getDiagnostics handler: %s" (error-message-string err))
