@@ -14,15 +14,13 @@
 ```
 
 ```bash
-# 依存関係のインストールとMCPサーバーのビルド
-make install-deps
-make mcp-build
+# MCPサーバーをグローバルにインストール
+npm install -g claude-code-emacs-mcp-server
 
 # Claude CodeでMCPを設定
 claude mcp add-json emacs '{
   "type": "stdio",
-  "command": "node",
-  "args": ["/path/to/claude-code-emacs/mcp-server/dist/index.js"]
+  "command": "claude-code-emacs-mcp"
 }'
 ```
 
@@ -104,6 +102,46 @@ Transientメニューで`x` → "refactor"を選択して実行
   - `alert`: デスクトップ通知用
 
 ## インストールの詳細
+
+### MCPサーバーのインストール
+
+#### オプション1: グローバルインストール（推奨）
+```bash
+# npmからグローバルにインストール
+npm install -g claude-code-emacs-mcp-server
+
+# Claude Codeを設定
+claude mcp add-json emacs '{
+  "type": "stdio",
+  "command": "claude-code-emacs-mcp"
+}'
+```
+
+#### オプション2: npxを使用（インストール不要）
+```bash
+# Claude Codeでnpxを使うよう設定
+# npxはパッケージを必要に応じてダウンロードして実行
+claude mcp add-json emacs '{
+  "type": "stdio",
+  "command": "npx",
+  "args": ["claude-code-emacs-mcp-server"]
+}'
+```
+
+#### オプション3: ソースからビルド
+```bash
+# リポジトリをクローンした場合
+cd /path/to/claude-code-emacs/mcp-server
+npm install
+npm run build
+
+# Claude Codeを設定
+claude mcp add-json emacs '{
+  "type": "stdio",
+  "command": "node",
+  "args": ["/path/to/claude-code-emacs/mcp-server/dist/index.js"]
+}'
+```
 
 詳しいMCP設定は[docs/MCP-SETUP.md](docs/MCP-SETUP.md)を参照。
 

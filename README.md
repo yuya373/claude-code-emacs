@@ -14,15 +14,13 @@ Run [Claude Code](https://docs.anthropic.com/en/docs/claude-code) AI coding sess
 ```
 
 ```bash
-# Install dependencies and build MCP server
-make install-deps
-make mcp-build
+# Install MCP server globally
+npm install -g claude-code-emacs-mcp-server
 
 # Configure Claude Code to use MCP
 claude mcp add-json emacs '{
   "type": "stdio",
-  "command": "node",
-  "args": ["/path/to/claude-code-emacs/mcp-server/dist/index.js"]
+  "command": "claude-code-emacs-mcp"
 }'
 ```
 
@@ -104,6 +102,46 @@ Press `g` in main menu for git commands:
   - `alert`: For desktop notifications
 
 ## Installation Details
+
+### MCP Server Installation
+
+#### Option 1: Global Installation (Recommended)
+```bash
+# Install globally from npm
+npm install -g claude-code-emacs-mcp-server
+
+# Configure Claude Code
+claude mcp add-json emacs '{
+  "type": "stdio",
+  "command": "claude-code-emacs-mcp"
+}'
+```
+
+#### Option 2: Using npx (No Installation Required)
+```bash
+# Configure Claude Code to use npx
+# npx will download and run the package on demand
+claude mcp add-json emacs '{
+  "type": "stdio",
+  "command": "npx",
+  "args": ["claude-code-emacs-mcp-server"]
+}'
+```
+
+#### Option 3: Build from Source
+```bash
+# If you cloned the repository
+cd /path/to/claude-code-emacs/mcp-server
+npm install
+npm run build
+
+# Configure Claude Code
+claude mcp add-json emacs '{
+  "type": "stdio",
+  "command": "node",
+  "args": ["/path/to/claude-code-emacs/mcp-server/dist/index.js"]
+}'
+```
 
 See [docs/MCP-SETUP.md](docs/MCP-SETUP.md) for detailed MCP configuration.
 
