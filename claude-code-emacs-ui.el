@@ -75,6 +75,7 @@
 (declare-function claude-code-emacs-send-prompt-region "claude-code-emacs-prompt" ())
 (declare-function claude-code-emacs-insert-region-path-to-prompt "claude-code-emacs-prompt" ())
 (declare-function claude-code-emacs-insert-current-file-path-to-prompt "claude-code-emacs-prompt" ())
+(declare-function claude-code-emacs-insert-current-file-path-to-session "claude-code-emacs-prompt" ())
 
 ;;; Major modes
 
@@ -250,9 +251,12 @@ Each path is inserted on a new line with @ prefix."
 
 (transient-define-prefix claude-code-emacs-insert-transient ()
   "Claude Code Emacs insert menu."
-  ["Claude Code Insert to prompt"
-   [("r" "Insert region and path" claude-code-emacs-insert-region-path-to-prompt)]
-   [("i" "Insert current file path" claude-code-emacs-insert-current-file-path-to-prompt)]])
+  ["Claude Code Insert"
+   ["To Prompt Buffer"
+    ("r" "Insert region and path" claude-code-emacs-insert-region-path-to-prompt)
+    ("i" "Insert current file path" claude-code-emacs-insert-current-file-path-to-prompt)]
+   ["To Session Buffer"
+    ("I" "Insert current file path to session" claude-code-emacs-insert-current-file-path-to-session)]])
 
 (transient-define-prefix claude-code-emacs-prompt-transient ()
   "Claude Code prompt buffer menu."

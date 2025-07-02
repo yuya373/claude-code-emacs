@@ -392,5 +392,82 @@
           ;; Verify markdown code blocks were added
           (should (string-match-p "```" prompt-buffer-content)))))))
 
+(ert-deftest test-claude-code-emacs-insert-current-file-path-to-session ()
+  "Test inserting current file @-path directly to Claude Code session."
+  (let ((test-file "/home/user/project/src/main.el")
+        (sent-string nil))
+    ;; Create test buffer
+    (with-temp-buffer
+      (setq buffer-file-name test-file)
+      (insert "# Main file content")
+      
+      ;; Mock functions
+      (cl-letf* (((symbol-function 'projectile-project-root)
+                  (lambda (&optional _) "/home/user/project/"))
+                 ((symbol-function 'claude-code-emacs-send-string)
+                  (lambda (string &optional _)
+                    (setq sent-string string))))
+        
+        ;; Call the function
+        (claude-code-emacs-insert-current-file-path-to-session)
+        
+        ;; Check the result
+        (should (equal sent-string "@src/main.el"))))))
+
+(ert-deftest test-claude-code-emacs-insert-current-file-path-to-session-with-region ()
+  "Test inserting current file @-path with line range directly to Claude Code session."
+  (let ((test-file "/home/user/project/src/utils.el")
+        (sent-string nil))
+    ;; Create test buffer
+    (with-temp-buffer
+      (setq buffer-file-name test-file)
+      (insert "line1\nline2\nline3\nline4\nline5")
+      (goto-char (point-min))
+      (forward-line 1)  ; Go to line 2
+      (set-mark (point))
+      (forward-line 2)  ; Select lines 2-3
+      (activate-mark)
+      
+      ;; Mock functions
+      (cl-letf* (((symbol-function 'projectile-project-root)
+                  (lambda (&optional _) "/home/user/project/"))
+                 ((symbol-function 'claude-code-emacs-send-string)
+                  (lambda (string &optional _)
+                    (setq sent-string string))))
+        
+        ;; Call the function
+        (claude-code-emacs-insert-current-file-path-to-session)
+        
+        ;; Check the result
+        (should (equal sent-string "@src/utils.el#L2-3"))))))
+
+(ert-deftest test-claude-code-emacs-insert-current-file-path-to-session-single-line ()
+  "Test inserting current file @-path with single line to Claude Code session."
+  (let ((test-file "/home/user/project/README.md")
+        (sent-string nil))
+    ;; Create test buffer
+    (with-temp-buffer
+      (setq buffer-file-name test-file)
+      (insert "line1\nline2\nline3\nline4\nline5")
+      (goto-char (point-min))
+      (forward-line 2)  ; Go to line 3
+      (beginning-of-line)
+      (set-mark (point))
+      (end-of-line)     ; Select only line 3
+      (activate-mark)
+      
+      ;; Mock functions
+      (cl-letf* (((symbol-function 'projectile-project-root)
+                  (lambda (&optional _) "/home/user/project/"))
+                 ((symbol-function 'claude-code-emacs-send-string)
+                  (lambda (string &optional _)
+                    (setq sent-string string))))
+        
+        ;; Call the function
+        (claude-code-emacs-insert-current-file-path-to-session)
+        
+        ;; Check the result
+        (should (equal sent-string "@README.md#L3"))))))
+
 (provide 'test-claude-code-emacs-prompt)
 ;;; test-claude-code-emacs-prompt.el ends here

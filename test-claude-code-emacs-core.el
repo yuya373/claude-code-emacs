@@ -31,24 +31,6 @@
 
 ;;; Tests for core functions
 
-(ert-deftest test-claude-code-emacs-chunk-string ()
-  "Test string chunking functionality."
-  ;; Test normal chunking
-  (let ((result (claude-code-emacs-chunk-string "Hello World" 5)))
-    (should (equal result '("Hello" " Worl" "d"))))
-
-  ;; Test empty string
-  (let ((result (claude-code-emacs-chunk-string "" 5)))
-    (should (equal result '(""))))
-
-  ;; Test chunk size larger than string
-  (let ((result (claude-code-emacs-chunk-string "Hi" 10)))
-    (should (equal result '("Hi"))))
-
-  ;; Test error on invalid chunk size
-  (should-error (claude-code-emacs-chunk-string "test" 0))
-  (should-error (claude-code-emacs-chunk-string "test" -1)))
-
 (ert-deftest test-claude-code-emacs-count-arguments ()
   "Test counting $ARGUMENTS placeholders."
   (should (= 0 (claude-code-emacs-count-arguments "No arguments here")))

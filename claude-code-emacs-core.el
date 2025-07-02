@@ -43,15 +43,6 @@
   :group 'tools
   :prefix "claude-code-emacs-")
 
-(defcustom claude-code-emacs-chunk-size 25
-  "Size of chunks when sending long strings to vterm."
-  :type 'integer
-  :group 'claude-code-emacs)
-
-(defcustom claude-code-emacs-chunk-delay 0.1
-  "Delay in seconds between sending chunks to vterm."
-  :type 'number
-  :group 'claude-code-emacs)
 
 (defcustom claude-code-emacs-executable "claude"
   "The executable name or path for Claude Code CLI."
@@ -92,27 +83,6 @@
   (let ((buf (claude-code-emacs-ensure-buffer)))
     (with-current-buffer buf
       (funcall body-fn))))
-
-;;; String Processing
-
-(defun claude-code-emacs-chunk-string (str &optional chunk-size)
-  "Split STR into chunks of CHUNK-SIZE characters.
-If CHUNK-SIZE is not provided, use `claude-code-emacs-chunk-size'."
-  (let ((chunk-size (or chunk-size claude-code-emacs-chunk-size)))
-    (if (or (<= chunk-size 0)
-            (not (stringp str)))
-        (error "Invalid input: string must be non-empty and chunk-size must be greater than 0")
-      (if (string-empty-p str)
-          '("")
-        (let ((len (length str))
-              (result '())
-              (start 0))
-          (while (< start len)
-            (let ((end (min (+ start chunk-size) len)))
-              (push (substring str start end) result)
-              (setq start end)))
-          (nreverse result))))))
-
 
 ;;; Session Management
 

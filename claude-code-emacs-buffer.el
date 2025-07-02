@@ -28,7 +28,6 @@
 (require 'vterm)
 (require 'claude-code-emacs-core)
 
-(defvar claude-code-emacs-chunk-delay)  ;; Defined in core
 (defvar claude-code-emacs-executable)   ;; Defined in core
 
 ;;; Buffer Operations
@@ -36,19 +35,10 @@
 (defun claude-code-emacs-send-string (string &optional paste-p)
   "Send STRING to the Claude Code session."
   (interactive "sEnter text: ")
-  (let ((chunks (claude-code-emacs-chunk-string string)))
-    (claude-code-emacs-with-vterm-buffer
-     (lambda ()
-       (if (= (length chunks) 1)
-           ;; Single chunk, send directly
-           (progn
-             (vterm-send-string (car chunks) paste-p)
-             (sit-for claude-code-emacs-chunk-delay))
-         ;; Multiple chunks, send with delay
-         (dolist (chunk chunks)
-           (vterm-send-string chunk paste-p)
-           (sit-for claude-code-emacs-chunk-delay)))
-       (vterm-send-return)))))
+  (claude-code-emacs-with-vterm-buffer
+   (lambda ()
+     (vterm-send-string string paste-p)
+     (vterm-send-return))))
 
 ;;; File Path Utilities
 

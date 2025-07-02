@@ -72,9 +72,8 @@
 (require 'claude-code-emacs-prompt)
 
 ;; MCP integration (only when websocket is available)
-(when (featurep 'websocket)
-  (require 'claude-code-emacs-mcp)
-  (require 'claude-code-emacs-mcp-events))
+(require 'claude-code-emacs-mcp)
+(require 'claude-code-emacs-mcp-events)
 
 (provide 'claude-code-emacs)
 ;;; claude-code-emacs.el ends here

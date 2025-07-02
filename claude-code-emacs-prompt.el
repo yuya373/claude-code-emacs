@@ -31,9 +31,9 @@
 
 (require 'projectile)
 (require 'markdown-mode)
+(require 'claude-code-emacs-buffer)
 
 ;; Forward declarations
-(declare-function claude-code-emacs-send-string "claude-code-emacs-core" (string &optional paste-p))
 (declare-function claude-code-emacs-prompt-mode "claude-code-emacs-ui" ())
 
 ;;;###autoload
@@ -161,6 +161,27 @@ If region is selected, append line number range (e.g., @file.el#L10-15)."
           (goto-char (point-max))
           (insert "\n" at-path "\n")
           (message "Inserted: %s" at-path))
+      (message "Cannot determine project-relative path for current buffer"))))
+
+;;;###autoload
+(defun claude-code-emacs-insert-current-file-path-to-session ()
+  "Insert the current file's @-prefixed path directly into Claude Code session.
+If region is selected, append line number range (e.g., @file.el#L10-15)."
+  (interactive)
+  (let* ((relative-path (claude-code-emacs--get-relative-path))
+         (has-region (use-region-p))
+         (region-start (when has-region (region-beginning)))
+         (region-end (when has-region (region-end)))
+         (start-line (when has-region (line-number-at-pos region-start)))
+         (end-line (when has-region (claude-code-emacs--calculate-end-line region-end))))
+    (if relative-path
+        (let ((at-path (if has-region
+                          (claude-code-emacs--format-file-path-with-lines
+                           relative-path start-line end-line)
+                        (concat "@" relative-path))))
+          ;; Send directly to Claude Code session
+          (claude-code-emacs-send-string at-path t)
+          (message "Sent to Claude Code: %s" at-path))
       (message "Cannot determine project-relative path for current buffer"))))
 
 (provide 'claude-code-emacs-prompt)
