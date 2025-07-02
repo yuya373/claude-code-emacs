@@ -46,20 +46,55 @@ PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
 
 echo "Creating release $TAG_NAME..."
 
-# Create the release
+# Generate release notes from commits
 if [ -n "$PREV_TAG" ]; then
     echo "Generating notes from $PREV_TAG to HEAD..."
+    
+    # Create release notes
+    RELEASE_NOTES="## What's Changed\n\n"
+    
+    # Get features
+    FEATURES=$(git log --pretty=format:"- %s" "$PREV_TAG"..HEAD | grep "^- feat:" || true)
+    if [ -n "$FEATURES" ]; then
+        RELEASE_NOTES+="### ✨ Features\n$FEATURES\n\n"
+    fi
+    
+    # Get fixes
+    FIXES=$(git log --pretty=format:"- %s" "$PREV_TAG"..HEAD | grep "^- fix:" || true)
+    if [ -n "$FIXES" ]; then
+        RELEASE_NOTES+="### 🐛 Bug Fixes\n$FIXES\n\n"
+    fi
+    
+    # Get docs
+    DOCS=$(git log --pretty=format:"- %s" "$PREV_TAG"..HEAD | grep "^- docs:" || true)
+    if [ -n "$DOCS" ]; then
+        RELEASE_NOTES+="### 📚 Documentation\n$DOCS\n\n"
+    fi
+    
+    # Get other changes (excluding version bumps)
+    OTHERS=$(git log --pretty=format:"- %s" "$PREV_TAG"..HEAD | grep -v "^- feat:\|^- fix:\|^- docs:\|^- chore: bump version" || true)
+    if [ -n "$OTHERS" ]; then
+        RELEASE_NOTES+="### 🔧 Other Changes\n$OTHERS\n\n"
+    fi
+    
+    RELEASE_NOTES+="**Full Changelog**: https://github.com/$(gh repo view --json nameWithOwner -q .nameWithOwner)/compare/$PREV_TAG...$TAG_NAME"
+    
+    # Create release with custom notes
     gh release create "$TAG_NAME" \
         $PUBLISH_FLAG \
-        --generate-notes \
         --title "Release $VERSION" \
-        --notes-start-tag "$PREV_TAG"
+        --notes "$(echo -e "$RELEASE_NOTES")"
 else
     echo "No previous tag found, generating notes for all commits..."
+    
+    # Create simple release notes for first release
+    RELEASE_NOTES="## Initial Release\n\n"
+    RELEASE_NOTES+="$(git log --pretty=format:"- %s" | grep -v "^- chore: bump version" || true)\n"
+    
     gh release create "$TAG_NAME" \
         $PUBLISH_FLAG \
-        --generate-notes \
-        --title "Release $VERSION"
+        --title "Release $VERSION" \
+        --notes "$(echo -e "$RELEASE_NOTES")"
 fi
 
 if [ -z "$PUBLISH_FLAG" ]; then
