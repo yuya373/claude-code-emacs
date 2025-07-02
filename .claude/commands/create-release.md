@@ -9,11 +9,20 @@
    - MINOR (0.x.0): New features, significant improvements, or minor breaking changes to internal APIs
    - PATCH (0.0.x): Bug fixes, documentation updates, small improvements
 
-3. Execute the release script with the determined version:
-   - For draft release: `./scripts/create-release.sh <version>`
-   - For immediate publish: `./scripts/create-release.sh <version> --publish`
+3. Create a comprehensive release notes file that includes:
+   - A clear summary of what changed and why it matters
+   - Categorized changes (Features, Bug Fixes, Documentation, etc.)
+   - Any breaking changes or migration notes
+   - Credits to contributors if applicable
+   - Save the release notes to a temporary file
 
-4. The script will:
-   - Generate categorized release notes from commit messages
+4. Execute the release script with the determined version and release notes:
+   - For draft release: `./scripts/create-release.sh <version> --notes-file <temp-file>`
+   - For immediate publish: `./scripts/create-release.sh <version> --publish --notes-file <temp-file>`
+
+5. Clean up the temporary release notes file after the release is created
+
+6. The script will:
+   - Use the provided release notes file
    - Create a GitHub release (draft by default)
    - Trigger automation workflow when published

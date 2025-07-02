@@ -1,28 +1,47 @@
 #!/bin/bash
 
 # Create a release draft using gh CLI
-# Usage: ./scripts/create-release.sh <version> [--publish]
+# Usage: ./scripts/create-release.sh <version> [--publish] [--notes-file <file>]
 
 set -e
 
 if [ -z "$1" ]; then
-    echo "Usage: $0 <version> [--publish]"
+    echo "Usage: $0 <version> [--publish] [--notes-file <file>]"
     echo "Examples:"
-    echo "  $0 0.2.0           # Create draft release"
-    echo "  $0 0.2.0 --publish # Create and publish release"
+    echo "  $0 0.2.0                            # Create draft release with auto-generated notes"
+    echo "  $0 0.2.0 --publish                  # Create and publish release"
+    echo "  $0 0.2.0 --notes-file notes.md      # Create draft with custom release notes"
+    echo "  $0 0.2.0 --publish --notes-file notes.md  # Publish with custom notes"
     exit 1
 fi
 
 VERSION=$1
 TAG_NAME="v$VERSION"
-PUBLISH_FLAG=""
+PUBLISH_FLAG="--draft"
+NOTES_FILE=""
 
-# Check if --publish flag is provided
-if [ "$2" = "--publish" ]; then
-    PUBLISH_FLAG=""
-else
-    PUBLISH_FLAG="--draft"
-fi
+# Parse additional arguments
+shift  # Remove version from arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --publish)
+            PUBLISH_FLAG=""
+            shift
+            ;;
+        --notes-file)
+            if [ -z "$2" ]; then
+                echo "Error: --notes-file requires a file path"
+                exit 1
+            fi
+            NOTES_FILE="$2"
+            shift 2
+            ;;
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+done
 
 # Check if gh CLI is installed
 if ! command -v gh &> /dev/null; then
@@ -46,55 +65,70 @@ PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
 
 echo "Creating release $TAG_NAME..."
 
-# Generate release notes from commits
-if [ -n "$PREV_TAG" ]; then
-    echo "Generating notes from $PREV_TAG to HEAD..."
-    
-    # Create release notes
-    RELEASE_NOTES="## What's Changed\n\n"
-    
-    # Get features
-    FEATURES=$(git log --pretty=format:"- %s" "$PREV_TAG"..HEAD | grep "^- feat:" || true)
-    if [ -n "$FEATURES" ]; then
-        RELEASE_NOTES+="### ✨ Features\n$FEATURES\n\n"
+# Check if custom notes file is provided
+if [ -n "$NOTES_FILE" ]; then
+    if [ ! -f "$NOTES_FILE" ]; then
+        echo "Error: Notes file '$NOTES_FILE' does not exist"
+        exit 1
     fi
-    
-    # Get fixes
-    FIXES=$(git log --pretty=format:"- %s" "$PREV_TAG"..HEAD | grep "^- fix:" || true)
-    if [ -n "$FIXES" ]; then
-        RELEASE_NOTES+="### 🐛 Bug Fixes\n$FIXES\n\n"
-    fi
-    
-    # Get docs
-    DOCS=$(git log --pretty=format:"- %s" "$PREV_TAG"..HEAD | grep "^- docs:" || true)
-    if [ -n "$DOCS" ]; then
-        RELEASE_NOTES+="### 📚 Documentation\n$DOCS\n\n"
-    fi
-    
-    # Get other changes (excluding version bumps)
-    OTHERS=$(git log --pretty=format:"- %s" "$PREV_TAG"..HEAD | grep -v "^- feat:\|^- fix:\|^- docs:\|^- chore: bump version" || true)
-    if [ -n "$OTHERS" ]; then
-        RELEASE_NOTES+="### 🔧 Other Changes\n$OTHERS\n\n"
-    fi
-    
-    RELEASE_NOTES+="**Full Changelog**: https://github.com/$(gh repo view --json nameWithOwner -q .nameWithOwner)/compare/$PREV_TAG...$TAG_NAME"
+    echo "Using custom release notes from $NOTES_FILE"
     
     # Create release with custom notes
     gh release create "$TAG_NAME" \
         $PUBLISH_FLAG \
         --title "Release $VERSION" \
-        --notes "$(echo -e "$RELEASE_NOTES")"
+        --notes-file "$NOTES_FILE"
 else
-    echo "No previous tag found, generating notes for all commits..."
-    
-    # Create simple release notes for first release
-    RELEASE_NOTES="## Initial Release\n\n"
-    RELEASE_NOTES+="$(git log --pretty=format:"- %s" | grep -v "^- chore: bump version" || true)\n"
-    
-    gh release create "$TAG_NAME" \
-        $PUBLISH_FLAG \
-        --title "Release $VERSION" \
-        --notes "$(echo -e "$RELEASE_NOTES")"
+    # Generate release notes from commits
+    if [ -n "$PREV_TAG" ]; then
+        echo "Generating notes from $PREV_TAG to HEAD..."
+
+        # Create release notes
+        RELEASE_NOTES="## What's Changed\n\n"
+
+        # Get features
+        FEATURES=$(git log --pretty=format:"- %s" "$PREV_TAG"..HEAD | grep "^- feat:" || true)
+        if [ -n "$FEATURES" ]; then
+            RELEASE_NOTES+="### ✨ Features\n$FEATURES\n\n"
+        fi
+
+        # Get fixes
+        FIXES=$(git log --pretty=format:"- %s" "$PREV_TAG"..HEAD | grep "^- fix:" || true)
+        if [ -n "$FIXES" ]; then
+            RELEASE_NOTES+="### 🐛 Bug Fixes\n$FIXES\n\n"
+        fi
+
+        # Get docs
+        DOCS=$(git log --pretty=format:"- %s" "$PREV_TAG"..HEAD | grep "^- docs:" || true)
+        if [ -n "$DOCS" ]; then
+            RELEASE_NOTES+="### 📚 Documentation\n$DOCS\n\n"
+        fi
+
+        # Get other changes (excluding version bumps)
+        OTHERS=$(git log --pretty=format:"- %s" "$PREV_TAG"..HEAD | grep -v "^- feat:\|^- fix:\|^- docs:\|^- chore: bump version" || true)
+        if [ -n "$OTHERS" ]; then
+            RELEASE_NOTES+="### 🔧 Other Changes\n$OTHERS\n\n"
+        fi
+
+        RELEASE_NOTES+="**Full Changelog**: https://github.com/$(gh repo view --json nameWithOwner -q .nameWithOwner)/compare/$PREV_TAG...$TAG_NAME"
+
+        # Create release with custom notes
+        gh release create "$TAG_NAME" \
+            $PUBLISH_FLAG \
+            --title "Release $VERSION" \
+            --notes "$(echo -e "$RELEASE_NOTES")"
+    else
+        echo "No previous tag found, generating notes for all commits..."
+
+        # Create simple release notes for first release
+        RELEASE_NOTES="## Initial Release\n\n"
+        RELEASE_NOTES+="$(git log --pretty=format:"- %s" | grep -v "^- chore: bump version" || true)\n"
+
+        gh release create "$TAG_NAME" \
+            $PUBLISH_FLAG \
+            --title "Release $VERSION" \
+            --notes "$(echo -e "$RELEASE_NOTES")"
+    fi
 fi
 
 if [ -z "$PUBLISH_FLAG" ]; then
