@@ -2,13 +2,12 @@
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { CallToolRequestSchema, ClientNotificationSchema, ListResourcesRequestSchema, ListToolsRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { ListResourcesRequestSchema, ListToolsRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { EmacsBridge } from './emacs-bridge.js';
 import {
   handleGetOpenBuffers,
   handleGetCurrentSelection,
   handleGetDiagnostics,
-  GetDiagnosticsArgs,
   diffTools,
   handleOpenDiff,
   handleOpenDiff3,
@@ -17,13 +16,9 @@ import {
   handleApplyPatch,
   handleOpenDiffContent,
   handleGetDefinition,
-  GetDefinitionArgs,
   handleFindReferences,
-  FindReferencesArgs,
   handleDescribeSymbol,
-  DescribeSymbolArgs,
-  handleSendNotification,
-  NotificationArgs
+  handleSendNotification
 } from './tools/index.js';
 import {
   bufferResourceHandler,
@@ -217,7 +212,7 @@ const TOOLS = [
 ];
 
 // Handle list tools request
-server.server.setRequestHandler(ListToolsRequestSchema, async (request) => {
+server.server.setRequestHandler(ListToolsRequestSchema, async (_request) => {
   log(`MCP Request: list tools`);
   return {
     tools: TOOLS
@@ -225,7 +220,7 @@ server.server.setRequestHandler(ListToolsRequestSchema, async (request) => {
 });
 
 // Handle list resources request
-server.server.setRequestHandler(ListResourcesRequestSchema, async (request) => {
+server.server.setRequestHandler(ListResourcesRequestSchema, async (_request) => {
   log(`MCP Request: list resources`);
   try {
     const resources = [
@@ -268,85 +263,6 @@ server.server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   }
 });
 
-// Handle tool execution
-server.server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-  log(`MCP Request: call tool - ${name} with args: ${JSON.stringify(args)}`);
-
-  try {
-    let result;
-    switch (name) {
-
-      case 'getOpenBuffers':
-        result = await handleGetOpenBuffers(bridge, args || {});
-        break;
-
-      case 'getCurrentSelection':
-        result = await handleGetCurrentSelection(bridge, args || {});
-        break;
-
-      case 'getDiagnostics':
-        result = await handleGetDiagnostics(bridge, (args || {}) as unknown as GetDiagnosticsArgs);
-        break;
-
-      case 'openDiff':
-        result = await handleOpenDiff(bridge, args || {});
-        break;
-
-      case 'openDiff3':
-        result = await handleOpenDiff3(bridge, args || {});
-        break;
-
-      case 'openRevisionDiff':
-        result = await handleOpenRevisionDiff(bridge, args || {});
-        break;
-
-      case 'openCurrentChanges':
-        result = await handleOpenCurrentChanges(bridge, args || {});
-        break;
-
-      case 'applyPatch':
-        result = await handleApplyPatch(bridge, args || {});
-        break;
-
-      case 'openDiffContent':
-        result = await handleOpenDiffContent(bridge, args || {});
-        break;
-
-      case 'getDefinition':
-        result = await handleGetDefinition(bridge, (args || {}) as unknown as GetDefinitionArgs);
-        break;
-
-      case 'findReferences':
-        result = await handleFindReferences(bridge, (args || {}) as unknown as FindReferencesArgs);
-        break;
-
-      case 'describeSymbol':
-        result = await handleDescribeSymbol(bridge, (args || {}) as unknown as DescribeSymbolArgs);
-        break;
-
-      case 'sendNotification':
-        result = await handleSendNotification(bridge, (args || {}) as unknown as NotificationArgs);
-        break;
-
-      default:
-        throw new Error(`Unknown tool: ${name}`);
-    }
-
-    log(`MCP Response: tool ${name} executed successfully`);
-    return result;
-  } catch (error) {
-    log(`MCP Error: tool ${name} failed - ${error instanceof Error ? error.message : String(error)}`);
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Error: ${error instanceof Error ? error.message : String(error)}`
-        }
-      ]
-    };
-  }
-});
 
 
 // Notify Emacs about the port
