@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ClientNotificationSchema, ListResourcesRequestSchema, ListToolsRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { EmacsBridge } from './emacs-bridge.js';
@@ -59,7 +59,7 @@ log(`Log file: ${logFile}`);
 // Create a new bridge instance for each MCP server
 // This ensures isolation between different Claude Code sessions
 const bridge = new EmacsBridge(log);
-const server = new Server(
+const server = new McpServer(
   {
     name: 'claude-code-emacs-mcp',
     version: '0.1.0',
@@ -75,7 +75,7 @@ const server = new Server(
 // Set up notification handler to forward Emacs events to Claude Code
 bridge.setNotificationHandler((method: string, params: any) => {
   log(`Forwarding Emacs notification to Claude Code: ${method} with params: ${JSON.stringify(params)}`);
-  server.notification({
+  server.server.notification({
     method: method,
     params: params
   });
@@ -217,7 +217,7 @@ const TOOLS = [
 ];
 
 // Handle list tools request
-server.setRequestHandler(ListToolsRequestSchema, async (request) => {
+server.server.setRequestHandler(ListToolsRequestSchema, async (request) => {
   log(`MCP Request: list tools`);
   return {
     tools: TOOLS
@@ -225,7 +225,7 @@ server.setRequestHandler(ListToolsRequestSchema, async (request) => {
 });
 
 // Handle list resources request
-server.setRequestHandler(ListResourcesRequestSchema, async (request) => {
+server.server.setRequestHandler(ListResourcesRequestSchema, async (request) => {
   log(`MCP Request: list resources`);
   try {
     const resources = [
@@ -243,7 +243,7 @@ server.setRequestHandler(ListResourcesRequestSchema, async (request) => {
 });
 
 // Handle read resource request
-server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+server.server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   const { uri } = request.params;
   log(`MCP Request: read resource - ${uri}`);
 
@@ -269,7 +269,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 });
 
 // Handle tool execution
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
+server.server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
   log(`MCP Request: call tool - ${name} with args: ${JSON.stringify(args)}`);
 
@@ -386,7 +386,7 @@ async function main() {
 
   const ping = async () => {
     try {
-      await server.ping()
+      await server.server.ping()
       log(`Ping successful for session ${sessionId}`);
       setTimeout(ping, 30000)
 
@@ -396,11 +396,11 @@ async function main() {
       process.exit(1)
     }
   }
-  server.oninitialized = () => {
+  server.server.oninitialized = () => {
     log(`MCP server initialized for session ${sessionId}, Emacs bridge on port ${port}`);
     log(`Starting ping monitoring for session ${sessionId}`);
     ping()
-    const cap = server.getClientCapabilities()
+    const cap = server.server.getClientCapabilities()
     log(`Client capabilities: ${JSON.stringify(cap)}`)
   }
 
