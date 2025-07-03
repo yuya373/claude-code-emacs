@@ -52,7 +52,7 @@ describe('handleDescribeSymbol', () => {
     expect(result.content[0].text).toBe('No documentation found for unknownSymbol');
   });
 
-  it('should throw error if Emacs not connected', async () => {
+  it('should return error if Emacs not connected', async () => {
     mockBridge.isConnected.mockReturnValue(false);
 
     const args: DescribeSymbolArgs = {
@@ -61,30 +61,15 @@ describe('handleDescribeSymbol', () => {
       symbol: 'test'
     };
 
-    await expect(handleDescribeSymbol(mockBridge, args))
-      .rejects.toThrow('Emacs is not connected');
-  });
-
-  it('should validate required parameters', async () => {
-    mockBridge.isConnected.mockReturnValue(true);
-
-    // Missing file
-    await expect(handleDescribeSymbol(mockBridge, {
-      line: 1,
-      symbol: 'test'
-    } as any)).rejects.toThrow('file parameter is required');
-
-    // Missing line
-    await expect(handleDescribeSymbol(mockBridge, {
-      file: 'test.ts',
-      symbol: 'test'
-    } as any)).rejects.toThrow('line parameter is required');
-
-    // Missing symbol
-    await expect(handleDescribeSymbol(mockBridge, {
-      file: 'test.ts',
-      line: 1
-    } as any)).rejects.toThrow('symbol parameter is required');
+    const result = await handleDescribeSymbol(mockBridge, args);
+    
+    expect(result).toEqual({
+      content: [{
+        type: 'text',
+        text: 'Error: Emacs is not connected'
+      }],
+      isError: true
+    });
   });
 
   it('should handle Emacs errors gracefully', async () => {
@@ -97,8 +82,15 @@ describe('handleDescribeSymbol', () => {
       symbol: 'test'
     };
 
-    await expect(handleDescribeSymbol(mockBridge, args))
-      .rejects.toThrow('Failed to describe symbol: LSP not available');
+    const result = await handleDescribeSymbol(mockBridge, args);
+    
+    expect(result).toEqual({
+      content: [{
+        type: 'text',
+        text: 'Error describing symbol: LSP not available'
+      }],
+      isError: true
+    });
   });
 
   // This test is also no longer needed

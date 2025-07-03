@@ -1,20 +1,20 @@
 #!/usr/bin/env node
 
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { ListResourcesRequestSchema, ListToolsRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { EmacsBridge } from './emacs-bridge.js';
+import { sendNotificationInputSchema, sendNotificationOutputSchema } from './schemas/notification-schema.js';
+import { getDiagnosticsInputSchema, getDiagnosticsOutputSchema } from './schemas/diagnostic-schema.js';
+import { getDefinitionInputSchema, getDefinitionOutputSchema } from './schemas/definition-schema.js';
+import { findReferencesInputSchema, findReferencesOutputSchema } from './schemas/reference-schema.js';
+import { describeSymbolInputSchema, describeSymbolOutputSchema } from './schemas/describe-schema.js';
+import { getOpenBuffersInputSchema, getOpenBuffersOutputSchema } from './schemas/buffer-schema.js';
+import { getCurrentSelectionInputSchema, getCurrentSelectionOutputSchema } from './schemas/selection-schema.js';
 import {
   handleGetOpenBuffers,
   handleGetCurrentSelection,
   handleGetDiagnostics,
   diffTools,
-  handleOpenDiff,
-  handleOpenDiff3,
-  handleOpenRevisionDiff,
-  handleOpenCurrentChanges,
-  handleApplyPatch,
-  handleOpenDiffContent,
   handleGetDefinition,
   handleFindReferences,
   handleDescribeSymbol,
@@ -77,192 +77,293 @@ bridge.setNotificationHandler((method: string, params: any) => {
 });
 
 
-// Tool definitions
-const TOOLS = [
-  {
-    name: 'getOpenBuffers',
+// Register tools with McpServer
+function registerTools() {
+  // getOpenBuffers tool
+  server.registerTool('getOpenBuffers', {
     description: 'Get list of open buffers in current project',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        includeHidden: {
-          type: 'boolean',
-          description: 'Include hidden buffers (starting with space)',
-          default: false
+    inputSchema: getOpenBuffersInputSchema.shape,
+    outputSchema: getOpenBuffersOutputSchema.shape
+  }, async (args, _extra) => {
+    const result = await handleGetOpenBuffers(bridge, args);
+    return {
+      content: result.content,
+      structuredContent: { buffers: result.buffers },
+      isError: result.isError
+    };
+  });
+
+  // getCurrentSelection tool
+  server.registerTool('getCurrentSelection', {
+    description: 'Get current text selection in Emacs',
+    inputSchema: getCurrentSelectionInputSchema.shape,
+    outputSchema: getCurrentSelectionOutputSchema.shape
+  }, async (args, _extra) => {
+    const result = await handleGetCurrentSelection(bridge, args);
+    return {
+      content: result.content,
+      structuredContent: {
+        selection: result.selection,
+        file: result.file,
+        start: result.start,
+        end: result.end
+      },
+      isError: result.isError
+    };
+  });
+
+  // getDiagnostics tool
+  server.registerTool('getDiagnostics', {
+    description: 'Get project-wide LSP diagnostics using specified buffer for LSP context',
+    inputSchema: getDiagnosticsInputSchema.shape,
+    outputSchema: getDiagnosticsOutputSchema.shape
+  }, async (args, _extra) => {
+    const result = await handleGetDiagnostics(bridge, args);
+    return {
+      content: result.content,
+      structuredContent: { diagnostics: result.diagnostics },
+      isError: result.isError
+    };
+  });
+
+  // getDefinition tool
+  server.registerTool('getDefinition', {
+    description: 'Find definition of symbol using LSP',
+    inputSchema: getDefinitionInputSchema.shape,
+    outputSchema: getDefinitionOutputSchema.shape
+  }, async (args, _extra) => {
+    const result = await handleGetDefinition(bridge, args);
+    return {
+      content: result.content,
+      structuredContent: { definitions: result.definitions },
+      isError: result.isError
+    };
+  });
+
+  // findReferences tool
+  server.registerTool('findReferences', {
+    description: 'Find all references to a symbol using LSP',
+    inputSchema: findReferencesInputSchema.shape,
+    outputSchema: findReferencesOutputSchema.shape
+  }, async (args, _extra) => {
+    const result = await handleFindReferences(bridge, args);
+    return {
+      content: result.content,
+      structuredContent: { references: result.references },
+      isError: result.isError
+    };
+  });
+
+  // describeSymbol tool
+  server.registerTool('describeSymbol', {
+    description: 'Get full documentation and information about a symbol using LSP hover',
+    inputSchema: describeSymbolInputSchema.shape,
+    outputSchema: describeSymbolOutputSchema.shape
+  }, async (args, _extra) => {
+    const result = await handleDescribeSymbol(bridge, args);
+    return {
+      content: result.content,
+      structuredContent: {
+        documentation: result.documentation
+      },
+      isError: result.isError
+    };
+  });
+
+  // sendNotification tool
+  server.registerTool('sendNotification', {
+    description: 'Send a desktop notification to alert the user when tasks complete or need attention',
+    inputSchema: sendNotificationInputSchema.shape,
+    outputSchema: sendNotificationOutputSchema.shape
+  }, async (args, _extra) => {
+    const result = await handleSendNotification(bridge, args);
+    return {
+      content: result.content,
+      structuredContent: {
+        status: result.status,
+        message: result.message,
+      },
+      isError: result.isError
+    };
+  });
+
+  // Register diff tools individually for better type inference
+  // openDiff tool
+  server.registerTool('openDiff', {
+    description: diffTools.openDiff.description,
+    inputSchema: diffTools.openDiff.inputSchema.shape,
+    outputSchema: diffTools.openDiff.outputSchema.shape
+  }, async (args, _extra) => {
+    const result = await diffTools.openDiff.handler(bridge, args);
+    return {
+      content: result.content,
+      isError: result.isError
+    };
+  });
+
+  // openDiff3 tool
+  server.registerTool('openDiff3', {
+    description: diffTools.openDiff3.description,
+    inputSchema: diffTools.openDiff3.inputSchema.shape,
+    outputSchema: diffTools.openDiff3.outputSchema.shape
+  }, async (args, _extra) => {
+    const result = await diffTools.openDiff3.handler(bridge, args);
+    return {
+      content: result.content,
+      isError: result.isError
+    };
+  });
+
+  // openRevisionDiff tool
+  server.registerTool('openRevisionDiff', {
+    description: diffTools.openRevisionDiff.description,
+    inputSchema: diffTools.openRevisionDiff.inputSchema.shape,
+    outputSchema: diffTools.openRevisionDiff.outputSchema.shape
+  }, async (args, _extra) => {
+    const result = await diffTools.openRevisionDiff.handler(bridge, args);
+    return {
+      content: result.content,
+      isError: result.isError
+    };
+  });
+
+  // openCurrentChanges tool
+  server.registerTool('openCurrentChanges', {
+    description: diffTools.openCurrentChanges.description,
+    inputSchema: diffTools.openCurrentChanges.inputSchema.shape,
+    outputSchema: diffTools.openCurrentChanges.outputSchema.shape
+  }, async (args, _extra) => {
+    const result = await diffTools.openCurrentChanges.handler(bridge, args);
+    return {
+      content: result.content,
+      isError: result.isError
+    };
+  });
+
+  // applyPatch tool
+  server.registerTool('applyPatch', {
+    description: diffTools.applyPatch.description,
+    inputSchema: diffTools.applyPatch.inputSchema.shape,
+    outputSchema: diffTools.applyPatch.outputSchema.shape
+  }, async (args, _extra) => {
+    const result = await diffTools.applyPatch.handler(bridge, args);
+    return {
+      content: result.content,
+      isError: result.isError
+    };
+  });
+
+  // openDiffContent tool
+  server.registerTool('openDiffContent', {
+    description: diffTools.openDiffContent.description,
+    inputSchema: diffTools.openDiffContent.inputSchema.shape,
+    outputSchema: diffTools.openDiffContent.outputSchema.shape
+  }, async (args, _extra) => {
+    const result = await diffTools.openDiffContent.handler(bridge, args);
+    return {
+      content: result.content,
+      isError: result.isError
+    };
+  });
+}
+
+// Register resources with McpServer
+function registerResources() {
+  // Buffer resources (dynamic)
+  const bufferTemplate = new ResourceTemplate(
+    'file://{path}',
+    {
+      list: async () => {
+        try {
+          const resources = await bufferResourceHandler.list(bridge);
+          log(`Listed ${resources.length} buffer resources`);
+          return { resources };
+        } catch (error) {
+          log(`Error listing buffer resources: ${error}`);
+          return { resources: [] };
         }
       }
     }
-  },
-  {
-    name: 'getCurrentSelection',
-    description: 'Get current text selection in Emacs',
-    inputSchema: {
-      type: 'object',
-      properties: {}
+  );
+
+  server.resource(
+    'emacs-buffers',
+    bufferTemplate,
+    {
+      description: 'Open buffers in Emacs',
+      mimeType: 'text/plain'
+    },
+    async (uri, _variables, _extra) => {
+      log(`Reading buffer resource: ${uri}`);
+      const result = await bufferResourceHandler.read(bridge, uri.toString());
+      return {
+        contents: [{
+          uri: uri.toString(),
+          mimeType: result.mimeType || 'text/plain',
+          text: result.text as string
+        }]
+      };
     }
-  },
-  {
-    name: 'getDiagnostics',
-    description: 'Get project-wide LSP diagnostics using specified buffer for LSP context',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        buffer: {
-          type: 'string',
-          description: 'Buffer name to execute lsp-diagnostics in (required for LSP workspace context)'
+  );
+
+  // Project info resource (static)
+  server.resource(
+    'project-info',
+    'emacs://project/info',
+    {
+      description: 'Current project information',
+      mimeType: 'application/json'
+    },
+    async (uri, _extra) => {
+      log(`Reading project resource: ${uri}`);
+      const result = await projectResourceHandler.read(bridge, uri.toString());
+      return {
+        contents: [{
+          uri: uri.toString(),
+          mimeType: result.mimeType || 'application/json',
+          text: result.text as string
+        }]
+      };
+    }
+  );
+
+  // Diagnostics resources (dynamic)
+  const diagnosticsTemplate = new ResourceTemplate(
+    'emacs://diagnostics/{file}',
+    {
+      list: async () => {
+        try {
+          const resources = await diagnosticsResourceHandler.list(bridge);
+          log(`Listed ${resources.length} diagnostics resources`);
+          return { resources };
+        } catch (error) {
+          log(`Error listing diagnostics resources: ${error}`);
+          return { resources: [] };
         }
-      },
-      required: ['buffer']
+      }
     }
-  },
-  {
-    name: 'getDefinition',
-    description: 'Find definition of symbol using LSP',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        file: {
-          type: 'string',
-          description: 'File path to search from (required)'
-        },
-        line: {
-          type: 'number',
-          description: 'Line number (1-based, required)'
-        },
-        symbol: {
-          type: 'string',
-          description: 'Symbol name to search for (required)'
-        }
-      },
-      required: ['file', 'line', 'symbol']
+  );
+
+  server.resource(
+    'lsp-diagnostics',
+    diagnosticsTemplate,
+    {
+      description: 'LSP diagnostics for project files',
+      mimeType: 'application/json'
+    },
+    async (uri, _variables, _extra) => {
+      log(`Reading diagnostics resource: ${uri}`);
+      const result = await diagnosticsResourceHandler.read(bridge, uri.toString());
+      return {
+        contents: [{
+          uri: uri.toString(),
+          mimeType: result.mimeType || 'application/json',
+          text: result.text as string
+        }]
+      };
     }
-  },
-  {
-    name: 'findReferences',
-    description: 'Find all references to a symbol using LSP',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        file: {
-          type: 'string',
-          description: 'File path to search from (required)'
-        },
-        line: {
-          type: 'number',
-          description: 'Line number (1-based, required)'
-        },
-        symbol: {
-          type: 'string',
-          description: 'Symbol name to search for (required)'
-        },
-        includeDeclaration: {
-          type: 'boolean',
-          description: 'Include the declaration in results (default: true)'
-        }
-      },
-      required: ['file', 'line', 'symbol']
-    }
-  },
-  {
-    name: 'describeSymbol',
-    description: 'Get full documentation and information about a symbol using LSP hover',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        file: {
-          type: 'string',
-          description: 'File path relative to project root'
-        },
-        line: {
-          type: 'number',
-          description: 'Line number (1-based)'
-        },
-        symbol: {
-          type: 'string',
-          description: 'Symbol name to describe'
-        }
-      },
-      required: ['file', 'line', 'symbol']
-    }
-  },
-  {
-    name: 'sendNotification',
-    description: 'Send a desktop notification to alert the user when tasks complete or need attention',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        title: {
-          type: 'string',
-          description: 'Title of the notification'
-        },
-        message: {
-          type: 'string',
-          description: 'Message content of the notification'
-        }
-      },
-      required: ['title', 'message']
-    }
-  },
-  // Add diff tools
-  ...Object.values(diffTools).map(tool => ({
-    name: tool.name,
-    description: tool.description,
-    inputSchema: tool.inputSchema
-  }))
-];
-
-// Handle list tools request
-server.server.setRequestHandler(ListToolsRequestSchema, async (_request) => {
-  log(`MCP Request: list tools`);
-  return {
-    tools: TOOLS
-  };
-});
-
-// Handle list resources request
-server.server.setRequestHandler(ListResourcesRequestSchema, async (_request) => {
-  log(`MCP Request: list resources`);
-  try {
-    const resources = [
-      ...(await bufferResourceHandler.list(bridge)),
-      ...(await projectResourceHandler.list(bridge)),
-      ...(await diagnosticsResourceHandler.list(bridge))
-    ];
-
-    log(`MCP Response: returning ${resources.length} resources`);
-    return { resources };
-  } catch (error) {
-    log(`Error listing resources: ${error}`);
-    return { resources: [] };
-  }
-});
-
-// Handle read resource request
-server.server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-  const { uri } = request.params;
-  log(`MCP Request: read resource - ${uri}`);
-
-  try {
-    let result;
-    // Route to appropriate handler based on URI scheme
-    if (uri.startsWith('file://')) {
-      result = await bufferResourceHandler.read(bridge, uri);
-    } else if (uri.startsWith('emacs://project/')) {
-      result = await projectResourceHandler.read(bridge, uri);
-    } else if (uri.startsWith('emacs://diagnostics/')) {
-      result = await diagnosticsResourceHandler.read(bridge, uri);
-    } else {
-      throw new Error(`Unsupported resource URI scheme: ${uri}`);
-    }
-
-    log(`MCP Response: read resource successful - ${uri}`);
-    return result;
-  } catch (error) {
-    log(`Error reading resource ${uri}: ${error}`);
-    throw error;
-  }
-});
-
+  );
+}
 
 
 // Notify Emacs about the port
@@ -299,6 +400,10 @@ async function main() {
 
   // Notify Emacs about the assigned port
   await notifyEmacsPort(port);
+
+  // Register tools and resources
+  registerTools();
+  registerResources();
 
   const ping = async () => {
     try {

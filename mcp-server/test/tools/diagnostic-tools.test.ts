@@ -16,18 +16,19 @@ describe('diagnostic-tools', () => {
   });
 
   describe('handleGetDiagnostics', () => {
-    it('should throw error when buffer is not provided', async () => {
-      mockBridge.isConnected.mockReturnValue(true);
-
-      await expect(handleGetDiagnostics(mockBridge, {} as any))
-        .rejects.toThrow('Buffer name is required for LSP context');
-    });
-
-    it('should throw error when Emacs is not connected', async () => {
+    it('should return error when Emacs is not connected', async () => {
       mockBridge.isConnected.mockReturnValue(false);
 
-      await expect(handleGetDiagnostics(mockBridge, { buffer: 'test-buffer' }))
-        .rejects.toThrow('Emacs is not connected');
+      const result = await handleGetDiagnostics(mockBridge, { buffer: 'test-buffer' });
+      
+      expect(result).toEqual({
+        content: [{
+          type: 'text',
+          text: 'Error: Emacs is not connected'
+        }],
+        diagnostics: [],
+        isError: true
+      });
     });
 
     it('should return diagnostics grouped by file', async () => {
@@ -102,6 +103,22 @@ describe('diagnostic-tools', () => {
       const result = await handleGetDiagnostics(mockBridge, { buffer: 'test-buffer' });
 
       expect(result.content[0].text).toContain('Found 1 diagnostic in 1 file');
+    });
+
+    it('should return error when request fails', async () => {
+      mockBridge.isConnected.mockReturnValue(true);
+      mockBridge.request.mockRejectedValue(new Error('LSP error'));
+
+      const result = await handleGetDiagnostics(mockBridge, { buffer: 'test-buffer' });
+      
+      expect(result).toEqual({
+        content: [{
+          type: 'text',
+          text: 'Error getting diagnostics: LSP error'
+        }],
+        diagnostics: [],
+        isError: true
+      });
     });
   });
 });

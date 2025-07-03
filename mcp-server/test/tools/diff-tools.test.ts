@@ -56,6 +56,9 @@ describe('diff-tools', () => {
     // Mock the request method of EmacsBridge
     jest.spyOn(EmacsBridge.prototype, 'request').mockImplementation(mockSend);
     
+    // Mock the isConnected method of EmacsBridge to return true by default
+    jest.spyOn(EmacsBridge.prototype, 'isConnected').mockReturnValue(true);
+    
     // Create a mock bridge instance
     mockBridge = new EmacsBridge(jest.fn());
   });
@@ -97,29 +100,27 @@ describe('diff-tools', () => {
       
       const result = await resultPromise;
       expect(result).toEqual({
-        content: [{ type: 'text', text: 'Error: File not found' }]
+        content: [{ type: 'text', text: 'Error: File not found' }],
+        isError: true
       });
     });
 
-    it('should validate missing parameters', async () => {
-      // Test missing all parameters
-      let result = await handleOpenDiff(mockBridge, {});
-      expect(result).toEqual({
-        content: [{ type: 'text', text: 'Error: Both fileA and fileB are required' }]
-      });
+    it('should return error when Emacs is not connected', async () => {
+      jest.spyOn(EmacsBridge.prototype, 'isConnected').mockReturnValue(false);
       
-      // Test missing fileB
-      result = await handleOpenDiff(mockBridge, { fileA: 'test.js' });
-      expect(result).toEqual({
-        content: [{ type: 'text', text: 'Error: Both fileA and fileB are required' }]
-      });
+      const params = {
+        fileA: 'src/old.js',
+        fileB: 'src/new.js'
+      };
       
-      // Test missing fileA
-      result = await handleOpenDiff(mockBridge, { fileB: 'test.js' });
+      const result = await handleOpenDiff(mockBridge, params);
+      
       expect(result).toEqual({
-        content: [{ type: 'text', text: 'Error: Both fileA and fileB are required' }]
+        content: [{ type: 'text', text: 'Error: Emacs is not connected' }],
+        isError: true
       });
     });
+
   });
 
   describe('openDiff3', () => {
@@ -169,7 +170,7 @@ describe('diff-tools', () => {
         file: 'src/index.js'
       };
       
-      const resultPromise = handleOpenRevisionDiff(mockBridge, params);
+      const resultPromise = handleOpenRevisionDiff(mockBridge, params as any);
       
       expect(mockSend).toHaveBeenCalledWith('openRevisionDiff', {
         file: 'src/index.js',
@@ -272,11 +273,15 @@ describe('diff-tools', () => {
       
       const resultPromise = handleApplyPatch(mockBridge, params);
       
+      // Wait for the mock to be called
+      await new Promise(resolve => setImmediate(resolve));
+      
       resolveResponse({ status: 'error', message: 'Invalid patch format' });
       
       const result = await resultPromise;
       expect(result).toEqual({
-        content: [{ type: 'text', text: 'Error: Invalid patch format' }]
+        content: [{ type: 'text', text: 'Error: Invalid patch format' }],
+        isError: true
       });
     });
   });
@@ -317,50 +322,17 @@ describe('diff-tools', () => {
       
       const resultPromise = handleOpenDiffContent(mockBridge, params);
       
+      // Wait for the mock to be called
+      await new Promise(resolve => setImmediate(resolve));
+      
       resolveResponse({ status: 'error', message: 'Failed to create buffers' });
       
       const result = await resultPromise;
       expect(result).toEqual({
-        content: [{ type: 'text', text: 'Error: Failed to create buffers' }]
+        content: [{ type: 'text', text: 'Error: Failed to create buffers' }],
+        isError: true
       });
     });
 
-    it('should validate missing parameters', async () => {
-      // Test missing all parameters
-      let result = await handleOpenDiffContent(mockBridge, {});
-      expect(result).toEqual({
-        content: [{ type: 'text', text: 'Error: contentA, contentB, titleA, and titleB are all required' }]
-      });
-      
-      // Test missing contentB
-      result = await handleOpenDiffContent(mockBridge, { 
-        contentA: 'test',
-        titleA: 'Title A',
-        titleB: 'Title B' 
-      });
-      expect(result).toEqual({
-        content: [{ type: 'text', text: 'Error: contentA, contentB, titleA, and titleB are all required' }]
-      });
-      
-      // Test missing titleA
-      result = await handleOpenDiffContent(mockBridge, { 
-        contentA: 'test',
-        contentB: 'test',
-        titleB: 'Title B' 
-      });
-      expect(result).toEqual({
-        content: [{ type: 'text', text: 'Error: contentA, contentB, titleA, and titleB are all required' }]
-      });
-      
-      // Test missing titleB
-      result = await handleOpenDiffContent(mockBridge, { 
-        contentA: 'test',
-        contentB: 'test',
-        titleA: 'Title A' 
-      });
-      expect(result).toEqual({
-        content: [{ type: 'text', text: 'Error: contentA, contentB, titleA, and titleB are all required' }]
-      });
-    });
   });
 });

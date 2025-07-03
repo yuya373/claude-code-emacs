@@ -16,11 +16,18 @@ describe('selection-tools', () => {
   });
 
   describe('handleGetCurrentSelection', () => {
-    it('should throw error when Emacs is not connected', async () => {
+    it('should return error when Emacs is not connected', async () => {
       mockBridge.isConnected.mockReturnValue(false);
 
-      await expect(handleGetCurrentSelection(mockBridge, {}))
-        .rejects.toThrow('Emacs is not connected');
+      const result = await handleGetCurrentSelection(mockBridge, {});
+      
+      expect(result).toEqual({
+        content: [{
+          type: 'text',
+          text: 'Error: Emacs is not connected'
+        }],
+        isError: true
+      });
     });
 
     it('should return selected text information', async () => {
@@ -73,6 +80,21 @@ describe('selection-tools', () => {
       const result = await handleGetCurrentSelection(mockBridge, {});
 
       expect(result.content[0].text).toBe('No text is currently selected');
+    });
+
+    it('should return error when request fails', async () => {
+      mockBridge.isConnected.mockReturnValue(true);
+      mockBridge.request.mockRejectedValue(new Error('Request failed'));
+
+      const result = await handleGetCurrentSelection(mockBridge, {});
+      
+      expect(result).toEqual({
+        content: [{
+          type: 'text',
+          text: 'Error getting current selection: Request failed'
+        }],
+        isError: true
+      });
     });
   });
 });

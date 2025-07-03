@@ -7,7 +7,7 @@ describe('notification-tools', () => {
   beforeEach(() => {
     mockBridge = {
       isConnected: jest.fn().mockReturnValue(true),
-      request: jest.fn().mockResolvedValue(undefined)
+      request: jest.fn().mockResolvedValue({ success: true, message: 'Notification sent' })
     } as any;
   });
 
@@ -31,11 +31,13 @@ describe('notification-tools', () => {
             type: 'text',
             text: 'Notification sent: "Test Title"'
           }
-        ]
+        ],
+        status: 'success',
+        message: 'Notification sent'
       });
     });
 
-    it('should throw error when Emacs is not connected', async () => {
+    it('should return error when Emacs is not connected', async () => {
       mockBridge.isConnected.mockReturnValue(false);
 
       const args = {
@@ -43,26 +45,17 @@ describe('notification-tools', () => {
         message: 'Test message'
       };
 
-      await expect(handleSendNotification(mockBridge, args))
-        .rejects.toThrow('Emacs is not connected');
-    });
-
-    it('should throw error when title is missing', async () => {
-      const args = {
-        message: 'Test message'
-      } as any;
-
-      await expect(handleSendNotification(mockBridge, args))
-        .rejects.toThrow('Title is required');
-    });
-
-    it('should throw error when message is missing', async () => {
-      const args = {
-        title: 'Test Title'
-      } as any;
-
-      await expect(handleSendNotification(mockBridge, args))
-        .rejects.toThrow('Message is required');
+      const result = await handleSendNotification(mockBridge, args);
+      
+      expect(result).toEqual({
+        content: [{
+          type: 'text',
+          text: 'Error: Emacs is not connected'
+        }],
+        status: 'error',
+        message: 'Emacs is not connected',
+        isError: true
+      });
     });
 
   });

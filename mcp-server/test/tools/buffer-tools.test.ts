@@ -16,11 +16,19 @@ describe('buffer-tools', () => {
   });
 
   describe('handleGetOpenBuffers', () => {
-    it('should throw error when Emacs is not connected', async () => {
+    it('should return error when Emacs is not connected', async () => {
       mockBridge.isConnected.mockReturnValue(false);
 
-      await expect(handleGetOpenBuffers(mockBridge, {}))
-        .rejects.toThrow('Emacs is not connected');
+      const result = await handleGetOpenBuffers(mockBridge, {});
+      
+      expect(result).toEqual({
+        content: [{
+          type: 'text',
+          text: 'Error: Emacs is not connected'
+        }],
+        buffers: [],
+        isError: true
+      });
     });
 
     it('should return buffer list when buffers are open', async () => {
@@ -70,6 +78,22 @@ describe('buffer-tools', () => {
       await handleGetOpenBuffers(mockBridge, { includeHidden: true });
 
       expect(mockBridge.request).toHaveBeenCalledWith('getOpenBuffers', { includeHidden: true });
+    });
+
+    it('should return error when request fails', async () => {
+      mockBridge.isConnected.mockReturnValue(true);
+      mockBridge.request.mockRejectedValue(new Error('Request failed'));
+
+      const result = await handleGetOpenBuffers(mockBridge, {});
+      
+      expect(result).toEqual({
+        content: [{
+          type: 'text',
+          text: 'Error getting open buffers: Request failed'
+        }],
+        buffers: [],
+        isError: true
+      });
     });
   });
 });

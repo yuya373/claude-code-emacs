@@ -1,13 +1,7 @@
 import { EmacsBridge } from '../emacs-bridge.js';
+import { DescribeSymbolArgs } from '../schemas/describe-schema.js';
 
-export interface DescribeSymbolArgs {
-  // File path is required
-  file: string;
-  // Position within the file is required
-  line: number;    // 1-based line number
-  // Symbol name to describe
-  symbol: string;
-}
+export { DescribeSymbolArgs };
 
 export interface SymbolDescription {
   documentation?: string;
@@ -17,21 +11,21 @@ interface DescribeSymbolResult {
   description: SymbolDescription;
   method: 'lsp';
 }
+interface DescribeSymbolToolResult {
+  content: Array<{ type: 'text'; text: string }>;
+  documentation?: string;
+  isError?: boolean;
+}
 
-export async function handleDescribeSymbol(bridge: EmacsBridge, args: DescribeSymbolArgs): Promise<any> {
+export async function handleDescribeSymbol(bridge: EmacsBridge, args: DescribeSymbolArgs): Promise<DescribeSymbolToolResult> {
   if (!bridge.isConnected()) {
-    throw new Error('Emacs is not connected');
-  }
-
-  // Validate required parameters
-  if (!args.file) {
-    throw new Error('file parameter is required');
-  }
-  if (args.line === undefined || args.line === null) {
-    throw new Error('line parameter is required');
-  }
-  if (!args.symbol) {
-    throw new Error('symbol parameter is required');
+    return {
+      content: [{
+        type: 'text' as const,
+        text: 'Error: Emacs is not connected'
+      }],
+      isError: true
+    };
   }
 
   try {
@@ -40,26 +34,30 @@ export async function handleDescribeSymbol(bridge: EmacsBridge, args: DescribeSy
     if (!result.description || !result.description.documentation) {
       return {
         content: [{
-          type: 'text',
+          type: 'text' as const,
           text: `No documentation found for ${args.symbol}`
         }]
       };
     }
 
-    // Simply return the documentation
+    // Return both content and structured data
     const output = result.description.documentation;
 
     return {
       content: [{
-        type: 'text',
+        type: 'text' as const,
         text: output.trim()
-      }]
+      }],
+      // Include structured data for the output schema
+      documentation: result.description.documentation
     };
   } catch (error) {
-    // Re-throw with more context
-    if (error instanceof Error) {
-      throw new Error(`Failed to describe symbol: ${error.message}`);
-    }
-    throw error;
+    return {
+      content: [{
+        type: 'text' as const,
+        text: `Error describing symbol: ${error instanceof Error ? error.message : 'Unknown error'}`
+      }],
+      isError: true
+    };
   }
 }

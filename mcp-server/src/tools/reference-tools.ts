@@ -1,13 +1,7 @@
 import { EmacsBridge } from '../emacs-bridge.js';
+import { FindReferencesArgs } from '../schemas/reference-schema.js';
 
-export interface FindReferencesArgs {
-  file: string;               // File path relative to project root
-  line: number;               // Line number (1-based)
-  symbol: string;             // Symbol name to search for
-  includeDeclaration?: boolean; // Include the declaration in results
-}
-
-interface Reference {
+interface EmacsReference {
   file: string;
   absolutePath: string;
   range: {
@@ -18,46 +12,86 @@ interface Reference {
 }
 
 interface FindReferencesResult {
-  references: Reference[];
+  references: EmacsReference[];
   count: number;
   error?: string;
 }
 
-export async function handleFindReferences(bridge: EmacsBridge, args: FindReferencesArgs): Promise<any> {
+interface ReferenceToolResult {
+  content: Array<{ type: 'text'; text: string }>;
+  references: Array<{
+    file: string;
+    line: number;
+    column: number;
+    preview: string;
+  }>;
+  isError?: boolean;
+}
+
+export async function handleFindReferences(bridge: EmacsBridge, args: FindReferencesArgs): Promise<ReferenceToolResult> {
   if (!bridge.isConnected()) {
-    throw new Error('Emacs is not connected');
+    return {
+      content: [
+        {
+          type: 'text' as const,
+          text: 'Error: Emacs is not connected'
+        }
+      ],
+      references: [],
+      isError: true
+    };
   }
 
-  // Validate required parameters
-  if (!args.file) {
-    throw new Error('file parameter is required');
-  }
-  if (args.line === undefined || args.line === null) {
-    throw new Error('line parameter is required');
-  }
-  if (!args.symbol) {
-    throw new Error('symbol parameter is required');
-  }
+  try {
+    const result = await bridge.request('findReferences', {
+      file: args.file,
+      line: args.line,
+      symbol: args.symbol,
+      includeDeclaration: args.includeDeclaration ?? true
+    }) as FindReferencesResult;
 
-  const result = await bridge.request('findReferences', {
-    file: args.file,
-    line: args.line,
-    symbol: args.symbol,
-    includeDeclaration: args.includeDeclaration ?? true
-  }) as FindReferencesResult;
+    if (result.error) {
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: `Error: ${result.error}`
+          }
+        ],
+        references: [],
+        isError: true
+      };
+    }
 
-  if (result.error) {
-    throw new Error(result.error);
+    // Transform references to match schema structure
+    const structuredReferences = result.references.map(ref => ({
+      file: ref.file,
+      line: ref.range.start.line + 1, // Convert to 1-based
+      column: ref.range.start.character + 1, // Convert to 1-based
+      preview: ref.preview
+    }));
+
+    return {
+      content: [
+        {
+          type: 'text' as const,
+          text: formatReferencesResult(result)
+        }
+      ],
+      references: structuredReferences
+    };
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: 'text' as const,
+          text: `Error finding references: ${error instanceof Error ? error.message : 'Unknown error'}`
+        }
+      ],
+      references: [],
+      isError: true
+    };
   }
-
-  return {
-    content: [
-      {
-        type: 'text',
-        text: formatReferencesResult(result)
-      }
-    ]
-  };
 }
 
 function formatReferencesResult(result: FindReferencesResult): string {
@@ -68,7 +102,7 @@ function formatReferencesResult(result: FindReferencesResult): string {
   const lines = [`Found ${result.count} reference${result.count === 1 ? '' : 's'}:\n`];
 
   // Group references by file
-  const referencesByFile: Map<string, Reference[]> = new Map();
+  const referencesByFile: Map<string, EmacsReference[]> = new Map();
   for (const ref of result.references) {
     const refs = referencesByFile.get(ref.file) || [];
     refs.push(ref);

@@ -1,35 +1,74 @@
 import { EmacsBridge } from '../emacs-bridge.js';
+import { NotificationArgs } from '../schemas/notification-schema.js';
 
-export interface NotificationArgs {
-  title: string;
-  message: string;
+interface NotificationToolResult {
+  content: Array<{ type: 'text'; text: string }>;
+  status: 'success' | 'error';
+  message?: string;
+  isError?: boolean;
 }
 
-export async function handleSendNotification(bridge: EmacsBridge, args: NotificationArgs) {
+export async function handleSendNotification(bridge: EmacsBridge, args: NotificationArgs): Promise<NotificationToolResult> {
   if (!bridge.isConnected()) {
-    throw new Error('Emacs is not connected');
+    return {
+      content: [
+        {
+          type: 'text' as const,
+          text: 'Error: Emacs is not connected'
+        }
+      ],
+      status: 'error',
+      message: 'Emacs is not connected',
+      isError: true
+    };
   }
 
-  // Validate required parameters
-  if (!args.title) {
-    throw new Error('Title is required');
-  }
-  if (!args.message) {
-    throw new Error('Message is required');
-  }
+  try {
+    // Send notification to Emacs
+    const result = await bridge.request('sendNotification', {
+      title: args.title,
+      message: args.message
+    });
 
-  // Send notification to Emacs
-  await bridge.request('sendNotification', {
-    title: args.title,
-    message: args.message
-  });
+    // Emacs returns { success: true, message: "Notification sent" }
+    // We need to convert it to { status: 'success', message: "..." }
+    const success = (result as any).success === true;
 
-  return {
-    content: [
-      {
-        type: 'text',
-        text: `Notification sent: "${args.title}"`
-      }
-    ]
-  };
+    if (!success) {
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: 'Failed to send notification'
+          }
+        ],
+        status: 'error',
+        message: 'Failed to send notification',
+        isError: true
+      };
+    }
+
+    return {
+      content: [
+        {
+          type: 'text' as const,
+          text: `Notification sent: "${args.title}"`
+        }
+      ],
+      status: 'success',
+      message: 'Notification sent'
+    };
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: 'text' as const,
+          text: `Error sending notification: ${error instanceof Error ? error.message : 'Unknown error'}`
+        }
+      ],
+      status: 'error',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      isError: true
+    };
+  }
 }

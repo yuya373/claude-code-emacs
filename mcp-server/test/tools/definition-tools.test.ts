@@ -99,7 +99,7 @@ describe('handleGetDefinition', () => {
     expect(result.content[0].text).toBe('No definition found for unknownSymbol');
   });
 
-  it('should throw error if Emacs not connected', async () => {
+  it('should return error if Emacs not connected', async () => {
     mockBridge.isConnected.mockReturnValue(false);
 
     const args: GetDefinitionArgs = {
@@ -108,8 +108,16 @@ describe('handleGetDefinition', () => {
       symbol: 'test'
     };
 
-    await expect(handleGetDefinition(mockBridge, args))
-      .rejects.toThrow('Emacs is not connected');
+    const result = await handleGetDefinition(mockBridge, args);
+    
+    expect(result).toEqual({
+      content: [{
+        type: 'text',
+        text: 'Error: Emacs is not connected'
+      }],
+      definitions: [],
+      isError: true
+    });
   });
 
   // This test is no longer valid since file is required by TypeScript
@@ -125,8 +133,16 @@ describe('handleGetDefinition', () => {
       symbol: 'test'
     };
 
-    await expect(handleGetDefinition(mockBridge, args))
-      .rejects.toThrow('Failed to get definition: LSP not available');
+    const result = await handleGetDefinition(mockBridge, args);
+    
+    expect(result).toEqual({
+      content: [{
+        type: 'text',
+        text: 'Error getting definition: LSP not available'
+      }],
+      definitions: [],
+      isError: true
+    });
   });
 
   it('should format definition without preview', async () => {

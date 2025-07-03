@@ -93,57 +93,45 @@ describe('handleFindReferences', () => {
     });
   });
 
-  it('should throw error when Emacs is not connected', async () => {
+  it('should return error when Emacs is not connected', async () => {
     mockBridge.isConnected.mockReturnValue(false);
 
-    await expect(
-      handleFindReferences(mockBridge, {
-        file: 'src/main.ts',
-        line: 10,
-        symbol: 'myFunction'
-      })
-    ).rejects.toThrow('Emacs is not connected');
-  });
-
-  it('should throw error when file is missing', async () => {
-    await expect(
-      handleFindReferences(mockBridge, {
-        line: 10,
-        symbol: 'myFunction'
-      } as any)
-    ).rejects.toThrow('file parameter is required');
-  });
-
-  it('should throw error when line is missing', async () => {
-    await expect(
-      handleFindReferences(mockBridge, {
-        file: 'src/main.ts',
-        symbol: 'myFunction'
-      } as any)
-    ).rejects.toThrow('line parameter is required');
-  });
-
-  it('should throw error when symbol is missing', async () => {
-    await expect(
-      handleFindReferences(mockBridge, {
-        file: 'src/main.ts',
-        line: 10
-      } as any)
-    ).rejects.toThrow('symbol parameter is required');
+    const result = await handleFindReferences(mockBridge, {
+      file: 'src/main.ts',
+      line: 10,
+      symbol: 'myFunction'
+    });
+    
+    expect(result).toEqual({
+      content: [{
+        type: 'text',
+        text: 'Error: Emacs is not connected'
+      }],
+      references: [],
+      isError: true
+    });
   });
 
   it('should handle error from Emacs', async () => {
+    mockBridge.isConnected.mockReturnValue(true);
     mockBridge.request.mockResolvedValue({
       error: 'LSP is not active in this buffer'
     });
 
-    await expect(
-      handleFindReferences(mockBridge, {
-        file: 'src/main.ts',
-        line: 10,
-        symbol: 'myFunction'
-      })
-    ).rejects.toThrow('LSP is not active in this buffer');
+    const result = await handleFindReferences(mockBridge, {
+      file: 'src/main.ts',
+      line: 10,
+      symbol: 'myFunction'
+    });
+    
+    expect(result).toEqual({
+      content: [{
+        type: 'text',
+        text: 'Error: LSP is not active in this buffer'
+      }],
+      references: [],
+      isError: true
+    });
   });
 
   it('should format references grouped by file', async () => {
@@ -195,5 +183,25 @@ describe('handleFindReferences', () => {
     expect(text).toContain('Line 26:9');  // 1-based line and column
     expect(text).toContain('📄 src/utils.ts:');
     expect(text).toContain('Line 21:11'); // 1-based line and column
+  });
+
+  it('should return error when request fails', async () => {
+    mockBridge.isConnected.mockReturnValue(true);
+    mockBridge.request.mockRejectedValue(new Error('Network error'));
+
+    const result = await handleFindReferences(mockBridge, {
+      file: 'src/main.ts',
+      line: 10,
+      symbol: 'myFunction'
+    });
+    
+    expect(result).toEqual({
+      content: [{
+        type: 'text',
+        text: 'Error finding references: Network error'
+      }],
+      references: [],
+      isError: true
+    });
   });
 });

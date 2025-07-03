@@ -1,13 +1,7 @@
 import { EmacsBridge } from '../emacs-bridge.js';
+import { GetDefinitionArgs, Definition } from '../schemas/definition-schema.js';
 
-export interface GetDefinitionArgs {
-  // File path is required
-  file: string;
-  // Position within the file is required
-  line: number;    // 1-based line number
-  // Symbol name to search for
-  symbol: string;
-}
+export { GetDefinitionArgs };
 
 export interface Range {
   start: Position;
@@ -31,20 +25,27 @@ interface DefinitionResult {
   method: 'lsp';
 }
 
-export async function handleGetDefinition(bridge: EmacsBridge, args: GetDefinitionArgs): Promise<any> {
-  if (!bridge.isConnected()) {
-    throw new Error('Emacs is not connected');
-  }
+interface DefinitionToolResult {
+  content: Array<{ type: 'text'; text: string }>;
+  definitions: Array<{
+    file: string;
+    line: number;
+    column: number;
+    preview?: string;
+  }>;
+  isError?: boolean;
+}
 
-  // Validate required parameters
-  if (!args.file) {
-    throw new Error('file parameter is required');
-  }
-  if (args.line === undefined || args.line === null) {
-    throw new Error('line parameter is required');
-  }
-  if (!args.symbol) {
-    throw new Error('symbol parameter is required');
+export async function handleGetDefinition(bridge: EmacsBridge, args: GetDefinitionArgs): Promise<DefinitionToolResult> {
+  if (!bridge.isConnected()) {
+    return {
+      content: [{
+        type: 'text' as const,
+        text: 'Error: Emacs is not connected'
+      }],
+      definitions: [],
+      isError: true
+    };
   }
 
   try {
@@ -53,9 +54,10 @@ export async function handleGetDefinition(bridge: EmacsBridge, args: GetDefiniti
     if (!result.definitions || result.definitions.length === 0) {
       return {
         content: [{
-          type: 'text',
+          type: 'text' as const,
           text: `No definition found for ${args.symbol}`
-        }]
+        }],
+        definitions: []
       };
     }
 
@@ -76,17 +78,29 @@ export async function handleGetDefinition(bridge: EmacsBridge, args: GetDefiniti
       output += '\n';
     });
 
+    // Transform definitions to match schema structure
+    const structuredDefinitions = result.definitions.map(def => ({
+      file: def.file,
+      line: def.range.start.line + 1, // Convert to 1-based
+      column: def.range.start.character + 1, // Convert to 1-based
+      preview: def.preview
+    }));
+
     return {
       content: [{
-        type: 'text',
+        type: 'text' as const,
         text: output.trim()
-      }]
+      }],
+      definitions: structuredDefinitions
     };
   } catch (error) {
-    // Re-throw with more context
-    if (error instanceof Error) {
-      throw new Error(`Failed to get definition: ${error.message}`);
-    }
-    throw error;
+    return {
+      content: [{
+        type: 'text' as const,
+        text: `Error getting definition: ${error instanceof Error ? error.message : 'Unknown error'}`
+      }],
+      definitions: [],
+      isError: true
+    };
   }
 }
