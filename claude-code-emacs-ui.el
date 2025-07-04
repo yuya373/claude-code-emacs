@@ -203,7 +203,7 @@ Each path is inserted on a new line with @ prefix."
     ("3" "Send 3" claude-code-emacs-send-3)
     ("e" "Send Escape" claude-code-emacs-send-escape)
     ("m" "Send Return" claude-code-emacs-send-return)
-    ("R" "Send Ctrl+R (toggle expand)" claude-code-emacs-send-ctrl-r)
+    ("r" "Send Ctrl+R (toggle expand)" claude-code-emacs-send-ctrl-r)
     ("a" "Toggle auto accept (Shift+Tab)" claude-code-emacs-send-shift-tab)]
    ["Commands"
     ("/" "Slash commands" claude-code-emacs-slash-commands-transient)
