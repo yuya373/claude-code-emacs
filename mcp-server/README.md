@@ -29,7 +29,6 @@ MCP (Model Context Protocol) server that enables Claude Code to interact with Em
 ### Resources
 - Buffer content access
 - Project information
-- LSP diagnostics
 
 ## Installation
 

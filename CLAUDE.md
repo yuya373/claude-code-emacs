@@ -244,6 +244,9 @@ When modifying this package:
 5. Update relevant documentation (README, CLAUDE.md)
 
 ### Recent Changes
+- **Diagnostics resource removed**: The diagnostics MCP resource has been removed in favor of the getDiagnostics tool
+  - Removed files: `diagnostics-resource.ts`, related handler in `claude-code-emacs-mcp-tools.el`
+  - The getDiagnostics tool provides the same functionality and is the preferred method
 - **openDiffContent tool**: Added MCP tool to compare two text contents in temporary buffers
   - Takes `contentA`, `contentB`, `titleA`, and `titleB` parameters
   - Creates temporary buffers for text comparison without needing files
@@ -293,7 +296,7 @@ The MCP server provides a bridge between Claude Code and Emacs:
 - WebSocket server on dynamic port for Emacs connection
 - stdio interface for Claude Code MCP protocol
 - Implements tools: getOpenBuffers, getCurrentSelection, getDiagnostics, getDefinition, findReferences, describeSymbol, diff tools (openDiff, openDiff3, openRevisionDiff, openCurrentChanges, applyPatch, openDiffContent), sendNotification
-- Implements resources: buffer content, project info, diagnostics
+- Implements resources: buffer content, project info
 - Per-project WebSocket connections for session isolation
 - Real-time event notifications from Emacs to Claude Code
 

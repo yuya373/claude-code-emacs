@@ -22,8 +22,7 @@ import {
 } from './tools/index.js';
 import {
   bufferResourceHandler,
-  projectResourceHandler,
-  diagnosticsResourceHandler
+  projectResourceHandler
 } from './resources/index.js';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -333,42 +332,6 @@ function registerResources() {
     }
   );
 
-  // Diagnostics resources (dynamic)
-  const diagnosticsTemplate = new ResourceTemplate(
-    'emacs://diagnostics/{file}',
-    {
-      list: async () => {
-        try {
-          const resources = await diagnosticsResourceHandler.list(bridge);
-          log(`Listed ${resources.length} diagnostics resources`);
-          return { resources };
-        } catch (error) {
-          log(`Error listing diagnostics resources: ${error}`);
-          return { resources: [] };
-        }
-      }
-    }
-  );
-
-  server.resource(
-    'lsp-diagnostics',
-    diagnosticsTemplate,
-    {
-      description: 'LSP diagnostics for project files',
-      mimeType: 'application/json'
-    },
-    async (uri, _variables, _extra) => {
-      log(`Reading diagnostics resource: ${uri}`);
-      const result = await diagnosticsResourceHandler.read(bridge, uri.toString());
-      return {
-        contents: [{
-          uri: uri.toString(),
-          mimeType: result.mimeType || 'application/json',
-          text: result.text as string
-        }]
-      };
-    }
-  );
 }
 
 

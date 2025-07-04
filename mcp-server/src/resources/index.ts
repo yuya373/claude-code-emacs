@@ -8,4 +8,3 @@ export interface ResourceHandler {
 
 export { bufferResourceHandler } from './buffer-resource.js';
 export { projectResourceHandler } from './project-resource.js';
-export { diagnosticsResourceHandler } from './diagnostics-resource.js';

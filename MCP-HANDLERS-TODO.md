@@ -73,14 +73,9 @@
     - read: プロジェクトのルート、名前、VCSタイプなどの情報を取得 ✓
   - テスト結果: JSON形式でプロジェクト情報（root, name, type, vcs, branch, lastModified）が正しく取得できることを確認
 
-- [x] **diagnosticsResource** - 診断情報を取得
+- [ ] ~~**diagnosticsResource**~~ - **削除済み** (2025-01-04)
   - リソースタイプ: `emacs://diagnostics/all`
-  - 機能:
-    - list: 診断情報リソースを表示 ✓
-    - read: 全ファイルの診断情報を取得
-  - 修正: メソッド名を`get-diagnostics`から`get-diagnostics-resource`に変更 (2025-01-04)
-  - 理由: `get-diagnostics`がtools用とresources用で重複していたため
-  - 要確認: MCPサーバーの再ビルドと再起動後に動作確認が必要
+  - 削除理由: getDiagnosticsツールと重複していたため、リソース版を削除
 
 ## 完了済み
 - [x] **getCurrentSelection** - 現在選択されているテキストを取得
@@ -139,13 +134,27 @@
    - テスト結果: 正常動作確認済み ✓
 
 ### 次のステップ
-1. **中優先度ハンドラーのテスト**
-   - getDefinition, findReferences, describeSymbol（LSP関連）
-   - 各種diffツール（openDiff, openDiff3, openRevisionDiff等）
-
-2. **リソース系のテスト**
+1. **リソース系のテスト**
    - bufferResource（バッファ一覧と内容取得）
-   - diagnosticsResource（LSP診断情報）
+   - applyPatchツール（パッチファイルが必要）
+
+## 2025-01-04 追加作業（夕方）
+1. **diagnosticsResourceの修正完了**
+   - 問題: `get-diagnostics`メソッド名が重複していた（tools用とresources用）
+   - 修正: resources用のメソッド名を`get-diagnostics-resource`に変更
+   - 対応ファイル:
+     - `mcp-server/src/resources/diagnostics-resource.ts`: メソッド名変更
+     - `claude-code-emacs-mcp-tools.el`: 新しいハンドラー`claude-code-emacs-mcp-handle-get-diagnostics-resource`を追加
+   - テスト結果: MCPサーバー再ビルド後、正常動作確認済み ✓
+
+2. **diagnosticsResourceの削除**
+   - 削除理由: getDiagnosticsツールと機能が重複していたため
+   - 削除内容:
+     - `mcp-server/src/resources/diagnostics-resource.ts`: ファイル削除
+     - `mcp-server/src/resources/index.ts`: export削除
+     - `mcp-server/src/index.ts`: import削除、リソース登録削除
+     - `claude-code-emacs-mcp-tools.el`: `claude-code-emacs-mcp-handle-get-diagnostics-resource`関数削除
+     - `mcp-server/README.md`: LSP diagnosticsリソースの記述削除
 
 ## 2025-01-03 作業記録とコンテキスト
 
