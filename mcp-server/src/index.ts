@@ -61,7 +61,10 @@ const server = new McpServer(
   {
     capabilities: {
       tools: {},
-      resources: {},
+      resources: {
+        subscribe: false,
+        listChanged: true  // We'll notify when buffer list changes
+      },
     },
   }
 );
@@ -69,6 +72,17 @@ const server = new McpServer(
 // Set up notification handler to forward Emacs events to Claude Code
 bridge.setNotificationHandler((method: string, params: any) => {
   log(`Forwarding Emacs notification to Claude Code: ${method} with params: ${JSON.stringify(params)}`);
+  
+  // If buffer list changed, send resource list changed notification
+  if (method === 'emacs/bufferListUpdated') {
+    // Note: We can't dynamically update resources in the current MCP SDK version
+    // but we can notify that resources have changed
+    server.server.notification({
+      method: 'notifications/resources/list_changed'
+    });
+    log('Sent resource list changed notification due to buffer list update');
+  }
+  
   server.server.notification({
     method: method,
     params: params
@@ -272,34 +286,35 @@ function registerTools() {
   });
 }
 
-// Register resources with McpServer
+// Register resources with dynamic listing
 function registerResources() {
-  // Buffer resources (dynamic)
+  // Register buffer resources using ResourceTemplate with list callback
   const bufferTemplate = new ResourceTemplate(
-    'file://{path}',
+    'emacs://buffer/{path}',
     {
       list: async () => {
         try {
           const resources = await bufferResourceHandler.list(bridge);
-          log(`Listed ${resources.length} buffer resources`);
+          log(`ResourceTemplate list callback: found ${resources.length} buffer resources`);
           return { resources };
         } catch (error) {
-          log(`Error listing buffer resources: ${error}`);
+          log(`Error in ResourceTemplate list callback: ${error}`);
           return { resources: [] };
         }
       }
     }
   );
-
-  server.resource(
+  
+  server.registerResource(
     'emacs-buffers',
     bufferTemplate,
     {
+      title: 'Emacs Buffers',
       description: 'Open buffers in Emacs',
       mimeType: 'text/plain'
     },
-    async (uri, _variables, _extra) => {
-      log(`Reading buffer resource: ${uri}`);
+    async (uri, variables) => {
+      log(`Reading buffer resource: ${uri}, path: ${variables.path}`);
       const result = await bufferResourceHandler.read(bridge, uri.toString());
       return {
         contents: [{
@@ -312,14 +327,15 @@ function registerResources() {
   );
 
   // Project info resource (static)
-  server.resource(
+  server.registerResource(
     'project-info',
     'emacs://project/info',
     {
+      title: 'Project Information',
       description: 'Current project information',
       mimeType: 'application/json'
     },
-    async (uri, _extra) => {
+    async (uri) => {
       log(`Reading project resource: ${uri}`);
       const result = await projectResourceHandler.read(bridge, uri.toString());
       return {
@@ -331,7 +347,8 @@ function registerResources() {
       };
     }
   );
-
+  
+  log('Resources registered successfully');
 }
 
 

@@ -14,7 +14,6 @@ describe('bufferResourceHandler', () => {
   describe('list', () => {
     it('should list buffer resources', async () => {
       mockBridge.sendRequest.mockResolvedValue({
-        success: true,
         buffers: [
           { path: '/project/src/main.ts', name: 'main.ts' },
           { path: '/project/test/main.test.ts', name: 'main.test.ts' }
@@ -25,7 +24,7 @@ describe('bufferResourceHandler', () => {
 
       expect(resources).toHaveLength(2);
       expect(resources[0]).toEqual({
-        uri: 'file:///project/src/main.ts',
+        uri: 'emacs://buffer//project/src/main.ts',
         name: 'main.ts',
         description: 'Buffer: /project/src/main.ts',
         mimeType: 'text/typescript'
@@ -34,7 +33,6 @@ describe('bufferResourceHandler', () => {
 
     it('should handle empty buffer list', async () => {
       mockBridge.sendRequest.mockResolvedValue({
-        success: true,
         buffers: []
       });
 
@@ -53,17 +51,16 @@ describe('bufferResourceHandler', () => {
   describe('read', () => {
     it('should read buffer content', async () => {
       mockBridge.sendRequest.mockResolvedValue({
-        success: true,
         content: 'const hello = "world";'
       });
 
-      const result = await bufferResourceHandler.read(mockBridge, 'file:///project/src/main.ts');
+      const result = await bufferResourceHandler.read(mockBridge, 'emacs://buffer//project/src/main.ts');
 
       expect(mockBridge.sendRequest).toHaveBeenCalledWith('get-buffer-content', {
         path: '/project/src/main.ts'
       });
       expect(result).toEqual({
-        uri: 'file:///project/src/main.ts',
+        uri: 'emacs://buffer//project/src/main.ts',
         mimeType: 'text/typescript',
         text: 'const hello = "world";'
       });
@@ -71,12 +68,11 @@ describe('bufferResourceHandler', () => {
 
     it('should throw error on failure', async () => {
       mockBridge.sendRequest.mockResolvedValue({
-        success: false,
         error: 'File not found'
       });
 
       await expect(
-        bufferResourceHandler.read(mockBridge, 'file:///project/missing.ts')
+        bufferResourceHandler.read(mockBridge, 'emacs://buffer//project/missing.ts')
       ).rejects.toThrow('Failed to read buffer resource: Error: File not found');
     });
   });

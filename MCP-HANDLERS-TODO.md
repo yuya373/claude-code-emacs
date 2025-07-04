@@ -59,12 +59,21 @@
   - 注意: パッチファイルが必要なため未テスト
 
 ## リソース系
-- [ ] **bufferResource** - バッファの内容を取得
-  - リソースタイプ: `file://`
+- [x] **bufferResource** - バッファの内容を取得
+  - リソースタイプ: `emacs://buffer/{path}`
+  - 実装更新: ResourceTemplateのlist callbackを使用 (2025-01-04)
+    - `new ResourceTemplate('emacs://buffer/{path}', { list: async () => {...} })`
+    - `{ resources: Resource[] }` 形式で返すように修正
   - 機能:
-    - list: プロジェクト内の開いているバッファをリスト表示
-    - read: 特定のバッファの内容を読み取り
-  - 注意: ResourceTemplateで実装されているため、個別のリソースとしてはリストに表示されない
+    - list: プロジェクト内の開いているバッファをリスト表示 ✓
+    - read: 特定のバッファの内容を読み取り（MCPでの読み込みに問題あり）
+  - 修正内容: 
+    - URIスキームを`file://`から`emacs://buffer/`に変更
+    - successフィールドのチェックを削除（Emacsのレスポンスに含まれない）
+  - テスト結果: 
+    - Jestテスト（5項目）すべて成功 ✓
+    - MCPでのリスト表示: 成功（8個のバッファ表示）✓
+    - MCPでの内容読み取り: エラー発生（Resource not found）
 
 - [x] **projectResource** - プロジェクト情報を取得
   - リソースタイプ: `emacs://project/info`
@@ -139,22 +148,21 @@
    - applyPatchツール（パッチファイルが必要）
 
 ## 2025-01-04 追加作業（夕方）
-1. **diagnosticsResourceの修正完了**
-   - 問題: `get-diagnostics`メソッド名が重複していた（tools用とresources用）
-   - 修正: resources用のメソッド名を`get-diagnostics-resource`に変更
-   - 対応ファイル:
-     - `mcp-server/src/resources/diagnostics-resource.ts`: メソッド名変更
-     - `claude-code-emacs-mcp-tools.el`: 新しいハンドラー`claude-code-emacs-mcp-handle-get-diagnostics-resource`を追加
-   - テスト結果: MCPサーバー再ビルド後、正常動作確認済み ✓
+1. **diagnosticsResourceの削除完了**
+   - 理由: getDiagnosticsツールと機能が重複していたため
+   - 削除ファイル: `diagnostics-resource.ts`
+   - 削除した関数: `claude-code-emacs-mcp-handle-get-diagnostics-resource`
+   - ドキュメント更新: README.md、CLAUDE.md
 
-2. **diagnosticsResourceの削除**
-   - 削除理由: getDiagnosticsツールと機能が重複していたため
-   - 削除内容:
-     - `mcp-server/src/resources/diagnostics-resource.ts`: ファイル削除
-     - `mcp-server/src/resources/index.ts`: export削除
-     - `mcp-server/src/index.ts`: import削除、リソース登録削除
-     - `claude-code-emacs-mcp-tools.el`: `claude-code-emacs-mcp-handle-get-diagnostics-resource`関数削除
-     - `mcp-server/README.md`: LSP diagnosticsリソースの記述削除
+2. **bufferResourceの修正と動作確認**
+   - 問題1: `file://`スキームではResourceTemplateが正しく動作しない
+   - 修正1: URIスキームを`emacs://buffer/`に変更
+   - 問題2: Emacsレスポンスに`success`フィールドが含まれない
+   - 修正2: `result.success`のチェックを削除
+   - テスト結果:
+     - Jestテスト: 全5項目成功 ✓
+     - MCPでのリスト表示: 8個のバッファ正常表示 ✓
+     - MCPでの内容読み取り: "Resource not found"エラー（調査中）
 
 ## 2025-01-03 作業記録とコンテキスト
 

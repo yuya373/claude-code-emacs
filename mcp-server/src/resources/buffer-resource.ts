@@ -7,13 +7,16 @@ export const bufferResourceHandler: ResourceHandler = {
   async list(bridge: EmacsBridge): Promise<Resource[]> {
     try {
       const result = await bridge.sendRequest('get-open-buffers', { includeHidden: false });
+      console.log('Buffer list result:', JSON.stringify(result, null, 2));
 
-      if (!result.success || !Array.isArray(result.buffers)) {
+      // The response from Emacs doesn't include 'success' field, just check for buffers array
+      if (!result || !Array.isArray(result.buffers)) {
+        console.log('Returning empty array due to failed check');
         return [];
       }
 
       return result.buffers.map((buffer: any) => ({
-        uri: `file://${buffer.path}`,
+        uri: `emacs://buffer/${buffer.path}`,  // Add slash to match template pattern
         name: path.basename(buffer.path),
         description: `Buffer: ${buffer.path}`,
         mimeType: getMimeType(buffer.path)
@@ -27,12 +30,13 @@ export const bufferResourceHandler: ResourceHandler = {
   async read(bridge: EmacsBridge, uri: string): Promise<ResourceContents> {
     try {
       // Extract file path from URI
-      const filePath = uri.replace('file://', '');
+      const filePath = uri.replace('emacs://buffer/', '');
 
       const result = await bridge.sendRequest('get-buffer-content', { path: filePath });
 
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to read buffer content');
+      // Check if content exists in the response
+      if (!result || typeof result.content !== 'string') {
+        throw new Error(result?.error || 'Failed to read buffer content');
       }
 
       return {
