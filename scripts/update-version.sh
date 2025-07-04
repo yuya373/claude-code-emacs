@@ -19,8 +19,12 @@ echo "Updating version to $VERSION..."
 
 # Update claude-code-emacs.el
 echo "Updating claude-code-emacs.el..."
-sed -i.bak "s/^;; Version: .*/;; Version: $VERSION/" "$PROJECT_ROOT/claude-code-emacs.el"
-rm -f "$PROJECT_ROOT/claude-code-emacs.el.bak"
+# Use sed -i with OS detection for compatibility
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    sed -i '' "s/^;; Version: .*/;; Version: $VERSION/" "$PROJECT_ROOT/claude-code-emacs.el"
+else
+    sed -i "s/^;; Version: .*/;; Version: $VERSION/" "$PROJECT_ROOT/claude-code-emacs.el"
+fi
 
 # Update mcp-server/package.json
 echo "Updating mcp-server/package.json..."

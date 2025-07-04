@@ -10,9 +10,13 @@
    - PATCH (0.0.x): Bug fixes, documentation updates, small improvements
 
 3. Update version numbers in the project files:
-   - Update `claude-code-emacs.el` header: `;; Version: X.Y.Z`
-   - Update `mcp-server/package.json`: `"version": "X.Y.Z"`
-   - Commit these changes with message: `chore: bump version to X.Y.Z`
+   - Run: `./scripts/update-version.sh X.Y.Z`
+   - This will update:
+     - `claude-code-emacs.el` header: `;; Version: X.Y.Z`
+     - `mcp-server/package.json`: `"version": "X.Y.Z"`
+     - `mcp-server/package-lock.json`: Updated by npm
+   - Review changes: `git diff`
+   - Commit: `git add -A && git commit -m "chore: bump version to X.Y.Z"`
 
 4. Create a comprehensive release notes file that includes:
    - A clear summary of what changed and why it matters

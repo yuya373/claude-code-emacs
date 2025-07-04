@@ -5,51 +5,7 @@ on:
     types: [published]
 
 jobs:
-  update-versions:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        ref: master  # Checkout master branch instead of tag
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        registry-url: 'https://registry.npmjs.org'
-    
-    - name: Get version from tag
-      id: version
-      run: |
-        VERSION=${GITHUB_REF#refs/tags/v}
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
-    
-    - name: Update claude-code-emacs.el version
-      run: |
-        VERSION="${{ steps.version.outputs.version }}"
-        sed -i "s/^;; Version: .*/;; Version: $VERSION/" claude-code-emacs.el
-    
-    - name: Update package.json version
-      run: |
-        VERSION="${{ steps.version.outputs.version }}"
-        cd mcp-server
-        npm version $VERSION --no-git-tag-version
-    
-    - name: Commit version updates
-      run: |
-        VERSION="${{ steps.version.outputs.version }}"
-        git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
-        git config --local user.name "github-actions[bot]"
-        git add claude-code-emacs.el mcp-server/package.json mcp-server/package-lock.json
-        git commit -m "chore: bump version to $VERSION" || echo "No changes to commit"
-        git push origin master
-    
   publish-npm:
-    needs: update-versions
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -58,7 +14,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
-        ref: master  # Get the latest version with updated package.json
+        ref: ${{ github.event.release.tag_name }}
     
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -84,11 +40,12 @@ jobs:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
     
   create-melpa-pr:
-    needs: update-versions
     runs-on: ubuntu-latest
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.release.tag_name }}
     
     - name: Create MELPA recipe
       run: |
