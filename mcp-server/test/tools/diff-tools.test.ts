@@ -4,10 +4,8 @@ import { EmacsBridge } from '../../src/emacs-bridge';
 // Import handler functions directly
 import { 
   handleOpenDiff, 
-  handleOpenDiff3, 
   handleOpenRevisionDiff, 
   handleOpenCurrentChanges, 
-  handleApplyPatch,
   handleOpenDiffContent
 } from '../../src/tools/diff-tools';
 
@@ -83,7 +81,8 @@ describe('diff-tools', () => {
       
       const result = await resultPromise;
       expect(result).toEqual({
-        content: [{ type: 'text', text: 'Opened diff comparison for files: src/old.js and src/new.js' }]
+        content: [{ type: 'text', text: 'Opened diff comparison for files: src/old.js and src/new.js' }],
+        structuredContent: { status: 'success', message: 'Opened ediff session' }
       });
     });
 
@@ -101,6 +100,7 @@ describe('diff-tools', () => {
       const result = await resultPromise;
       expect(result).toEqual({
         content: [{ type: 'text', text: 'Error: File not found' }],
+        structuredContent: { status: 'error', message: 'File not found' },
         isError: true
       });
     });
@@ -117,51 +117,11 @@ describe('diff-tools', () => {
       
       expect(result).toEqual({
         content: [{ type: 'text', text: 'Error: Emacs is not connected' }],
+        structuredContent: { status: 'error', message: 'Emacs is not connected' },
         isError: true
       });
     });
 
-  });
-
-  describe('openDiff3', () => {
-    it('should compare three files', async () => {
-      const params = {
-        fileA: 'mine.js',
-        fileB: 'theirs.js',
-        fileC: 'base.js'
-      };
-      
-      const resultPromise = handleOpenDiff3(mockBridge, params);
-      
-      expect(mockSend).toHaveBeenCalledWith('openDiff3', params);
-      
-      resolveResponse({ status: 'success', message: 'Opened ediff3 session' });
-      
-      const result = await resultPromise;
-      expect(result).toEqual({
-        content: [{ type: 'text', text: 'Opened 3-way diff for: mine.js, theirs.js, base.js' }]
-      });
-    });
-
-    it('should support ancestor for merge', async () => {
-      const params = {
-        fileA: 'mine.js',
-        fileB: 'theirs.js',
-        fileC: 'result.js',
-        ancestor: 'base.js'
-      };
-      
-      const resultPromise = handleOpenDiff3(mockBridge, params);
-      
-      expect(mockSend).toHaveBeenCalledWith('openDiff3', params);
-      
-      resolveResponse({ status: 'success', message: 'Opened merge session' });
-      
-      const result = await resultPromise;
-      expect(result).toEqual({
-        content: [{ type: 'text', text: 'Opened merge session with ancestor: base.js' }]
-      });
-    });
   });
 
   describe('openRevisionDiff', () => {
@@ -181,7 +141,8 @@ describe('diff-tools', () => {
       
       const result = await resultPromise;
       expect(result).toEqual({
-        content: [{ type: 'text', text: 'Comparing src/index.js with revision HEAD' }]
+        content: [{ type: 'text', text: 'Comparing src/index.js with revision HEAD' }],
+        structuredContent: { status: 'success', message: 'Opened revision diff' }
       });
     });
 
@@ -199,7 +160,8 @@ describe('diff-tools', () => {
       
       const result = await resultPromise;
       expect(result).toEqual({
-        content: [{ type: 'text', text: 'Comparing src/index.js with revision HEAD~3' }]
+        content: [{ type: 'text', text: 'Comparing src/index.js with revision HEAD~3' }],
+        structuredContent: { status: 'success', message: 'Opened revision diff' }
       });
     });
   });
@@ -220,7 +182,8 @@ describe('diff-tools', () => {
       
       const result = await resultPromise;
       expect(result).toEqual({
-        content: [{ type: 'text', text: 'Showing uncommitted changes for current-file.js' }]
+        content: [{ type: 'text', text: 'Showing uncommitted changes for current-file.js' }],
+        structuredContent: { status: 'success', message: 'Showing changes', file: 'current-file.js' }
       });
     });
 
@@ -241,47 +204,8 @@ describe('diff-tools', () => {
       
       const result = await resultPromise;
       expect(result).toEqual({
-        content: [{ type: 'text', text: 'Showing uncommitted changes for src/modified.js' }]
-      });
-    });
-  });
-
-  describe('applyPatch', () => {
-    it('should apply patch to target file', async () => {
-      const params = {
-        patchFile: 'fix.patch',
-        targetFile: 'src/buggy.js'
-      };
-      
-      const resultPromise = handleApplyPatch(mockBridge, params);
-      
-      expect(mockSend).toHaveBeenCalledWith('applyPatch', params);
-      
-      resolveResponse({ status: 'success', message: 'Patch session started' });
-      
-      const result = await resultPromise;
-      expect(result).toEqual({
-        content: [{ type: 'text', text: 'Applying patch fix.patch to src/buggy.js' }]
-      });
-    });
-
-    it('should handle patch errors', async () => {
-      const params = {
-        patchFile: 'bad.patch',
-        targetFile: 'src/file.js'
-      };
-      
-      const resultPromise = handleApplyPatch(mockBridge, params);
-      
-      // Wait for the mock to be called
-      await new Promise(resolve => setImmediate(resolve));
-      
-      resolveResponse({ status: 'error', message: 'Invalid patch format' });
-      
-      const result = await resultPromise;
-      expect(result).toEqual({
-        content: [{ type: 'text', text: 'Error: Invalid patch format' }],
-        isError: true
+        content: [{ type: 'text', text: 'Showing uncommitted changes for src/modified.js' }],
+        structuredContent: { status: 'success', message: 'Showing changes', file: 'src/modified.js' }
       });
     });
   });
@@ -308,7 +232,8 @@ describe('diff-tools', () => {
       
       const result = await resultPromise;
       expect(result).toEqual({
-        content: [{ type: 'text', text: 'Opened diff comparison for: Original Content and Modified Content' }]
+        content: [{ type: 'text', text: 'Opened diff comparison for: Original Content and Modified Content' }],
+        structuredContent: { status: 'success', message: 'Opened ediff session' }
       });
     });
 
@@ -330,6 +255,7 @@ describe('diff-tools', () => {
       const result = await resultPromise;
       expect(result).toEqual({
         content: [{ type: 'text', text: 'Error: Failed to create buffers' }],
+        structuredContent: { status: 'error', message: 'Failed to create buffers' },
         isError: true
       });
     });

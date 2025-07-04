@@ -1,16 +1,12 @@
 import { EmacsBridge } from '../emacs-bridge.js';
 import {
   OpenDiffArgs,
-  OpenDiff3Args,
   OpenRevisionDiffArgs,
   OpenCurrentChangesArgs,
-  ApplyPatchArgs,
   OpenDiffContentArgs,
   openDiffInputSchema,
-  openDiff3InputSchema,
   openRevisionDiffInputSchema,
   openCurrentChangesInputSchema,
-  applyPatchInputSchema,
   openDiffContentInputSchema,
   diffToolOutputSchema,
   DiffToolResult,
@@ -68,53 +64,6 @@ export async function handleOpenDiff(bridge: EmacsBridge, params: OpenDiffArgs):
   }
 }
 
-// Helper function for openDiff3
-export async function handleOpenDiff3(bridge: EmacsBridge, params: OpenDiff3Args): Promise<DiffToolHandlerResult> {
-  if (!bridge.isConnected()) {
-    return {
-      content: [{ type: 'text' as const, text: 'Error: Emacs is not connected' }],
-      structuredContent: {
-        status: 'error' as const,
-        message: 'Emacs is not connected'
-      },
-      isError: true
-    };
-  }
-
-  try {
-    const response = await bridge.request('openDiff3', params) as DiffToolResponse;
-
-    if (response.status === 'error') {
-      return {
-        content: [{ type: 'text' as const, text: `Error: ${response.message}` }],
-        structuredContent: response,
-        isError: true
-      };
-    }
-
-    if (params.ancestor) {
-      return {
-        content: [{ type: 'text' as const, text: `Opened merge session with ancestor: ${params.ancestor}` }],
-        structuredContent: response
-      };
-    }
-
-    return {
-      content: [{ type: 'text' as const, text: `Opened 3-way diff for: ${params.fileA}, ${params.fileB}, ${params.fileC}` }],
-      structuredContent: response
-    };
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return {
-      content: [{ type: 'text' as const, text: `Error opening diff3: ${errorMessage}` }],
-      structuredContent: {
-        status: 'error' as const,
-        message: errorMessage
-      },
-      isError: true
-    };
-  }
-}
 
 // Helper function for openRevisionDiff
 export async function handleOpenRevisionDiff(bridge: EmacsBridge, params: OpenRevisionDiffArgs): Promise<DiffToolHandlerResult> {
@@ -204,46 +153,6 @@ export async function handleOpenCurrentChanges(bridge: EmacsBridge, params: Open
   }
 }
 
-// Helper function for applyPatch
-export async function handleApplyPatch(bridge: EmacsBridge, params: ApplyPatchArgs): Promise<DiffToolHandlerResult> {
-  if (!bridge.isConnected()) {
-    return {
-      content: [{ type: 'text' as const, text: 'Error: Emacs is not connected' }],
-      structuredContent: {
-        status: 'error' as const,
-        message: 'Emacs is not connected'
-      },
-      isError: true
-    };
-  }
-
-  try {
-    const response = await bridge.request('applyPatch', params) as DiffToolResponse;
-
-    if (response.status === 'error') {
-      return {
-        content: [{ type: 'text' as const, text: `Error: ${response.message}` }],
-        structuredContent: response,
-        isError: true
-      };
-    }
-
-    return {
-      content: [{ type: 'text' as const, text: `Applying patch ${params.patchFile} to ${params.targetFile}` }],
-      structuredContent: response
-    };
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return {
-      content: [{ type: 'text' as const, text: `Error applying patch: ${errorMessage}` }],
-      structuredContent: {
-        status: 'error' as const,
-        message: errorMessage
-      },
-      isError: true
-    };
-  }
-}
 
 // Helper function for openDiffContent
 export async function handleOpenDiffContent(bridge: EmacsBridge, params: OpenDiffContentArgs): Promise<DiffToolHandlerResult> {
@@ -300,14 +209,6 @@ export const diffTools = {
     handler: handleOpenDiff
   },
 
-  openDiff3: {
-    name: 'openDiff3',
-    description: 'Open a three-way comparison tool for merge conflict resolution',
-    inputSchema: openDiff3InputSchema,
-    outputSchema: diffToolOutputSchema,
-    handler: handleOpenDiff3
-  },
-
   openRevisionDiff: {
     name: 'openRevisionDiff',
     description: 'Compare a file with its previous version from git history. Use this when you want to see what changed in a file over time, not for comparing two different files.',
@@ -322,14 +223,6 @@ export const diffTools = {
     inputSchema: openCurrentChangesInputSchema,
     outputSchema: diffToolOutputSchema,
     handler: handleOpenCurrentChanges
-  },
-
-  applyPatch: {
-    name: 'applyPatch',
-    description: 'Apply a patch file with interactive review of changes',
-    inputSchema: applyPatchInputSchema,
-    outputSchema: diffToolOutputSchema,
-    handler: handleApplyPatch
   },
 
   openDiffContent: {

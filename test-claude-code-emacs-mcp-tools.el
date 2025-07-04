@@ -197,33 +197,6 @@
     (should (assoc 'status result))
     (should (equal (cdr (assoc 'status result)) "error"))))
 
-(ert-deftest test-mcp-handle-openDiff3 ()
-  "Test openDiff3 handler."
-  (let* ((test-file-a (make-temp-file "test-diff3-a"))
-         (test-file-b (make-temp-file "test-diff3-b"))
-         (test-file-c (make-temp-file "test-diff3-c"))
-         (params `((fileA . ,(file-name-nondirectory test-file-a))
-                   (fileB . ,(file-name-nondirectory test-file-b))
-                   (fileC . ,(file-name-nondirectory test-file-c)))))
-    (unwind-protect
-        (progn
-          (dolist (file (list test-file-a test-file-b test-file-c))
-            (with-temp-file file
-              (insert "Test content")))
-          (cl-letf (((symbol-function 'projectile-project-root)
-                     (lambda () (file-name-directory test-file-a)))
-                    ((symbol-function 'ediff-files3)
-                     (lambda (file-a file-b file-c)
-                       (should (file-exists-p file-a))
-                       (should (file-exists-p file-b))
-                       (should (file-exists-p file-c)))))
-            (let ((result (claude-code-emacs-mcp-handle-openDiff3 params)))
-              (should (assoc 'status result))
-              (should (equal (cdr (assoc 'status result)) "success")))))
-      (delete-file test-file-a)
-      (delete-file test-file-b)
-      (delete-file test-file-c))))
-
 (ert-deftest test-mcp-handle-openRevisionDiff ()
   "Test openRevisionDiff handler."
   (let* ((test-file (make-temp-file "test-revision"))
@@ -284,30 +257,6 @@
               (should (assoc 'status result))
               (should (equal (cdr (assoc 'status result)) "success")))))
       (delete-file test-file))))
-
-(ert-deftest test-mcp-handle-applyPatch ()
-  "Test applyPatch handler."
-  (let* ((patch-file (make-temp-file "test-patch" nil ".patch"))
-         (target-file (make-temp-file "test-target"))
-         (params `((patchFile . ,(file-name-nondirectory patch-file))
-                   (targetFile . ,(file-name-nondirectory target-file)))))
-    (unwind-protect
-        (progn
-          (with-temp-file patch-file
-            (insert "--- a/file\n+++ b/file\n@@ -1 +1 @@\n-old\n+new\n"))
-          (with-temp-file target-file
-            (insert "old content"))
-          (cl-letf (((symbol-function 'projectile-project-root)
-                     (lambda () (file-name-directory patch-file)))
-                    ((symbol-function 'ediff-patch-file)
-                     (lambda (patch target)
-                       (should (file-exists-p patch))
-                       (should (file-exists-p target)))))
-            (let ((result (claude-code-emacs-mcp-handle-applyPatch params)))
-              (should (assoc 'status result))
-              (should (equal (cdr (assoc 'status result)) "success")))))
-      (delete-file patch-file)
-      (delete-file target-file))))
 
 ;;; Tests for definition finding
 

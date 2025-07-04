@@ -262,10 +262,8 @@ When modifying this package:
 - **getDefinition tool**: Added MCP tool to find symbol definitions using LSP with preview (shows 3 lines before/after)
 - **Diff tools suite**: Added comprehensive ediff integration tools:
   - `openDiff`: Compare two files
-  - `openDiff3`: Three-way file comparison for merge conflicts
   - `openRevisionDiff`: Compare file with any git revision
   - `openCurrentChanges`: Show uncommitted changes in ediff
-  - `applyPatch`: Apply patch files using ediff
   - `openDiffContent`: Compare two text contents in temporary buffers
 - **Interactive claude-code-emacs-run**: Added prefix argument support (`C-u`) for interactive option selection (model, verbose, resume, etc.)
 - **CI/CD**: Added GitHub Actions workflow for automated testing
@@ -295,7 +293,7 @@ When modifying this package:
 The MCP server provides a bridge between Claude Code and Emacs:
 - WebSocket server on dynamic port for Emacs connection
 - stdio interface for Claude Code MCP protocol
-- Implements tools: getOpenBuffers, getCurrentSelection, getDiagnostics, getDefinition, findReferences, describeSymbol, diff tools (openDiff, openDiff3, openRevisionDiff, openCurrentChanges, applyPatch, openDiffContent), sendNotification
+- Implements tools: getOpenBuffers, getCurrentSelection, getDiagnostics, getDefinition, findReferences, describeSymbol, diff tools (openDiff, openRevisionDiff, openCurrentChanges, openDiffContent), sendNotification
 - Implements resources: buffer content, project info
 - Per-project WebSocket connections for session isolation
 - Real-time event notifications from Emacs to Claude Code
@@ -417,10 +415,8 @@ The MCP server supports real-time notifications from Emacs:
 - **getDefinition tool**: Added MCP tool to find symbol definitions using LSP with preview (shows 3 lines before/after)
 - **Diff tools suite**: Added comprehensive ediff integration tools:
   - `openDiff`: Compare two files
-  - `openDiff3`: Three-way file comparison for merge conflicts
   - `openRevisionDiff`: Compare file with any git revision
   - `openCurrentChanges`: Show uncommitted changes in ediff
-  - `applyPatch`: Apply patch files using ediff
   - `openDiffContent`: Compare two text contents in temporary buffers
 - **Interactive claude-code-emacs-run**: Added prefix argument support (`C-u`) for interactive option selection (model, verbose, resume, etc.)
 - **CI/CD**: Added GitHub Actions workflow for automated testing

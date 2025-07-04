@@ -13,14 +13,6 @@ export const openDiffInputSchema = z.object({
   fileB: z.string().describe('Path to the second file to compare (must be different from fileA)')
 });
 
-// openDiff3 schemas
-export const openDiff3InputSchema = z.object({
-  fileA: z.string().describe('First file to compare'),
-  fileB: z.string().describe('Second file to compare'),
-  fileC: z.string().describe('Third file to compare'),
-  ancestor: z.string().optional().describe('Common ancestor for merge (optional)')
-});
-
 // openRevisionDiff schemas
 export const openRevisionDiffInputSchema = z.object({
   file: z.string().describe('File to compare with its git history'),
@@ -30,12 +22,6 @@ export const openRevisionDiffInputSchema = z.object({
 // openCurrentChanges schemas
 export const openCurrentChangesInputSchema = z.object({
   file: z.string().optional().describe('File to show uncommitted changes for (optional, defaults to current file)')
-});
-
-// applyPatch schemas
-export const applyPatchInputSchema = z.object({
-  patchFile: z.string().describe('Path to patch file'),
-  targetFile: z.string().describe('File to apply patch to')
 });
 
 // openDiffContent schemas
@@ -49,8 +35,6 @@ export const openDiffContentInputSchema = z.object({
 // Inferred types from schemas
 export type DiffToolResult = z.infer<typeof diffToolOutputSchema>;
 export type OpenDiffArgs = z.infer<typeof openDiffInputSchema>;
-export type OpenDiff3Args = z.infer<typeof openDiff3InputSchema>;
 export type OpenRevisionDiffArgs = z.infer<typeof openRevisionDiffInputSchema>;
 export type OpenCurrentChangesArgs = z.infer<typeof openCurrentChangesInputSchema>;
-export type ApplyPatchArgs = z.infer<typeof applyPatchInputSchema>;
 export type OpenDiffContentArgs = z.infer<typeof openDiffContentInputSchema>;

@@ -190,37 +190,6 @@ Returns project-wide diagnostics using specified buffer for LSP context."
        `((status . "error")
          (message . ,(error-message-string err)))))))
 
-(defun claude-code-emacs-mcp-handle-openDiff3 (params)
-  "Handle openDiff3 request with PARAMS."
-  (let ((file-a (cdr (assoc 'fileA params)))
-        (file-b (cdr (assoc 'fileB params)))
-        (file-c (cdr (assoc 'fileC params)))
-        (ancestor (cdr (assoc 'ancestor params))))
-    (condition-case err
-        (progn
-          (unless (and file-a file-b file-c)
-            (error "Missing required parameters: fileA, fileB, and fileC"))
-          (let ((path-a (expand-file-name file-a (claude-code-emacs-normalize-project-root (projectile-project-root))))
-                (path-b (expand-file-name file-b (claude-code-emacs-normalize-project-root (projectile-project-root))))
-                (path-c (expand-file-name file-c (claude-code-emacs-normalize-project-root (projectile-project-root)))))
-            (unless (file-exists-p path-a)
-              (error "File not found: %s" path-a))
-            (unless (file-exists-p path-b)
-              (error "File not found: %s" path-b))
-            (unless (file-exists-p path-c)
-              (error "File not found: %s" path-c))
-            (if ancestor
-                (let ((ancestor-path (expand-file-name ancestor (claude-code-emacs-normalize-project-root (projectile-project-root)))))
-                  (unless (file-exists-p ancestor-path)
-                    (error "Ancestor file not found: %s" ancestor-path))
-                  (ediff-merge-files-with-ancestor path-a path-b ancestor-path nil path-c))
-              (ediff-files3 path-a path-b path-c)))
-          `((status . "success")
-            (message . ,(if ancestor "Opened merge session" "Opened ediff3 session"))))
-      (error
-       `((status . "error")
-         (message . ,(error-message-string err)))))))
-
 (defun claude-code-emacs-mcp-handle-openRevisionDiff (params)
   "Handle openRevisionDiff request with PARAMS."
   (let ((file (cdr (assoc 'file params)))
@@ -268,27 +237,6 @@ Returns project-wide diagnostics using specified buffer for LSP context."
           `((status . "success")
             (message . "Showing changes")
             (file . ,(file-name-nondirectory target-file))))
-      (error
-       `((status . "error")
-         (message . ,(error-message-string err)))))))
-
-(defun claude-code-emacs-mcp-handle-applyPatch (params)
-  "Handle applyPatch request with PARAMS."
-  (let ((patch-file (cdr (assoc 'patchFile params)))
-        (target-file (cdr (assoc 'targetFile params))))
-    (condition-case err
-        (progn
-          (unless (and patch-file target-file)
-            (error "Missing required parameters: patchFile and targetFile"))
-          (let ((patch-path (expand-file-name patch-file (claude-code-emacs-normalize-project-root (projectile-project-root))))
-                (target-path (expand-file-name target-file (claude-code-emacs-normalize-project-root (projectile-project-root)))))
-            (unless (file-exists-p patch-path)
-              (error "Patch file not found: %s" patch-path))
-            (unless (file-exists-p target-path)
-              (error "Target file not found: %s" target-path))
-            (ediff-patch-file patch-path target-path))
-          `((status . "success")
-            (message . "Patch session started")))
       (error
        `((status . "error")
          (message . ,(error-message-string err)))))))

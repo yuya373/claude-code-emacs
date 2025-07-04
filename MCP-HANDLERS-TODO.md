@@ -39,10 +39,6 @@
   - パラメータ: `fileA`, `fileB`
   - テスト結果: 正常動作確認済み ✓
 
-- [x] **openDiff3** - 3つのファイルを比較
-  - パラメータ: `fileA`, `fileB`, `fileC`, `ancestor`(optional)
-  - テスト結果: 正常動作確認済み ✓
-
 - [x] **openRevisionDiff** - ファイルとGitリビジョンを比較
   - パラメータ: `file`, `revision`(default: HEAD)
   - テスト結果: 正常動作確認済み ✓
@@ -52,11 +48,6 @@
   - パラメータ: `file`(optional, default: current file)
   - テスト結果: 正常動作確認済み ✓
   - 未追跡ファイルではエラーメッセージが適切に表示
-
-- [ ] **applyPatch** - パッチファイルを適用
-  - パラメータ: `patchFile`, `targetFile`
-  - 前提: 有効なパッチファイル
-  - 注意: パッチファイルが必要なため未テスト
 
 ## リソース系
 - [x] **bufferResource** - バッファの内容を取得
@@ -116,8 +107,7 @@
    - describeSymbol: 関数シグネチャを正しく表示 ✓
 
 2. **Diffツールのテスト完了**
-   - openDiff, openDiff3, openRevisionDiff, openCurrentChanges: 全て正常動作 ✓
-   - applyPatchは実際のパッチファイルが必要なため未テスト
+   - openDiff, openRevisionDiff, openCurrentChanges: 全て正常動作 ✓
 
 3. **リソースのテスト**
    - projectResource: 正常動作確認済み ✓
@@ -145,7 +135,6 @@
 ### 次のステップ
 1. **リソース系のテスト**
    - bufferResource（バッファ一覧と内容取得）
-   - applyPatchツール（パッチファイルが必要）
 
 ## 2025-01-04 追加作業（夕方）
 1. **diagnosticsResourceの削除完了**
@@ -166,6 +155,16 @@
    - 最終解決策: ResourceTemplateのURIパターンを修正
      - パターンを `{path}` から `{+path}` に変更（RFC 6570の拡張表記）
      - readコールバックで `variables.path` を使用してパスを正しく処理
+
+3. **openDiff3とapplyPatchツールの削除完了**
+   - 削除理由: ユーザーリクエストによる
+   - 削除内容:
+     - TypeScript実装: `diff-tools.ts`から関数削除
+     - スキーマ: `diff-schema.ts`から型定義削除
+     - 登録: `index.ts`からツール登録削除
+     - Emacsハンドラー: `claude-code-emacs-mcp-tools.el`から関数削除
+     - テスト: 関連するテストケース削除
+   - ドキュメント更新: CLAUDE.md
 
 ## 2025-01-03 作業記録とコンテキスト
 

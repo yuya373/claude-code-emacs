@@ -4,10 +4,8 @@ export { handleGetDiagnostics } from './diagnostic-tools.js';
 export {
   diffTools,
   handleOpenDiff,
-  handleOpenDiff3,
   handleOpenRevisionDiff,
   handleOpenCurrentChanges,
-  handleApplyPatch,
   handleOpenDiffContent
 } from './diff-tools.js';
 export { handleGetDefinition } from './definition-tools.js';

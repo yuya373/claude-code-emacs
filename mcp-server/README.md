@@ -15,10 +15,8 @@ MCP (Model Context Protocol) server that enables Claude Code to interact with Em
 
 ### Diff Tools
 - **openDiff**: Compare two files or buffers
-- **openDiff3**: Three-way file comparison
 - **openRevisionDiff**: Compare file with git revision
 - **openCurrentChanges**: Show uncommitted changes
-- **applyPatch**: Apply patch files using ediff
 - **openDiffContent**: Compare two text contents in temporary buffers
 
 ### Real-time Events

@@ -215,20 +215,6 @@ function registerTools() {
     };
   });
 
-  // openDiff3 tool
-  server.registerTool('openDiff3', {
-    description: diffTools.openDiff3.description,
-    inputSchema: diffTools.openDiff3.inputSchema.shape,
-    outputSchema: diffTools.openDiff3.outputSchema.shape
-  }, async (args, _extra) => {
-    const result = await diffTools.openDiff3.handler(bridge, args);
-    return {
-      content: result.content,
-      structuredContent: result.structuredContent,
-      isError: result.isError
-    };
-  });
-
   // openRevisionDiff tool
   server.registerTool('openRevisionDiff', {
     description: diffTools.openRevisionDiff.description,
@@ -250,20 +236,6 @@ function registerTools() {
     outputSchema: diffTools.openCurrentChanges.outputSchema.shape
   }, async (args, _extra) => {
     const result = await diffTools.openCurrentChanges.handler(bridge, args);
-    return {
-      content: result.content,
-      structuredContent: result.structuredContent,
-      isError: result.isError
-    };
-  });
-
-  // applyPatch tool
-  server.registerTool('applyPatch', {
-    description: diffTools.applyPatch.description,
-    inputSchema: diffTools.applyPatch.inputSchema.shape,
-    outputSchema: diffTools.applyPatch.outputSchema.shape
-  }, async (args, _extra) => {
-    const result = await diffTools.applyPatch.handler(bridge, args);
     return {
       content: result.content,
       structuredContent: result.structuredContent,

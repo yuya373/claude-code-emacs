@@ -90,14 +90,6 @@ Opens ediff to compare two files or buffers.
   - `bufferA`: Name of first buffer (alternative to fileA)
   - `bufferB`: Name of second buffer (alternative to fileB)
 
-#### `openDiff3`
-Opens ediff3 to compare three files.
-- Parameters:
-  - `fileA`: First file to compare (required)
-  - `fileB`: Second file to compare (required)
-  - `fileC`: Third file to compare (required)
-  - `ancestor`: Common ancestor for merge (optional)
-
 #### `openRevisionDiff`
 Compares a file with its git revision.
 - Parameters:
@@ -108,12 +100,6 @@ Compares a file with its git revision.
 Shows current uncommitted changes in ediff.
 - Parameters:
   - `file`: File to show changes for (optional, defaults to current)
-
-#### `applyPatch`
-Applies a patch file using ediff.
-- Parameters:
-  - `patchFile`: Path to patch file (required)
-  - `targetFile`: File to apply patch to (required)
 
 ### `runCommand`
 Executes an Emacs command with security checks.
