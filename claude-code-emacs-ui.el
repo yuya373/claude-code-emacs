@@ -81,6 +81,7 @@
 
 (define-derived-mode claude-code-emacs-vterm-mode vterm-mode "Claude Code Session"
   "Major mode for Claude Code vterm sessions."
+  (setq-local vterm-max-scrollback 500)
   (display-line-numbers-mode -1))
 
 (defvar claude-code-emacs-prompt-mode-map

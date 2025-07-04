@@ -197,6 +197,7 @@ function registerTools() {
     const result = await diffTools.openDiff.handler(bridge, args);
     return {
       content: result.content,
+      structuredContent: result.structuredContent,
       isError: result.isError
     };
   });
@@ -210,6 +211,7 @@ function registerTools() {
     const result = await diffTools.openDiff3.handler(bridge, args);
     return {
       content: result.content,
+      structuredContent: result.structuredContent,
       isError: result.isError
     };
   });
@@ -223,6 +225,7 @@ function registerTools() {
     const result = await diffTools.openRevisionDiff.handler(bridge, args);
     return {
       content: result.content,
+      structuredContent: result.structuredContent,
       isError: result.isError
     };
   });
@@ -236,6 +239,7 @@ function registerTools() {
     const result = await diffTools.openCurrentChanges.handler(bridge, args);
     return {
       content: result.content,
+      structuredContent: result.structuredContent,
       isError: result.isError
     };
   });
@@ -249,6 +253,7 @@ function registerTools() {
     const result = await diffTools.applyPatch.handler(bridge, args);
     return {
       content: result.content,
+      structuredContent: result.structuredContent,
       isError: result.isError
     };
   });
@@ -262,6 +267,7 @@ function registerTools() {
     const result = await diffTools.openDiffContent.handler(bridge, args);
     return {
       content: result.content,
+      structuredContent: result.structuredContent,
       isError: result.isError
     };
   });

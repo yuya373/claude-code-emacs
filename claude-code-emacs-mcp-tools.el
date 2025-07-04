@@ -79,8 +79,8 @@
                        (not (string-prefix-p " " buffer-name))))
           (push `((path . ,file-path)
                   (name . ,buffer-name)
-                  (active . ,(eq buffer (current-buffer)))
-                  (modified . ,(buffer-modified-p buffer)))
+                  (active . ,(if (eq buffer (current-buffer)) t json-false))
+                  (modified . ,(if (buffer-modified-p buffer) t json-false)))
                 buffers))))
 
     `((buffers . ,(nreverse buffers)))))

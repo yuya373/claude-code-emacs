@@ -12,25 +12,27 @@ import {
   openCurrentChangesInputSchema,
   applyPatchInputSchema,
   openDiffContentInputSchema,
-  diffToolOutputSchema
+  diffToolOutputSchema,
+  DiffToolResult,
 } from '../schemas/diff-schema.js';
 
-interface DiffToolResponse {
-  status: 'success' | 'error';
-  message: string;
-  file?: string;
-}
+type DiffToolResponse = DiffToolResult;
 
-interface DiffToolResult {
+interface DiffToolHandlerResult {
   content: Array<{ type: 'text'; text: string }>;
+  structuredContent: DiffToolResponse;
   isError?: boolean;
 }
 
 // Helper function for openDiff
-export async function handleOpenDiff(bridge: EmacsBridge, params: OpenDiffArgs): Promise<DiffToolResult> {
+export async function handleOpenDiff(bridge: EmacsBridge, params: OpenDiffArgs): Promise<DiffToolHandlerResult> {
   if (!bridge.isConnected()) {
     return {
       content: [{ type: 'text' as const, text: 'Error: Emacs is not connected' }],
+      structuredContent: {
+        status: 'error' as const,
+        message: 'Emacs is not connected'
+      },
       isError: true
     };
   }
@@ -44,26 +46,37 @@ export async function handleOpenDiff(bridge: EmacsBridge, params: OpenDiffArgs):
     if (response.status === 'error') {
       return {
         content: [{ type: 'text' as const, text: `Error: ${response.message}` }],
+        structuredContent: response,
         isError: true
       };
     }
 
     return {
-      content: [{ type: 'text' as const, text: `Opened diff comparison for files: ${params.fileA} and ${params.fileB}` }]
+      content: [{ type: 'text' as const, text: `Opened diff comparison for files: ${params.fileA} and ${params.fileB}` }],
+      structuredContent: response
     };
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return {
-      content: [{ type: 'text' as const, text: `Error opening diff: ${error instanceof Error ? error.message : 'Unknown error'}` }],
+      content: [{ type: 'text' as const, text: `Error opening diff: ${errorMessage}` }],
+      structuredContent: {
+        status: 'error' as const,
+        message: errorMessage
+      },
       isError: true
     };
   }
 }
 
 // Helper function for openDiff3
-export async function handleOpenDiff3(bridge: EmacsBridge, params: OpenDiff3Args): Promise<DiffToolResult> {
+export async function handleOpenDiff3(bridge: EmacsBridge, params: OpenDiff3Args): Promise<DiffToolHandlerResult> {
   if (!bridge.isConnected()) {
     return {
       content: [{ type: 'text' as const, text: 'Error: Emacs is not connected' }],
+      structuredContent: {
+        status: 'error' as const,
+        message: 'Emacs is not connected'
+      },
       isError: true
     };
   }
@@ -74,32 +87,44 @@ export async function handleOpenDiff3(bridge: EmacsBridge, params: OpenDiff3Args
     if (response.status === 'error') {
       return {
         content: [{ type: 'text' as const, text: `Error: ${response.message}` }],
+        structuredContent: response,
         isError: true
       };
     }
 
     if (params.ancestor) {
       return {
-        content: [{ type: 'text' as const, text: `Opened merge session with ancestor: ${params.ancestor}` }]
+        content: [{ type: 'text' as const, text: `Opened merge session with ancestor: ${params.ancestor}` }],
+        structuredContent: response
       };
     }
 
     return {
-      content: [{ type: 'text' as const, text: `Opened 3-way diff for: ${params.fileA}, ${params.fileB}, ${params.fileC}` }]
+      content: [{ type: 'text' as const, text: `Opened 3-way diff for: ${params.fileA}, ${params.fileB}, ${params.fileC}` }],
+      structuredContent: response
     };
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return {
-      content: [{ type: 'text' as const, text: `Error opening diff3: ${error instanceof Error ? error.message : 'Unknown error'}` }],
+      content: [{ type: 'text' as const, text: `Error opening diff3: ${errorMessage}` }],
+      structuredContent: {
+        status: 'error' as const,
+        message: errorMessage
+      },
       isError: true
     };
   }
 }
 
 // Helper function for openRevisionDiff
-export async function handleOpenRevisionDiff(bridge: EmacsBridge, params: OpenRevisionDiffArgs): Promise<DiffToolResult> {
+export async function handleOpenRevisionDiff(bridge: EmacsBridge, params: OpenRevisionDiffArgs): Promise<DiffToolHandlerResult> {
   if (!bridge.isConnected()) {
     return {
       content: [{ type: 'text' as const, text: 'Error: Emacs is not connected' }],
+      structuredContent: {
+        status: 'error' as const,
+        message: 'Emacs is not connected'
+      },
       isError: true
     };
   }
@@ -115,26 +140,37 @@ export async function handleOpenRevisionDiff(bridge: EmacsBridge, params: OpenRe
     if (response.status === 'error') {
       return {
         content: [{ type: 'text' as const, text: `Error: ${response.message}` }],
+        structuredContent: response,
         isError: true
       };
     }
 
     return {
-      content: [{ type: 'text' as const, text: `Comparing ${params.file} with revision ${revision}` }]
+      content: [{ type: 'text' as const, text: `Comparing ${params.file} with revision ${revision}` }],
+      structuredContent: response
     };
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return {
-      content: [{ type: 'text' as const, text: `Error opening revision diff: ${error instanceof Error ? error.message : 'Unknown error'}` }],
+      content: [{ type: 'text' as const, text: `Error opening revision diff: ${errorMessage}` }],
+      structuredContent: {
+        status: 'error' as const,
+        message: errorMessage
+      },
       isError: true
     };
   }
 }
 
 // Helper function for openCurrentChanges
-export async function handleOpenCurrentChanges(bridge: EmacsBridge, params: OpenCurrentChangesArgs): Promise<DiffToolResult> {
+export async function handleOpenCurrentChanges(bridge: EmacsBridge, params: OpenCurrentChangesArgs): Promise<DiffToolHandlerResult> {
   if (!bridge.isConnected()) {
     return {
       content: [{ type: 'text' as const, text: 'Error: Emacs is not connected' }],
+      structuredContent: {
+        status: 'error' as const,
+        message: 'Emacs is not connected'
+      },
       isError: true
     };
   }
@@ -145,27 +181,38 @@ export async function handleOpenCurrentChanges(bridge: EmacsBridge, params: Open
     if (response.status === 'error') {
       return {
         content: [{ type: 'text' as const, text: `Error: ${response.message}` }],
+        structuredContent: response,
         isError: true
       };
     }
 
     const fileName = response.file || params.file || 'current file';
     return {
-      content: [{ type: 'text' as const, text: `Showing uncommitted changes for ${fileName}` }]
+      content: [{ type: 'text' as const, text: `Showing uncommitted changes for ${fileName}` }],
+      structuredContent: response
     };
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return {
-      content: [{ type: 'text' as const, text: `Error showing current changes: ${error instanceof Error ? error.message : 'Unknown error'}` }],
+      content: [{ type: 'text' as const, text: `Error showing current changes: ${errorMessage}` }],
+      structuredContent: {
+        status: 'error' as const,
+        message: errorMessage
+      },
       isError: true
     };
   }
 }
 
 // Helper function for applyPatch
-export async function handleApplyPatch(bridge: EmacsBridge, params: ApplyPatchArgs): Promise<DiffToolResult> {
+export async function handleApplyPatch(bridge: EmacsBridge, params: ApplyPatchArgs): Promise<DiffToolHandlerResult> {
   if (!bridge.isConnected()) {
     return {
       content: [{ type: 'text' as const, text: 'Error: Emacs is not connected' }],
+      structuredContent: {
+        status: 'error' as const,
+        message: 'Emacs is not connected'
+      },
       isError: true
     };
   }
@@ -176,26 +223,37 @@ export async function handleApplyPatch(bridge: EmacsBridge, params: ApplyPatchAr
     if (response.status === 'error') {
       return {
         content: [{ type: 'text' as const, text: `Error: ${response.message}` }],
+        structuredContent: response,
         isError: true
       };
     }
 
     return {
-      content: [{ type: 'text' as const, text: `Applying patch ${params.patchFile} to ${params.targetFile}` }]
+      content: [{ type: 'text' as const, text: `Applying patch ${params.patchFile} to ${params.targetFile}` }],
+      structuredContent: response
     };
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return {
-      content: [{ type: 'text' as const, text: `Error applying patch: ${error instanceof Error ? error.message : 'Unknown error'}` }],
+      content: [{ type: 'text' as const, text: `Error applying patch: ${errorMessage}` }],
+      structuredContent: {
+        status: 'error' as const,
+        message: errorMessage
+      },
       isError: true
     };
   }
 }
 
 // Helper function for openDiffContent
-export async function handleOpenDiffContent(bridge: EmacsBridge, params: OpenDiffContentArgs): Promise<DiffToolResult> {
+export async function handleOpenDiffContent(bridge: EmacsBridge, params: OpenDiffContentArgs): Promise<DiffToolHandlerResult> {
   if (!bridge.isConnected()) {
     return {
       content: [{ type: 'text' as const, text: 'Error: Emacs is not connected' }],
+      structuredContent: {
+        status: 'error' as const,
+        message: 'Emacs is not connected'
+      },
       isError: true
     };
   }
@@ -211,16 +269,23 @@ export async function handleOpenDiffContent(bridge: EmacsBridge, params: OpenDif
     if (response.status === 'error') {
       return {
         content: [{ type: 'text' as const, text: `Error: ${response.message}` }],
+        structuredContent: response,
         isError: true
       };
     }
 
     return {
-      content: [{ type: 'text' as const, text: `Opened diff comparison for: ${params.titleA} and ${params.titleB}` }]
+      content: [{ type: 'text' as const, text: `Opened diff comparison for: ${params.titleA} and ${params.titleB}` }],
+      structuredContent: response
     };
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return {
-      content: [{ type: 'text' as const, text: `Error opening diff content: ${error instanceof Error ? error.message : 'Unknown error'}` }],
+      content: [{ type: 'text' as const, text: `Error opening diff content: ${errorMessage}` }],
+      structuredContent: {
+        status: 'error' as const,
+        message: errorMessage
+      },
       isError: true
     };
   }
