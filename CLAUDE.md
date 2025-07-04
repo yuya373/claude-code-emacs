@@ -243,49 +243,6 @@ When modifying this package:
 4. Follow the chunking pattern for long strings
 5. Update relevant documentation (README, CLAUDE.md)
 
-### Recent Changes
-- **Diagnostics resource removed**: The diagnostics MCP resource has been removed in favor of the getDiagnostics tool
-  - Removed files: `diagnostics-resource.ts`, related handler in `claude-code-emacs-mcp-tools.el`
-  - The getDiagnostics tool provides the same functionality and is the preferred method
-- **openDiffContent tool**: Added MCP tool to compare two text contents in temporary buffers
-  - Takes `contentA`, `contentB`, `titleA`, and `titleB` parameters
-  - Creates temporary buffers for text comparison without needing files
-  - Useful for comparing code snippets, configurations, or any text content
-- **sendNotification tool**: Added MCP tool to send notifications to users via Emacs alert package
-  - Takes `title` and `message` parameters
-  - Always uses `claude-code` category for consistent alert handling
-  - Useful for notifying users when Claude Code completes tasks
-- **Transient menu reorganization**: Improved menu structure and added new functions
-  - Added region and file path insert functions to prompt buffer
-  - Better organized menu groups for improved usability
-  - New keybindings for quick access to common operations
-- **getDefinition tool**: Added MCP tool to find symbol definitions using LSP with preview (shows 3 lines before/after)
-- **Diff tools suite**: Added comprehensive ediff integration tools:
-  - `openDiff`: Compare two files
-  - `openRevisionDiff`: Compare file with any git revision
-  - `openCurrentChanges`: Show uncommitted changes in ediff
-  - `openDiffContent`: Compare two text contents in temporary buffers
-- **Interactive claude-code-emacs-run**: Added prefix argument support (`C-u`) for interactive option selection (model, verbose, resume, etc.)
-- **CI/CD**: Added GitHub Actions workflow for automated testing
-- **getDiagnostics requires buffer**: Buffer parameter is now required for LSP context (still returns project-wide diagnostics)
-- **Removed tools**: openFile and runCommand have been removed
-- **MCP Resources**: Added support for MCP resources (buffer content, project info, diagnostics)
-- **Enhanced logging**: MCP server now logs to project root (`.claude-code-emacs-mcp.log`)
-- **Shift+Tab support**: Added `claude-code-emacs-send-shift-tab` to toggle auto accept
-- **Function rename**: `claude-code-emacs-send-buffer-or-region` → `claude-code-emacs-send-region`
-- **Module consolidation**: Session management moved from separate module into core.el
-- **findReferences tool**: Added MCP tool to find all references to a symbol using LSP with proper 1-based column numbering
-- **describeSymbol tool**: Added MCP tool to get symbol documentation using LSP hover with Markdown code block formatting for MarkedString responses
-- **@ completion fix**: Fixed double @ insertion when completing file paths
-- **Error handling improvement**: getDiagnostics now properly logs errors instead of suppressing them
-- **Real-time event notifications**: Added MCP event notifications for Emacs state changes:
-  - `emacs/bufferListUpdated`: Sent when buffers are opened, closed, or modified
-  - `emacs/bufferContentModified`: Sent when buffer content changes with line-level information (batched by project)
-  - `emacs/diagnosticsChanged`: Sent when LSP diagnostics are updated (batched by project)
-  - Events are automatically enabled with efficient debouncing
-  - All project connections receive appropriate events
-  - Performance optimized: project root stored with change info to avoid file operations
-  - Batch sending: Multiple changes and diagnostics are grouped per project for efficiency
 
 ## MCP Server
 
@@ -406,7 +363,13 @@ The MCP server supports real-time notifications from Emacs:
 - **Timer management**: Ping timers are properly cleaned up on disconnect to prevent resource leaks
 
 ### Recent Changes
-- **Tool removal**: Removed `openFile` and `runCommand` MCP tools as they were redundant
+- **Version 0.3.1**: 
+  - Changed toggle expand key binding from `R` to `r` in transient menu for better ergonomics
+  - Simplified release process by removing automated version updates
+- **Tool removal**: 
+  - Removed `openFile` and `runCommand` MCP tools as they were redundant
+  - Removed `openDiff3` (three-way diff) and `applyPatch` tools due to limited practical use
+- **Tool renaming**: `openDiff` renamed to `openDiffFile` for clarity
 - **@ completion fix**: Fixed double `@` insertion in file completion when user already typed `@`
 - **getDiagnostics enhancement**: 
   - Added required `buffer` parameter for LSP workspace context
@@ -414,7 +377,7 @@ The MCP server supports real-time notifications from Emacs:
   - Clarified that buffer is for LSP context, not filtering (returns project-wide diagnostics)
 - **getDefinition tool**: Added MCP tool to find symbol definitions using LSP with preview (shows 3 lines before/after)
 - **Diff tools suite**: Added comprehensive ediff integration tools:
-  - `openDiff`: Compare two files
+  - `openDiffFile`: Compare two files
   - `openRevisionDiff`: Compare file with any git revision
   - `openCurrentChanges`: Show uncommitted changes in ediff
   - `openDiffContent`: Compare two text contents in temporary buffers

@@ -50,6 +50,7 @@ Claude Code can directly interact with your Emacs environment:
 | `C-u M-x claude-code-emacs-run` | Start with options (model, resume, etc.) |
 | `1`/`y` | Quick "yes" response |
 | `TAB` | Toggle auto-accept |
+| `r` | Toggle expand (Ctrl+R) |
 | `C-c C-s` | Send section at point (in prompt buffer) |
 | `@` | File completion (in prompt buffer) |
 
