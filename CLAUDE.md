@@ -293,7 +293,7 @@ When modifying this package:
 The MCP server provides a bridge between Claude Code and Emacs:
 - WebSocket server on dynamic port for Emacs connection
 - stdio interface for Claude Code MCP protocol
-- Implements tools: getOpenBuffers, getCurrentSelection, getDiagnostics, getDefinition, findReferences, describeSymbol, diff tools (openDiff, openRevisionDiff, openCurrentChanges, openDiffContent), sendNotification
+- Implements tools: getOpenBuffers, getCurrentSelection, getDiagnostics, getDefinition, findReferences, describeSymbol, diff tools (openDiffFile, openRevisionDiff, openCurrentChanges, openDiffContent), sendNotification
 - Implements resources: buffer content, project info
 - Per-project WebSocket connections for session isolation
 - Real-time event notifications from Emacs to Claude Code

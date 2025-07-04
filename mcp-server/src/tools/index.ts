@@ -3,7 +3,7 @@ export { handleGetCurrentSelection } from './selection-tools.js';
 export { handleGetDiagnostics } from './diagnostic-tools.js';
 export {
   diffTools,
-  handleOpenDiff,
+  handleOpenDiffFile,
   handleOpenRevisionDiff,
   handleOpenCurrentChanges,
   handleOpenDiffContent

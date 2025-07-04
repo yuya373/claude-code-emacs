@@ -169,8 +169,8 @@ Returns project-wide diagnostics using specified buffer for LSP context."
 
 ;;; Diff Tool Handlers
 
-(defun claude-code-emacs-mcp-handle-openDiff (params)
-  "Handle openDiff request with PARAMS."
+(defun claude-code-emacs-mcp-handle-openDiffFile (params)
+  "Handle openDiffFile request with PARAMS."
   (let ((file-a (cdr (assoc 'fileA params)))
         (file-b (cdr (assoc 'fileB params))))
     (condition-case err

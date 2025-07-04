@@ -14,7 +14,7 @@ MCP (Model Context Protocol) server that enables Claude Code to interact with Em
 - **sendNotification**: Send notifications to Emacs (using the alert package)
 
 ### Diff Tools
-- **openDiff**: Compare two files or buffers
+- **openDiffFile**: Compare two files or buffers
 - **openRevisionDiff**: Compare file with git revision
 - **openCurrentChanges**: Show uncommitted changes
 - **openDiffContent**: Compare two text contents in temporary buffers

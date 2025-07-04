@@ -117,8 +117,8 @@
 
 ;;; Diff tool handler tests
 
-(ert-deftest test-mcp-handle-openDiff ()
-  "Test openDiff handler."
+(ert-deftest test-mcp-handle-openDiffFile ()
+  "Test openDiffFile handler."
   (let* ((test-file-a (make-temp-file "test-diff-a"))
          (test-file-b (make-temp-file "test-diff-b"))
          (params `((mode . "files")
@@ -136,7 +136,7 @@
                      (lambda (file-a file-b)
                        (should (file-exists-p file-a))
                        (should (file-exists-p file-b)))))
-            (let ((result (claude-code-emacs-mcp-handle-openDiff params)))
+            (let ((result (claude-code-emacs-mcp-handle-openDiffFile params)))
               (should (assoc 'status result))
               (should (equal (cdr (assoc 'status result)) "success")))))
       (delete-file test-file-a)

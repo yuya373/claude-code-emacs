@@ -201,13 +201,13 @@ function registerTools() {
   });
 
   // Register diff tools individually for better type inference
-  // openDiff tool
-  server.registerTool('openDiff', {
-    description: diffTools.openDiff.description,
-    inputSchema: diffTools.openDiff.inputSchema.shape,
-    outputSchema: diffTools.openDiff.outputSchema.shape
+  // openDiffFile tool
+  server.registerTool('openDiffFile', {
+    description: diffTools.openDiffFile.description,
+    inputSchema: diffTools.openDiffFile.inputSchema.shape,
+    outputSchema: diffTools.openDiffFile.outputSchema.shape
   }, async (args, _extra) => {
-    const result = await diffTools.openDiff.handler(bridge, args);
+    const result = await diffTools.openDiffFile.handler(bridge, args);
     return {
       content: result.content,
       structuredContent: result.structuredContent,

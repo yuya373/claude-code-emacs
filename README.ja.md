@@ -39,7 +39,7 @@ claude mcp add-json emacs '{
 Claude CodeがEmacs環境と直接やり取り：
 - **バッファ操作** - 開いているバッファの一覧/読み取り、選択テキストの取得
 - **LSP統合** - 診断取得、定義/参照の検索、シンボル説明
-- **差分ツール** - ファイル比較、git変更表示、パッチ適用
+- **差分ツール** - ファイル比較、git変更表示
 - **リアルタイムイベント** - バッファ変更と診断が自動的にClaude Codeに送信
 
 ### ⌨️ キーバインド
@@ -159,6 +159,62 @@ claude mcp add-json emacs '{
 3. 新機能のテストを追加
 4. `make test`で全テストの成功を確認
 5. プルリクエストを送信
+
+### 開発コマンド
+
+```bash
+# すべての依存関係（オプションも含む）でコンパイル
+make compile
+
+# オプションの依存関係（websocket、lsp-mode）なしでコンパイル
+# MELPAの互換性テストに便利
+make compile-minimal
+
+# テストを実行
+make test
+
+# package-lintを実行
+make lint
+```
+
+## リリースプロセス
+
+GitHub Actionsを使用した自動リリース：
+
+### 新しいリリースの作成
+
+#### オプション1: GitHub CLIを使用（推奨）
+```bash
+# ドラフトリリースを作成
+./scripts/create-release.sh 0.2.0
+
+# または即座に公開
+./scripts/create-release.sh 0.2.0 --publish
+```
+
+#### オプション2: GitHub Actionsを使用
+1. Actions → Create Release Draft → Run workflowに移動
+2. バージョン番号を入力（例：0.2.0）
+
+#### 最終ステップ
+1. 自動生成されたリリースノートを確認
+2. 必要に応じて編集
+3. 「Publish release」をクリック（ドラフトの場合）
+
+3. **自動化されるステップ**（公開後）：
+   - Gitタグが自動的に作成されます
+   - 以下のファイルのバージョン番号が更新されます：
+     - `claude-code-emacs.el`
+     - `mcp-server/package.json`
+   - MCPサーバーがnpmに公開されます
+   - MELPAレシピが生成されます
+
+### 手動バージョン更新
+
+ローカルでのバージョン更新：
+```bash
+./scripts/update-version.sh 0.2.0
+```
 
 ## ライセンス
 

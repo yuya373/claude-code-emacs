@@ -7,8 +7,8 @@ export const diffToolOutputSchema = z.object({
   file: z.string().optional()
 });
 
-// openDiff schemas
-export const openDiffInputSchema = z.object({
+// openDiffFile schemas
+export const openDiffFileInputSchema = z.object({
   fileA: z.string().describe('Path to the first file to compare (must be different from fileB)'),
   fileB: z.string().describe('Path to the second file to compare (must be different from fileA)')
 });
@@ -34,7 +34,7 @@ export const openDiffContentInputSchema = z.object({
 
 // Inferred types from schemas
 export type DiffToolResult = z.infer<typeof diffToolOutputSchema>;
-export type OpenDiffArgs = z.infer<typeof openDiffInputSchema>;
+export type OpenDiffFileArgs = z.infer<typeof openDiffFileInputSchema>;
 export type OpenRevisionDiffArgs = z.infer<typeof openRevisionDiffInputSchema>;
 export type OpenCurrentChangesArgs = z.infer<typeof openCurrentChangesInputSchema>;
 export type OpenDiffContentArgs = z.infer<typeof openDiffContentInputSchema>;

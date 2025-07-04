@@ -3,7 +3,7 @@ import { EmacsBridge } from '../../src/emacs-bridge';
 
 // Import handler functions directly
 import { 
-  handleOpenDiff, 
+  handleOpenDiffFile, 
   handleOpenRevisionDiff, 
   handleOpenCurrentChanges, 
   handleOpenDiffContent
@@ -61,17 +61,17 @@ describe('diff-tools', () => {
     mockBridge = new EmacsBridge(jest.fn());
   });
 
-  describe('openDiff', () => {
+  describe('openDiffFile', () => {
     it('should compare two files', async () => {
       const params = {
         fileA: 'src/old.js',
         fileB: 'src/new.js'
       };
       
-      const resultPromise = handleOpenDiff(mockBridge, params);
+      const resultPromise = handleOpenDiffFile(mockBridge, params);
       
       // Verify the message sent to Emacs
-      expect(mockSend).toHaveBeenCalledWith('openDiff', {
+      expect(mockSend).toHaveBeenCalledWith('openDiffFile', {
         fileA: 'src/old.js',
         fileB: 'src/new.js'
       });
@@ -93,7 +93,7 @@ describe('diff-tools', () => {
         fileB: 'alsonothere.js'
       };
       
-      const resultPromise = handleOpenDiff(mockBridge, params);
+      const resultPromise = handleOpenDiffFile(mockBridge, params);
       
       resolveResponse({ status: 'error', message: 'File not found' });
       
@@ -113,7 +113,7 @@ describe('diff-tools', () => {
         fileB: 'src/new.js'
       };
       
-      const result = await handleOpenDiff(mockBridge, params);
+      const result = await handleOpenDiffFile(mockBridge, params);
       
       expect(result).toEqual({
         content: [{ type: 'text', text: 'Error: Emacs is not connected' }],

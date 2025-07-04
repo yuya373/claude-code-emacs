@@ -82,7 +82,7 @@ Finds the definition of a symbol using LSP.
 
 ### Diff Tools
 
-#### `openDiff`
+#### `openDiffFile`
 Opens ediff to compare two files or buffers.
 - Parameters:
   - `fileA`: Path to first file (alternative to bufferA)

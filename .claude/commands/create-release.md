@@ -26,3 +26,7 @@
    - Use the provided release notes file
    - Create a GitHub release (draft by default)
    - Trigger automation workflow when published
+
+7. Open the created release in the browser for review:
+   - For draft releases: `gh release view <version> --web`
+   - This allows you to review and edit the release before publishing

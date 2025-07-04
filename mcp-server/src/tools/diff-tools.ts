@@ -1,10 +1,10 @@
 import { EmacsBridge } from '../emacs-bridge.js';
 import {
-  OpenDiffArgs,
+  OpenDiffFileArgs,
   OpenRevisionDiffArgs,
   OpenCurrentChangesArgs,
   OpenDiffContentArgs,
-  openDiffInputSchema,
+  openDiffFileInputSchema,
   openRevisionDiffInputSchema,
   openCurrentChangesInputSchema,
   openDiffContentInputSchema,
@@ -20,8 +20,8 @@ interface DiffToolHandlerResult {
   isError?: boolean;
 }
 
-// Helper function for openDiff
-export async function handleOpenDiff(bridge: EmacsBridge, params: OpenDiffArgs): Promise<DiffToolHandlerResult> {
+// Helper function for openDiffFile
+export async function handleOpenDiffFile(bridge: EmacsBridge, params: OpenDiffFileArgs): Promise<DiffToolHandlerResult> {
   if (!bridge.isConnected()) {
     return {
       content: [{ type: 'text' as const, text: 'Error: Emacs is not connected' }],
@@ -34,7 +34,7 @@ export async function handleOpenDiff(bridge: EmacsBridge, params: OpenDiffArgs):
   }
 
   try {
-    const response = await bridge.request('openDiff', {
+    const response = await bridge.request('openDiffFile', {
       fileA: params.fileA,
       fileB: params.fileB
     }) as DiffToolResponse;
@@ -201,12 +201,12 @@ export async function handleOpenDiffContent(bridge: EmacsBridge, params: OpenDif
 }
 
 export const diffTools = {
-  openDiff: {
-    name: 'openDiff',
+  openDiffFile: {
+    name: 'openDiffFile',
     description: 'Compare two DIFFERENT files side-by-side in Emacs ediff. Use this to see differences between two distinct files. For comparing a file with its git history, use openRevisionDiff instead.',
-    inputSchema: openDiffInputSchema,
+    inputSchema: openDiffFileInputSchema,
     outputSchema: diffToolOutputSchema,
-    handler: handleOpenDiff
+    handler: handleOpenDiffFile
   },
 
   openRevisionDiff: {
