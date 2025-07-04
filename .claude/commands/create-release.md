@@ -1,6 +1,7 @@
 # Release Command
 
-1. Analyze commits since the last release tag using:
+1. Fetch latest tags from remote and analyze commits since the last release:
+   - `git fetch --tags`
    - `git log --oneline $(git describe --tags --abbrev=0)..HEAD`
    - `git diff --stat $(git describe --tags --abbrev=0)..HEAD`
 
