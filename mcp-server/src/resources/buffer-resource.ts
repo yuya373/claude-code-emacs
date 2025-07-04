@@ -16,7 +16,7 @@ export const bufferResourceHandler: ResourceHandler = {
       }
 
       return result.buffers.map((buffer: any) => ({
-        uri: `emacs://buffer/${buffer.path}`,  // Add slash to match template pattern
+        uri: `emacs://buffer${buffer.path}`,  // No extra slash needed
         name: path.basename(buffer.path),
         description: `Buffer: ${buffer.path}`,
         mimeType: getMimeType(buffer.path)
@@ -30,7 +30,7 @@ export const bufferResourceHandler: ResourceHandler = {
   async read(bridge: EmacsBridge, uri: string): Promise<ResourceContents> {
     try {
       // Extract file path from URI
-      const filePath = uri.replace('emacs://buffer/', '');
+      const filePath = uri.replace('emacs://buffer', '');  // Remove without trailing slash
 
       const result = await bridge.sendRequest('get-buffer-content', { path: filePath });
 

@@ -24,7 +24,7 @@ describe('bufferResourceHandler', () => {
 
       expect(resources).toHaveLength(2);
       expect(resources[0]).toEqual({
-        uri: 'emacs://buffer//project/src/main.ts',
+        uri: 'emacs://buffer/project/src/main.ts',
         name: 'main.ts',
         description: 'Buffer: /project/src/main.ts',
         mimeType: 'text/typescript'
@@ -54,13 +54,13 @@ describe('bufferResourceHandler', () => {
         content: 'const hello = "world";'
       });
 
-      const result = await bufferResourceHandler.read(mockBridge, 'emacs://buffer//project/src/main.ts');
+      const result = await bufferResourceHandler.read(mockBridge, 'emacs://buffer/project/src/main.ts');
 
       expect(mockBridge.sendRequest).toHaveBeenCalledWith('get-buffer-content', {
         path: '/project/src/main.ts'
       });
       expect(result).toEqual({
-        uri: 'emacs://buffer//project/src/main.ts',
+        uri: 'emacs://buffer/project/src/main.ts',
         mimeType: 'text/typescript',
         text: 'const hello = "world";'
       });
@@ -72,7 +72,7 @@ describe('bufferResourceHandler', () => {
       });
 
       await expect(
-        bufferResourceHandler.read(mockBridge, 'emacs://buffer//project/missing.ts')
+        bufferResourceHandler.read(mockBridge, 'emacs://buffer/project/missing.ts')
       ).rejects.toThrow('Failed to read buffer resource: Error: File not found');
     });
   });

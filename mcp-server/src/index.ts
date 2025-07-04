@@ -72,7 +72,7 @@ const server = new McpServer(
 // Set up notification handler to forward Emacs events to Claude Code
 bridge.setNotificationHandler((method: string, params: any) => {
   log(`Forwarding Emacs notification to Claude Code: ${method} with params: ${JSON.stringify(params)}`);
-  
+
   // If buffer list changed, send resource list changed notification
   if (method === 'emacs/bufferListUpdated') {
     // Note: We can't dynamically update resources in the current MCP SDK version
@@ -82,7 +82,7 @@ bridge.setNotificationHandler((method: string, params: any) => {
     });
     log('Sent resource list changed notification due to buffer list update');
   }
-  
+
   server.server.notification({
     method: method,
     params: params
@@ -290,7 +290,7 @@ function registerTools() {
 function registerResources() {
   // Register buffer resources using ResourceTemplate with list callback
   const bufferTemplate = new ResourceTemplate(
-    'emacs://buffer/{path}',
+    'emacs://buffer/{+path}',
     {
       list: async () => {
         try {
@@ -304,7 +304,7 @@ function registerResources() {
       }
     }
   );
-  
+
   server.registerResource(
     'emacs-buffers',
     bufferTemplate,
@@ -315,7 +315,10 @@ function registerResources() {
     },
     async (uri, variables) => {
       log(`Reading buffer resource: ${uri}, path: ${variables.path}`);
-      const result = await bufferResourceHandler.read(bridge, uri.toString());
+      // Reconstruct the full path with leading slash
+      const fullPath = `/${variables.path}`;
+      const fullUri = `emacs://buffer${fullPath}`;
+      const result = await bufferResourceHandler.read(bridge, fullUri);
       return {
         contents: [{
           uri: uri.toString(),
@@ -347,7 +350,7 @@ function registerResources() {
       };
     }
   );
-  
+
   log('Resources registered successfully');
 }
 
