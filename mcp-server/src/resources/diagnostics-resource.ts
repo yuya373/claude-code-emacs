@@ -15,7 +15,7 @@ export const diagnosticsResourceHandler: ResourceHandler = {
 
     try {
       // Get list of buffers with diagnostics
-      const result = await bridge.sendRequest('get-diagnostics', {});
+      const result = await bridge.sendRequest('get-diagnostics-resource', {});
 
       if (result.success && result.diagnostics) {
         // Add individual buffer diagnostic resources
@@ -57,7 +57,7 @@ export const diagnosticsResourceHandler: ResourceHandler = {
 
 async function getAllDiagnostics(bridge: EmacsBridge): Promise<TextResourceContents> {
   try {
-    const result = await bridge.sendRequest('get-diagnostics', {});
+    const result = await bridge.sendRequest('get-diagnostics-resource', {});
 
     if (!result.success) {
       throw new Error(result.error || 'Failed to get diagnostics');
@@ -87,7 +87,7 @@ async function getAllDiagnostics(bridge: EmacsBridge): Promise<TextResourceConte
 
 async function getBufferDiagnostics(bridge: EmacsBridge, bufferPath: string): Promise<TextResourceContents> {
   try {
-    const result = await bridge.sendRequest('get-diagnostics', { bufferPath });
+    const result = await bridge.sendRequest('get-diagnostics-resource', { bufferPath });
 
     if (!result.success) {
       throw new Error(result.error || 'Failed to get buffer diagnostics');
