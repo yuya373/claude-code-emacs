@@ -84,11 +84,21 @@ gh release delete v0.2.0
 - Ensure the package name is unique
 - Check that NPM_TOKEN is correctly set
 - Verify npm account has publish permissions
+- **Version already published**: If you see "You cannot publish over the previously published versions", ensure:
+  - The version bump commit is pushed before creating the release
+  - The tag points to the correct commit with updated version
+  - Use `./scripts/update-version.sh X.Y.Z --auto-commit` followed by `git push && git push --tags`
 
 ### Version Update Fails
 
 - Ensure the main branch is not protected
 - Check GitHub Actions has write permissions
+
+### Release Creation Fails with "tag not found"
+
+- This happens when using `--verify-tag` and the tag doesn't exist remotely
+- Solution: Always push tags before creating release: `git push --tags`
+- The new workflow ensures this by requiring tag push before release creation
 
 ### Manual Recovery
 

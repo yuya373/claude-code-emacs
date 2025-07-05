@@ -72,62 +72,34 @@ if [ -n "$NOTES_FILE" ]; then
         exit 1
     fi
     echo "Using custom release notes from $NOTES_FILE"
-    
+
     # Create release with custom notes
     gh release create "$TAG_NAME" \
         $PUBLISH_FLAG \
+        --verify-tag \
         --title "Release $VERSION" \
         --notes-file "$NOTES_FILE"
 else
-    # Generate release notes from commits
+    # Use GitHub's automatic release notes generation
     if [ -n "$PREV_TAG" ]; then
-        echo "Generating notes from $PREV_TAG to HEAD..."
+        echo "Generating notes from $PREV_TAG..."
 
-        # Create release notes
-        RELEASE_NOTES="## What's Changed\n\n"
-
-        # Get features
-        FEATURES=$(git log --pretty=format:"- %s" "$PREV_TAG"..HEAD | grep "^- feat:" || true)
-        if [ -n "$FEATURES" ]; then
-            RELEASE_NOTES+="### ✨ Features\n$FEATURES\n\n"
-        fi
-
-        # Get fixes
-        FIXES=$(git log --pretty=format:"- %s" "$PREV_TAG"..HEAD | grep "^- fix:" || true)
-        if [ -n "$FIXES" ]; then
-            RELEASE_NOTES+="### 🐛 Bug Fixes\n$FIXES\n\n"
-        fi
-
-        # Get docs
-        DOCS=$(git log --pretty=format:"- %s" "$PREV_TAG"..HEAD | grep "^- docs:" || true)
-        if [ -n "$DOCS" ]; then
-            RELEASE_NOTES+="### 📚 Documentation\n$DOCS\n\n"
-        fi
-
-        # Get other changes (excluding version bumps)
-        OTHERS=$(git log --pretty=format:"- %s" "$PREV_TAG"..HEAD | grep -v "^- feat:\|^- fix:\|^- docs:\|^- chore: bump version" || true)
-        if [ -n "$OTHERS" ]; then
-            RELEASE_NOTES+="### 🔧 Other Changes\n$OTHERS\n\n"
-        fi
-
-        RELEASE_NOTES+="**Full Changelog**: https://github.com/$(gh repo view --json nameWithOwner -q .nameWithOwner)/compare/$PREV_TAG...$TAG_NAME"
-
-        # Create release with custom notes
+        # Create release with auto-generated notes from previous tag
         gh release create "$TAG_NAME" \
             $PUBLISH_FLAG \
+            --verify-tag \
             --title "Release $VERSION" \
-            --notes "$(echo -e "$RELEASE_NOTES")"
+            --generate-notes \
+            --notes-start-tag "$PREV_TAG"
     else
         echo "No previous tag found, generating notes for all commits..."
 
-        # Create simple release notes for first release
-        RELEASE_NOTES="## Initial Release\n\n"
-        RELEASE_NOTES+="$(git log --pretty=format:"- %s" | grep -v "^- chore: bump version" || true)\n"
-
+        # Create release with auto-generated notes (no start tag)
         gh release create "$TAG_NAME" \
             $PUBLISH_FLAG \
+            --verify-tag \
             --title "Release $VERSION" \
-            --notes "$(echo -e "$RELEASE_NOTES")"
+            --generate-notes
     fi
 fi
 
@@ -136,9 +108,8 @@ if [ -z "$PUBLISH_FLAG" ]; then
     echo "✅ Release published: $TAG_NAME"
     echo ""
     echo "The automated workflow will now:"
-    echo "  1. Update version in claude-code-emacs.el"
-    echo "  2. Update version in mcp-server/package.json"
-    echo "  3. Publish to npm"
+    echo "  1. Publish to npm registry"
+    echo "  2. Create MELPA recipe artifact"
 else
     echo ""
     echo "✅ Draft release created: $TAG_NAME"
