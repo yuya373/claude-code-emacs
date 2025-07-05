@@ -79,10 +79,23 @@
 
 ;;; Major modes
 
+(defvar claude-code-emacs-vterm-mode-map
+  (let ((map (make-sparse-keymap)))
+    ;; Standard Emacs key bindings
+    (define-key map (kbd "C-c C-q") 'claude-code-emacs-close)
+    (define-key map (kbd "C-c C-e") 'claude-code-emacs-send-escape)
+    (define-key map (kbd "C-c C-r") 'claude-code-emacs-send-ctrl-r)
+    (define-key map (kbd "C-c RET") 'claude-code-emacs-send-return)
+    (define-key map (kbd "C-c TAB") 'claude-code-emacs-send-shift-tab)
+    (define-key map (kbd "C-c C-t") 'claude-code-emacs-transient)
+    map)
+  "Keymap for `claude-code-emacs-vterm-mode'.")
+
 (define-derived-mode claude-code-emacs-vterm-mode vterm-mode "Claude Code Session"
   "Major mode for Claude Code vterm sessions."
   (setq-local vterm-max-scrollback 500)
   (display-line-numbers-mode -1))
+
 
 (defvar claude-code-emacs-prompt-mode-map
   (let ((map (make-sparse-keymap)))
