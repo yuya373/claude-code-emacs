@@ -46,9 +46,8 @@
      (with-temp-buffer
        (insert-file-contents prompt-file)
        (should (string-match-p "# Claude Code Prompts for" (buffer-string)))
-       (should (string-match-p "## Project Context" (buffer-string)))
-       (should (string-match-p "## Common Tasks" (buffer-string)))
-       (should (string-match-p "## Code Patterns" (buffer-string))))
+       (should (string-match-p "## Key Bindings" (buffer-string)))
+       (should (string-match-p "## Example Prompts" (buffer-string))))
 
      ;; Test that buffer is in correct mode
      (should (eq major-mode 'claude-code-emacs-prompt-mode))

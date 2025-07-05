@@ -42,39 +42,5 @@
      (sit-for (* vterm-timer-delay 3))
      (vterm-send-return))))
 
-;;; File Path Utilities
-
-(defun claude-code-emacs-get-buffer-paths ()
-  "Get all file paths from buffers in the current project."
-  (let ((project-root (claude-code-emacs-normalize-project-root (projectile-project-root)))
-        (paths '()))
-    (when project-root
-      (dolist (buffer (buffer-list))
-        (when-let* ((file-path (buffer-file-name buffer)))
-          (when (string-prefix-p project-root file-path)
-            (push file-path paths)))))
-    (sort paths #'string<)))
-
-(defun claude-code-emacs-format-buffer-path (path)
-  "Format PATH relative to project root with @ prefix."
-  (let ((project-root (claude-code-emacs-normalize-project-root (projectile-project-root))))
-    (if (and project-root (string-prefix-p project-root path))
-        (concat "@" (file-relative-name path project-root))
-      path)))
-
-(defun claude-code-emacs-insert-file-path (path)
-  "Insert formatted file PATH at point."
-  (let ((formatted (claude-code-emacs-format-buffer-path path)))
-    (insert formatted)))
-
-(defun claude-code-emacs-insert-open-buffer-paths ()
-  "Insert all open buffer paths separated by spaces."
-  (interactive)
-  (let ((paths (claude-code-emacs-get-buffer-paths)))
-    (if paths
-        (let ((formatted-paths (mapconcat #'claude-code-emacs-format-buffer-path paths " ")))
-          (claude-code-emacs-send-string formatted-paths))
-      (message "No open files in current project"))))
-
 (provide 'claude-code-emacs-buffer)
 ;;; claude-code-emacs-buffer.el ends here

@@ -127,30 +127,6 @@
 
 ;;; File path completion and insertion
 
-(defun claude-code-emacs-get-buffer-paths ()
-  "Get all buffer file paths with project root replaced by @.
-Returns a list of strings where project root is replaced with @ symbol.
-Buffers without files or outside projects are excluded."
-  (let ((project-root (claude-code-emacs-normalize-project-root (projectile-project-root)))
-        (paths '()))
-    (when project-root
-      (dolist (buffer (buffer-list))
-        (when-let* ((file-path (buffer-file-name buffer)))
-          (when (string-prefix-p project-root file-path)
-            (let ((relative-path (file-relative-name file-path project-root)))
-              (push (concat "@" relative-path) paths))))))
-    (nreverse paths)))
-
-(defun claude-code-emacs-format-buffer-path (buffer)
-  "Format BUFFER's file path with project root replaced by @.
-Returns nil if buffer has no file or is outside project."
-  (when-let* ((file-path (buffer-file-name buffer))
-              (project-root (claude-code-emacs-normalize-project-root (projectile-project-root))))
-    (when (string-prefix-p project-root file-path)
-      (let ((relative-path (file-relative-name file-path project-root)))
-        (concat "@" relative-path)))))
-
-
 (defun claude-code-emacs-at-sign-complete ()
   "Complete file paths after @ symbol."
   (interactive)
