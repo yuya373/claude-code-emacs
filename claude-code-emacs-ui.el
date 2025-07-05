@@ -51,6 +51,7 @@
 (declare-function claude-code-emacs-send-escape "claude-code-emacs-commands" ())
 (declare-function claude-code-emacs-send-return "claude-code-emacs-commands" ())
 (declare-function claude-code-emacs-send-ctrl-r "claude-code-emacs-commands" ())
+(declare-function claude-code-emacs-send-ctrl-e "claude-code-emacs-commands" ())
 (declare-function claude-code-emacs-send-shift-tab "claude-code-emacs-commands" ())
 (declare-function claude-code-emacs-init "claude-code-emacs-commands" ())
 (declare-function claude-code-emacs-clear "claude-code-emacs-commands" ())
@@ -83,8 +84,9 @@
   (let ((map (make-sparse-keymap)))
     ;; Standard Emacs key bindings
     (define-key map (kbd "C-c C-q") 'claude-code-emacs-close)
-    (define-key map (kbd "C-c C-e") 'claude-code-emacs-send-escape)
+    (define-key map (kbd "C-c C-g") 'claude-code-emacs-send-escape)
     (define-key map (kbd "C-c C-r") 'claude-code-emacs-send-ctrl-r)
+    (define-key map (kbd "C-c C-e") 'claude-code-emacs-send-ctrl-e)
     (define-key map (kbd "C-c RET") 'claude-code-emacs-send-return)
     (define-key map (kbd "C-c TAB") 'claude-code-emacs-send-shift-tab)
     (define-key map (kbd "C-c C-t") 'claude-code-emacs-transient)
@@ -214,9 +216,10 @@ Each path is inserted on a new line with @ prefix."
     ("y" "Send 1 (yes)" claude-code-emacs-send-1)
     ("2" "Send 2" claude-code-emacs-send-2)
     ("3" "Send 3" claude-code-emacs-send-3)
-    ("e" "Send Escape" claude-code-emacs-send-escape)
+    ("k" "Send Escape" claude-code-emacs-send-escape)
     ("m" "Send Return" claude-code-emacs-send-return)
-    ("r" "Send Ctrl+R (toggle expand)" claude-code-emacs-send-ctrl-r)
+    ("r" "Toggle expand (Ctrl+R)" claude-code-emacs-send-ctrl-r)
+    ("e" "Toggle expand more (Ctrl+E)" claude-code-emacs-send-ctrl-e)
     ("a" "Toggle auto accept (Shift+Tab)" claude-code-emacs-send-shift-tab)]
    ["Commands"
     ("/" "Slash commands" claude-code-emacs-slash-commands-transient)

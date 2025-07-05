@@ -54,8 +54,9 @@ Claude CodeがEmacs環境と直接やり取り：
 | キー | アクション |
 |-----|--------|
 | `C-c C-q` | Claude Codeウィンドウを閉じる |
-| `C-c C-e` | Escapeキーを送信 |
+| `C-c C-g` | Escapeキーを送信 |
 | `C-c C-r` | Ctrl+Rを送信（展開の切り替え） |
+| `C-c C-e` | Ctrl+Eを送信（さらに展開） |
 | `C-c RET` | Returnキーを送信 |
 | `C-c TAB` | Shift+Tabを送信（自動承認の切り替え） |
 | `C-c C-t` | Transientメニューを開く |

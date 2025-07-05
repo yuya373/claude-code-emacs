@@ -136,6 +136,13 @@
   (claude-code-emacs-send-string "push"))
 
 ;;;###autoload
+(defun claude-code-emacs-send-ctrl-e ()
+  "Send Ctrl+E to Claude Code buffer to toggle expand more."
+  (interactive)
+  (claude-code-emacs-with-vterm-buffer
+   (lambda () (vterm-send-key (kbd "C-e")))))
+
+;;;###autoload
 (defun claude-code-emacs-send-ctrl-r ()
   "Send Ctrl+R to Claude Code buffer to toggle expand."
   (interactive)

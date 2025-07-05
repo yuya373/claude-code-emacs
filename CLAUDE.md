@@ -398,8 +398,9 @@ The MCP server supports real-time notifications from Emacs:
   - Requires `lsp-mode` to be active
 - **Standard Emacs key bindings**: Added dedicated keymap for `claude-code-emacs-vterm-mode`
   - `C-c C-q`: Close Claude Code window
-  - `C-c C-e`: Send Escape key
-  - `C-c C-r`: Send Ctrl+R (reverse search)
+  - `C-c C-g`: Send Escape key
+  - `C-c C-r`: Send Ctrl+R (toggle expand)
+  - `C-c C-e`: Send Ctrl+E (toggle expand more)
   - `C-c RET`: Send Return key
   - `C-c TAB`: Send Shift+Tab (toggle auto-accept)
   - `C-c C-t`: Open transient menu
