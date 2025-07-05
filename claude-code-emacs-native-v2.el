@@ -70,13 +70,11 @@
            (session-id (gethash project-root claude-code-native-v2-sessions))
            (command-args (append
                           (list claude-code-native-v2-claude-command)
-                          (when session-id
-                            (list "--resume" session-id))
-                          (list "-p" "Starting conversation..."  ; Need initial prompt
+                          (list "-p"
                                 "--output-format" "stream-json"
                                 "--input-format" "stream-json"
                                 "--verbose"
-                                "--model" claude-code-native-v2-model))))
+                                ))))
       (setq claude-code-native-v2-process
             (make-process
              :name (format "claude-native-v2-%s" (or session-id "new"))

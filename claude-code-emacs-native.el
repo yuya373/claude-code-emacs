@@ -34,6 +34,7 @@
 (defvar claude-code-native-sessions (make-hash-table :test 'equal)
   "Hash table mapping project roots to session IDs.")
 
+(setq claude-code-native-sessions (make-hash-table :test 'equal))
 (defvar-local claude-code-native-session-id nil
   "Current session ID for this buffer.")
 
@@ -82,6 +83,8 @@
                  (process-live-p claude-code-native-process))
         (kill-process claude-code-native-process))
 
+      (message "SESSION: %S" session-id)
+
       ;; Insert user prompt
       (goto-char (point-max))
       (insert (propertize (format "\n## User\n%s\n\n" prompt)
@@ -104,6 +107,7 @@
                        :command command-args
                        :filter #'claude-code-native-process-filter
                        :sentinel #'claude-code-native-process-sentinel)))
+        (message "CMD: %S" command-args)
         (setq claude-code-native-process process)
         (setq claude-code-native-current-response nil)
         (insert (propertize "## Assistant\n" 'face 'font-lock-function-name-face))))
@@ -120,109 +124,105 @@
       (insert (propertize (format "\n[DEBUG] Raw output: %s\n" output)
                           'face 'font-lock-comment-face)))
 
-    (let ((lines (split-string (concat claude-code-native-partial-json output) "\n")))
-      ;; Process complete lines
-      (while (> (length lines) 1)
-        (let ((line (car lines)))
-          (when (> (length line) 0)
-            (claude-code-native-handle-json-line line)))
-        (setq lines (cdr lines)))
-      ;; Save partial line
-      (setq claude-code-native-partial-json (car lines)))))
+    (message "OUTPUT: %S" output)
+    (claude-code-native-handle-json-line output)))
 
 (defun claude-code-native-handle-json-line (line)
   "Process a complete JSON LINE from Claude."
   (condition-case err
       (when (string-match-p "^{" line)  ; Only parse lines that start with {
         (let ((json-data (json-parse-string line :object-type 'alist)))
+          (message "JSON: %S" json-data)
           (pcase (alist-get 'type json-data)
-          ;; System message - initialization info
-          ("system"
-           (when (equal (alist-get 'subtype json-data) "init")
-             ;; Store session ID from init message
-             (let ((session-id (alist-get 'session_id json-data))
-                   (project-root (project-root (project-current))))
-               (setq claude-code-native-session-id session-id)
-               (puthash project-root session-id claude-code-native-sessions))
+            ;; System message - initialization info
+            ("system"
+             (progn
 
-             (goto-char (point-max))
-             (insert (propertize "=== Session Info ===\n" 'face 'font-lock-comment-face))
-             (insert (format "Session ID: %s\n" (alist-get 'session_id json-data)))
-             (insert (format "Model: %s\n" (alist-get 'model json-data)))
-             (insert (format "Working directory: %s\n" (alist-get 'cwd json-data)))
-             (let ((tools (alist-get 'tools json-data)))
-               (insert (format "Tools: %s\n" 
-                               (if (vectorp tools)
-                                   (mapconcat #'identity (append tools nil) ", ")
-                                 (mapconcat #'identity tools ", ")))))
-             (when-let ((mcp-servers (alist-get 'mcp_servers json-data)))
-               (insert "MCP Servers:\n")
-               (dolist (server (if (vectorp mcp-servers)
-                                   (append mcp-servers nil)  ; Convert vector to list
-                                 mcp-servers))
-                 (insert (format "  - %s (%s)\n"
-                                 (alist-get 'name server)
-                                 (alist-get 'status server)))))
-             (insert (propertize "==================\n\n" 'face 'font-lock-comment-face))))
+               (when (equal (alist-get 'subtype json-data) "init")
+                 ;; Store session ID from init message
+                 (let ((session-id (alist-get 'session_id json-data))
+                       (project-root (project-root (project-current))))
+                   (setq claude-code-native-session-id session-id)
+                   (puthash project-root session-id claude-code-native-sessions))
 
-          ;; Assistant message with streaming content
-          ("assistant"
-           (let ((message (alist-get 'message json-data)))
-             ;; Handle the message content
-             (let ((contents (alist-get 'content message)))
-               (dolist (content (if (vectorp contents)
-                                    (append contents nil)  ; Convert vector to list
-                                  contents))
-                 (pcase (alist-get 'type content)
-                   ("text"
-                    (let ((text (alist-get 'text content)))
+                 (goto-char (point-max))
+                 (insert (propertize "=== Session Info ===\n" 'face 'font-lock-comment-face))
+                 (insert (format "Session ID: %s\n" (alist-get 'session_id json-data)))
+                 (insert (format "Model: %s\n" (alist-get 'model json-data)))
+                 (insert (format "Working directory: %s\n" (alist-get 'cwd json-data)))
+                 (let ((tools (alist-get 'tools json-data)))
+                   (insert (format "Tools: %s\n"
+                                   (if (vectorp tools)
+                                       (mapconcat #'identity (append tools nil) ", ")
+                                     (mapconcat #'identity tools ", ")))))
+                 (when-let ((mcp-servers (alist-get 'mcp_servers json-data)))
+                   (insert "MCP Servers:\n")
+                   (dolist (server (if (vectorp mcp-servers)
+                                       (append mcp-servers nil)  ; Convert vector to list
+                                     mcp-servers))
+                     (insert (format "  - %s (%s)\n"
+                                     (alist-get 'name server)
+                                     (alist-get 'status server)))))
+                 (insert (propertize "==================\n\n" 'face 'font-lock-comment-face)))))
+
+            ;; Assistant message with streaming content
+            ("assistant"
+             (let ((message (alist-get 'message json-data)))
+               ;; Handle the message content
+               (let ((contents (alist-get 'content message)))
+                 (dolist (content (if (vectorp contents)
+                                      (append contents nil)  ; Convert vector to list
+                                    contents))
+                   (pcase (alist-get 'type content)
+                     ("text"
+                      (let ((text (alist-get 'text content)))
+                        (goto-char (point-max))
+                        (insert text)))
+                     ("tool_use"
                       (goto-char (point-max))
-                      (insert text)))
-                   ("tool_use"
-                    (goto-char (point-max))
-                    (insert (propertize
-                             (format "\n🔧 Tool: %s\n" (alist-get 'name content))
-                             'face 'font-lock-warning-face))
-                    (insert (propertize
-                             (format "Input: %s\n"
-                                     (json-encode (alist-get 'input content)))
-                             'face 'font-lock-comment-face))))))))
+                      (insert (propertize
+                               (format "\n🔧 Tool: %s\n" (alist-get 'name content))
+                               'face 'font-lock-warning-face))
+                      (insert (propertize
+                               (format "Input: %s\n"
+                                       (json-encode (alist-get 'input content)))
+                               'face 'font-lock-comment-face))))))))
 
-          ;; User message (shouldn't appear in output but handle it)
-          ("user"
-           (let ((message (alist-get 'message json-data)))
+            ;; User message (shouldn't appear in output but handle it)
+            ("user"
+             (let ((message (alist-get 'message json-data)))
+               (goto-char (point-max))
+               (insert (propertize "\n## User\n" 'face 'font-lock-keyword-face))
+               (let ((contents (alist-get 'content message)))
+                 (dolist (content (if (vectorp contents)
+                                      (append contents nil)  ; Convert vector to list
+                                    contents))
+                   (when (equal (alist-get 'type content) "text")
+                     (insert (alist-get 'text content)))))
+               (insert "\n\n")))
+
+            ;; Result message - completion status
+            ("result"
              (goto-char (point-max))
-             (insert (propertize "\n## User\n" 'face 'font-lock-keyword-face))
-             (let ((contents (alist-get 'content message)))
-               (dolist (content (if (vectorp contents)
-                                    (append contents nil)  ; Convert vector to list
-                                  contents))
-                 (when (equal (alist-get 'type content) "text")
-                   (insert (alist-get 'text content)))))
-             (insert "\n\n")))
-
-          ;; Result message - completion status
-          ("result"
-           (goto-char (point-max))
-           (let ((subtype (alist-get 'subtype json-data)))
-             (cond
-              ((equal subtype "success")
-               (insert (propertize
-                        (format "\n✅ Completed successfully in %.2fs (API: %.2fs)\n"
-                                (/ (alist-get 'duration_ms json-data) 1000.0)
-                                (/ (alist-get 'duration_api_ms json-data) 1000.0))
-                        'face 'success))
-               (insert (format "Total turns: %d | Cost: $%.4f\n"
-                               (alist-get 'num_turns json-data)
-                               (alist-get 'total_cost_usd json-data))))
-              ((equal subtype "error_max_turns")
-               (insert (propertize
-                        "\n⚠️ Reached maximum turns limit\n"
-                        'face 'warning)))
-              ((equal subtype "error_during_execution")
-               (insert (propertize
-                        "\n❌ Error during execution\n"
-                        'face 'error)))))))))
+             (let ((subtype (alist-get 'subtype json-data)))
+               (cond
+                ((equal subtype "success")
+                 (insert (propertize
+                          (format "\n✅ Completed successfully in %.2fs (API: %.2fs)\n"
+                                  (/ (alist-get 'duration_ms json-data) 1000.0)
+                                  (/ (alist-get 'duration_api_ms json-data) 1000.0))
+                          'face 'success))
+                 (insert (format "Total turns: %d | Cost: $%.4f\n"
+                                 (alist-get 'num_turns json-data)
+                                 (alist-get 'total_cost_usd json-data))))
+                ((equal subtype "error_max_turns")
+                 (insert (propertize
+                          "\n⚠️ Reached maximum turns limit\n"
+                          'face 'warning)))
+                ((equal subtype "error_during_execution")
+                 (insert (propertize
+                          "\n❌ Error during execution\n"
+                          'face 'error)))))))))
     (json-parse-error
      (when claude-code-native-debug
        (message "JSON parse error on line: %s (error: %s)" line err)))))

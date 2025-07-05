@@ -125,45 +125,67 @@ type SDKMessage =
 (claude-code-native-toggle-debug)
 ```
 
-## Version 2: Streaming JSON Input
+## Experimental Versions
 
-A second version (`claude-code-emacs-native-v2.el`) implements streaming JSON input, which offers several advantages:
+Several experimental versions were created to explore streaming JSON input capabilities:
 
-### Key Improvements
+### Version 2-5: Streaming JSON Input Attempts
 
-1. **Persistent Process** - Process stays alive between prompts
-2. **Continuous Conversation** - No need to restart for each message
-3. **Better Performance** - Reduced overhead from process creation
-4. **True Streaming** - Can send messages while Claude is still processing
+Multiple approaches were tested to keep the Claude process alive between messages:
 
-### Implementation
+1. **v2** - Attempted to use `--input-format stream-json` with persistent process
+2. **v3** - Tried interactive mode without `-p` flag  
+3. **v4** - Used `start-process-shell-command` with echo pipe
+4. **v5** - Attempted shell process with persistent stdin
 
-```elisp
-;; Process starts once and stays alive
-(make-process
-  :command (list "claude" "-p" 
-                 "--output-format" "stream-json"
-                 "--input-format" "stream-json"  ; Key addition
-                 "--verbose")
-  ...)
+### Key Findings
 
-;; Send messages via stdin
-(process-send-string process 
-  "{\"type\":\"user\",\"message\":{...}}\n")
-```
+Unfortunately, the `-p` (print) flag has a critical limitation:
+- `-p` means "Print response and exit"
+- The process always terminates after producing output
+- Streaming JSON input is designed for batch processing, not persistent connections
 
-### Usage
+### Technical Details
 
 ```elisp
-(load-file "claude-code-emacs-native-v2.el")
-(claude-code-native-v2)
-;; Process starts on first message and stays alive
+;; This always exits after response:
+claude -p --output-format=stream-json --input-format=stream-json
+
+;; Streaming JSON input allows multiple messages in one invocation:
+echo '{"type":"user","message":{...}}
+{"type":"user","message":{...}}' | claude -p --input-format=stream-json
 ```
+
+### Conclusion on Streaming
+
+While streaming JSON input is useful for sending multiple messages in a single invocation, it does not support maintaining a persistent process. The v1 approach (new process per message) remains the most reliable solution.
+
+## Recommendation
+
+Based on extensive experimentation:
+
+1. **Use v1 approach** - Create a new process for each message
+   - Simple and reliable
+   - Session persistence via `--resume` flag
+   - No complex state management needed
+
+2. **Streaming JSON is not suitable for persistent processes**
+   - The `-p` flag always causes process termination
+   - Designed for batch processing, not interactive use
+
+3. **Future possibilities**
+   - Interactive mode without `-p` (complex but possible)
+   - WebSocket or HTTP API if available
+   - Custom protocol implementation
 
 ## Conclusion
 
-This prototype demonstrates that a native Emacs UI for Claude Code is not only feasible but offers significant advantages over the terminal-based approach. The SDK provides all necessary functionality, and Emacs's capabilities can be fully leveraged for a superior user experience.
+This prototype demonstrates that a native Emacs UI for Claude Code is not only feasible but offers significant advantages over the terminal-based approach. While we cannot maintain a persistent process with the current Claude CLI, the v1 implementation provides a clean, functional interface that:
+
+- Eliminates vterm limitations
+- Provides full Emacs editing capabilities
+- Maintains session context across messages
+- Offers better visual presentation
+- Enables future enhancements
 
 The implementation is straightforward, leveraging standard Emacs features like `make-process`, JSON parsing, and buffer management. With further development, this could become a powerful alternative interface for Claude Code users who prefer native Emacs integration.
-
-The streaming JSON input approach (v2) shows even more promise for building a responsive, efficient interface that maintains context across multiple interactions without the overhead of process management.
