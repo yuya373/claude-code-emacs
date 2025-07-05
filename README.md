@@ -55,13 +55,10 @@ Claude Code can directly interact with your Emacs environment:
 |-----|--------|
 | `C-c C-q` | Close Claude Code window |
 | `C-c C-e` | Send Escape key |
-| `C-c C-r` | Send Ctrl+R (reverse search) |
+| `C-c C-r` | Send Ctrl+R (toggle expand) |
 | `C-c RET` | Send Return key |
 | `C-c TAB` | Send Shift+Tab (toggle auto-accept) |
 | `C-c C-t` | Open transient menu |
-| `1`/`y` | Quick "yes" response |
-| `TAB` | Toggle auto-accept |
-| `r` | Toggle expand (Ctrl+R) |
 
 #### In Prompt Buffer
 | Key | Action |
