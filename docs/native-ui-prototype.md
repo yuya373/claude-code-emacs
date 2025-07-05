@@ -125,8 +125,45 @@ type SDKMessage =
 (claude-code-native-toggle-debug)
 ```
 
+## Version 2: Streaming JSON Input
+
+A second version (`claude-code-emacs-native-v2.el`) implements streaming JSON input, which offers several advantages:
+
+### Key Improvements
+
+1. **Persistent Process** - Process stays alive between prompts
+2. **Continuous Conversation** - No need to restart for each message
+3. **Better Performance** - Reduced overhead from process creation
+4. **True Streaming** - Can send messages while Claude is still processing
+
+### Implementation
+
+```elisp
+;; Process starts once and stays alive
+(make-process
+  :command (list "claude" "-p" 
+                 "--output-format" "stream-json"
+                 "--input-format" "stream-json"  ; Key addition
+                 "--verbose")
+  ...)
+
+;; Send messages via stdin
+(process-send-string process 
+  "{\"type\":\"user\",\"message\":{...}}\n")
+```
+
+### Usage
+
+```elisp
+(load-file "claude-code-emacs-native-v2.el")
+(claude-code-native-v2)
+;; Process starts on first message and stays alive
+```
+
 ## Conclusion
 
 This prototype demonstrates that a native Emacs UI for Claude Code is not only feasible but offers significant advantages over the terminal-based approach. The SDK provides all necessary functionality, and Emacs's capabilities can be fully leveraged for a superior user experience.
 
 The implementation is straightforward, leveraging standard Emacs features like `make-process`, JSON parsing, and buffer management. With further development, this could become a powerful alternative interface for Claude Code users who prefer native Emacs integration.
+
+The streaming JSON input approach (v2) shows even more promise for building a responsive, efficient interface that maintains context across multiple interactions without the overhead of process management.
