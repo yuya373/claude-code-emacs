@@ -105,8 +105,6 @@
     (define-key map (kbd "C-c C-r") 'claude-code-emacs-send-prompt-region)
     (define-key map (kbd "C-c C-o") 'claude-code-emacs-run)
     (define-key map (kbd "C-c C-t") 'claude-code-emacs-prompt-transient)
-    (define-key map (kbd "C-c C-i") 'claude-code-emacs-insert-file-path)
-    (define-key map (kbd "C-c C-a") 'claude-code-emacs-insert-open-buffer-paths)
     (define-key map "@" 'claude-code-emacs-self-insert-@)
     map)
   "Keymap for `claude-code-emacs-prompt-mode'.")
@@ -120,7 +118,7 @@
                               (file-name-nondirectory (directory-file-name (claude-code-emacs-normalize-project-root (projectile-project-root)))))))
   (setq-local mode-line-format
               (append mode-line-format
-                      '(" [C-c C-t: menu, C-c C-i: insert file]")))
+                      '(" [C-c C-t: menu]")))
   ;; Add LSP language ID configuration if lsp-mode is available
   (when (and (require 'lsp-mode nil t)
              (boundp 'lsp-language-id-configuration))
@@ -152,26 +150,6 @@ Returns nil if buffer has no file or is outside project."
       (let ((relative-path (file-relative-name file-path project-root)))
         (concat "@" relative-path)))))
 
-;;;###autoload
-(defun claude-code-emacs-insert-file-path ()
-  "Insert a file path from current project buffers at point.
-Presents a list of project files with @ prefix for selection."
-  (interactive)
-  (let* ((paths (claude-code-emacs-get-buffer-paths))
-         (selected (when paths
-                     (completing-read "Insert file path: " paths nil t))))
-    (when selected
-      (insert selected))))
-
-;;;###autoload
-(defun claude-code-emacs-insert-open-buffer-paths ()
-  "Insert all open buffer file paths at point.
-Each path is inserted on a new line with @ prefix."
-  (interactive)
-  (let ((paths (claude-code-emacs-get-buffer-paths)))
-    (if paths
-        (insert (mapconcat 'identity paths "\n"))
-      (message "No project files are currently open"))))
 
 (defun claude-code-emacs-at-sign-complete ()
   "Complete file paths after @ symbol."
@@ -281,9 +259,6 @@ Each path is inserted on a new line with @ prefix."
    ["Send"
     ("s" "Send section at point" claude-code-emacs-send-prompt-at-point)
     ("r" "Send region" claude-code-emacs-send-prompt-region)]
-   ["Insert"
-    ("i" "Insert file path" claude-code-emacs-insert-file-path)
-    ("a" "Insert open buffer paths" claude-code-emacs-insert-open-buffer-paths)]
    ["Navigation"
     ("c" "Run Claude Code" claude-code-emacs-run)
     ("b" "Switch to Claude Code buffer" claude-code-emacs-switch-to-buffer)

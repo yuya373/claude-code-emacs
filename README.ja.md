@@ -66,6 +66,8 @@ Claude CodeがEmacs環境と直接やり取り：
 |-----|--------|
 | `C-c C-s` | カーソル位置のセクションを送信 |
 | `C-c C-r` | 選択範囲を送信 |
+| `C-c C-o` | Claude Codeセッションを開く |
+| `C-c C-t` | プロンプトTransientメニューを開く |
 | `@` | ファイル補完 |
 
 #### Transientメニュー内（C-c c）
@@ -83,17 +85,19 @@ Claude CodeがEmacs環境と直接やり取り：
 ## よくある使い方
 
 ### プロジェクトプロンプト
-各プロジェクトのルートに`.claude-code-emacs.prompt.md`ファイルが作成されます：
+各プロジェクトのルートに`.claude-code-emacs.prompt.md`ファイルが作成されます。このファイルを開くと、素早くプロンプトを入力できるよう自動的に最後尾に移動します：
 ```markdown
-# プロジェクトコンテキスト
-TypeScriptを使用したReactアプリです...
+# Claude Code Prompts for my-project
 
-# 現在のタスク
-ユーザー認証機能の実装
+このファイルにはClaude Codeセッション用のプロンプトが含まれています。
 
-# コーディングスタイル
-- 関数コンポーネントを使用
-- クラスコンポーネントよりフックを優先
+## プロンプト例
+
+@src/utils.jsで空文字列時にパーサーが失敗するバグを修正
+
+---
+
+@src/api/auth.jsのユニットテストを追加
 ```
 `M-x claude-code-emacs-open-prompt-file`またはTransientメニューの`p`で開きます。
 

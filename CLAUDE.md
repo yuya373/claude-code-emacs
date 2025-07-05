@@ -407,9 +407,19 @@ The MCP server supports real-time notifications from Emacs:
   - Removed evil-collection dependency for better accessibility
 - **vterm-send-string timing**: Added wait time after `vterm-send-string` to ensure proper processing
   - Waits for 3x `vterm-timer-delay` after sending strings
+- **Prompt file improvements**: 
+  - Automatically positions cursor at end of file when opened
+  - Updated initial content with more compact examples
+  - Added key bindings documentation in template
+- **Release workflow enhancement**: 
+  - Added `--verify-tag` to ensure tags are pushed before creating releases
+  - Simplified release notes generation with `--generate-notes`
   - Ensures `accept-process-output` completion before sending return key
 - **Ctrl+E command**: Added `claude-code-emacs-send-ctrl-e` function
   - Send Ctrl+E to toggle expand more
+- **UI cleanup**: Removed redundant functions
+  - Removed `claude-code-emacs-insert-file-path` and `claude-code-emacs-insert-open-buffer-paths`
+  - Cleaned up prompt mode keymap and transient menus
   - Bound to `C-c C-e` in vterm mode
   - Available as `e` in transient menu
 - **Improved key bindings**:

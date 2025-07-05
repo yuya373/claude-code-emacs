@@ -66,6 +66,8 @@ Claude Code can directly interact with your Emacs environment:
 |-----|--------|
 | `C-c C-s` | Send section at point |
 | `C-c C-r` | Send selected region |
+| `C-c C-o` | Open Claude Code session |
+| `C-c C-t` | Open prompt transient menu |
 | `@` | File completion |
 
 #### In Transient Menu (C-c c)
@@ -83,17 +85,19 @@ Claude Code can directly interact with your Emacs environment:
 ## Common Workflows
 
 ### Project Prompts
-Each project gets a `.claude-code-emacs.prompt.md` file at the project root:
+Each project gets a `.claude-code-emacs.prompt.md` file at the project root. When you open this file, it automatically positions at the end for quick prompt entry:
 ```markdown
-# Project Context
-This is a React app with TypeScript...
+# Claude Code Prompts for my-project
 
-# Current Task
-Implement user authentication
+This file contains prompts for Claude Code sessions.
 
-# Code Style
-- Use functional components
-- Prefer hooks over class components
+## Example Prompts
+
+Fix the bug in @src/utils.js where the parser fails on empty strings
+
+---
+
+Add unit tests for @src/api/auth.js
 ```
 Open with `M-x claude-code-emacs-open-prompt-file` or `p` in transient menu.
 

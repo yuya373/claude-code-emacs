@@ -45,12 +45,28 @@
     (unless (file-exists-p prompt-file)
       (with-temp-file prompt-file
         (insert "# Claude Code Prompts for " (file-name-nondirectory (directory-file-name project-root)) "\n\n"
-                "This file contains prompts for Claude Code sessions in this project.\n\n"
-                "## Project Context\n\n"
-                "## Common Tasks\n\n"
-                "## Code Patterns\n\n")))
-    (switch-to-buffer-other-window (find-file-noselect prompt-file))
-    (claude-code-emacs-prompt-mode)))
+                "This file contains prompts for Claude Code sessions. "
+                "It serves as a persistent workspace for your interactions with Claude Code.\n\n"
+                "## Key Bindings (claude-code-emacs-prompt-mode)\n\n"
+                "| Key | Action |\n"
+                "|-----|--------|\n"
+                "| `C-c C-s` | Send section at point |\n"
+                "| `C-c C-r` | Send selected region |\n"
+                "| `C-c C-o` | Open Claude Code session |\n"
+                "| `C-c C-t` | Open transient menu |\n"
+                "| `@` | Complete file path |\n\n"
+                "## Example Prompts\n\n"
+                "Fix the bug in @src/utils.js where the parser fails on empty strings\n\n"
+                "---\n\n"
+                "Add unit tests for @src/api/auth.js\n\n"
+                "---\n\n"
+                "Refactor @src/components/Header.jsx to use React hooks\n\n"
+                )))
+    (let ((buffer (find-file-noselect prompt-file)))
+      (with-current-buffer buffer
+        (claude-code-emacs-prompt-mode)
+        (goto-char (point-max)))
+      (switch-to-buffer-other-window buffer))))
 
 (defun claude-code-emacs-send-prompt-at-point ()
   "Send the prompt section at point to Claude Code buffer."
@@ -110,8 +126,8 @@ Otherwise, format as @file#L10-15."
 Returns nil if no file or project root cannot be determined."
   (let* ((target-file (or file (buffer-file-name)))
          (project-root (when target-file
-                        (claude-code-emacs-normalize-project-root
-                         (projectile-project-root (file-name-directory target-file))))))
+                         (claude-code-emacs-normalize-project-root
+                          (projectile-project-root (file-name-directory target-file))))))
     (when (and target-file project-root)
       (file-relative-name target-file project-root))))
 
@@ -128,7 +144,7 @@ Returns nil if no file or project root cannot be determined."
              (region-content (buffer-substring-no-properties region-start region-end)))
         (if relative-path
             (let ((path-with-lines (claude-code-emacs--format-file-path-with-lines
-                                   relative-path start-line end-line)))
+                                    relative-path start-line end-line)))
               ;; Find or create the prompt buffer
               (claude-code-emacs-open-prompt-file)
               (goto-char (point-max))
@@ -153,9 +169,9 @@ If region is selected, append line number range (e.g., @file.el#L10-15)."
          (end-line (when has-region (claude-code-emacs--calculate-end-line region-end))))
     (if relative-path
         (let ((at-path (if has-region
-                          (claude-code-emacs--format-file-path-with-lines
-                           relative-path start-line end-line)
-                        (concat "@" relative-path))))
+                           (claude-code-emacs--format-file-path-with-lines
+                            relative-path start-line end-line)
+                         (concat "@" relative-path))))
           ;; Find or create the prompt buffer
           (claude-code-emacs-open-prompt-file)
           (goto-char (point-max))
@@ -176,9 +192,9 @@ If region is selected, append line number range (e.g., @file.el#L10-15)."
          (end-line (when has-region (claude-code-emacs--calculate-end-line region-end))))
     (if relative-path
         (let ((at-path (if has-region
-                          (claude-code-emacs--format-file-path-with-lines
-                           relative-path start-line end-line)
-                        (concat "@" relative-path))))
+                           (claude-code-emacs--format-file-path-with-lines
+                            relative-path start-line end-line)
+                         (concat "@" relative-path))))
           ;; Send directly to Claude Code session
           (claude-code-emacs-send-string at-path t)
           (message "Sent to Claude Code: %s" at-path))
