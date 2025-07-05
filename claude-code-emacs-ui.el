@@ -84,7 +84,7 @@
   (let ((map (make-sparse-keymap)))
     ;; Standard Emacs key bindings
     (define-key map (kbd "C-c C-q") 'claude-code-emacs-close)
-    (define-key map (kbd "C-c C-g") 'claude-code-emacs-send-escape)
+    (define-key map (kbd "C-c C-k") 'claude-code-emacs-send-escape)
     (define-key map (kbd "C-c C-r") 'claude-code-emacs-send-ctrl-r)
     (define-key map (kbd "C-c C-e") 'claude-code-emacs-send-ctrl-e)
     (define-key map (kbd "C-c RET") 'claude-code-emacs-send-return)

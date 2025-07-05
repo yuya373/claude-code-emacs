@@ -54,7 +54,7 @@ Claude Code can directly interact with your Emacs environment:
 | Key | Action |
 |-----|--------|
 | `C-c C-q` | Close Claude Code window |
-| `C-c C-g` | Send Escape key |
+| `C-c C-k` | Send Escape key |
 | `C-c C-r` | Send Ctrl+R (toggle expand) |
 | `C-c C-e` | Send Ctrl+E (toggle expand more) |
 | `C-c RET` | Send Return key |
