@@ -38,6 +38,8 @@
   (claude-code-emacs-with-vterm-buffer
    (lambda ()
      (vterm-send-string string paste-p)
+     ;; NOTE: wait for `accept-process-output' in `vterm-send-string'
+     (sit-for (* vterm-timer-delay 3))
      (vterm-send-return))))
 
 ;;; File Path Utilities
