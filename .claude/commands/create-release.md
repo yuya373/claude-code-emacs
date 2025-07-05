@@ -12,12 +12,6 @@
 
 3. Update version numbers in the project files:
    - Run: `./scripts/update-version.sh X.Y.Z --auto-commit`
-   - This will:
-     - Update `claude-code-emacs.el` header: `;; Version: X.Y.Z`
-     - Update `mcp-server/package.json`: `"version": "X.Y.Z"`
-     - Update `mcp-server/package-lock.json`: Updated by npm
-     - Automatically commit changes with message: `chore: bump version to X.Y.Z`
-     - Create git tag: `vX.Y.Z`
    - Push the commit and tag: `git push && git push --tags`
    - **IMPORTANT**: Always push before creating the release to ensure --verify-tag works
 
@@ -32,15 +26,6 @@
    - For draft release: `./scripts/create-release.sh <version> --notes-file <temp-file>`
    - For immediate publish: `./scripts/create-release.sh <version> --publish --notes-file <temp-file>`
 
-6. Clean up the temporary release notes file after the release is created
-
-7. The script will:
-   - Verify that the tag exists in the remote repository (--verify-tag)
-   - Use the provided release notes file
-   - Create a GitHub release (draft by default)
-   - Trigger automation workflow when published
-   - If the tag doesn't exist remotely, the script will fail with an error
-
-8. Open the created release in the browser for review:
+6. Open the created release in the browser for review:
    - For draft releases: `gh release view <version> --web`
    - This allows you to review and edit the release before publishing
