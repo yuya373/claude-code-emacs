@@ -396,3 +396,14 @@ The MCP server supports real-time notifications from Emacs:
   - Sends formatted fix request to Claude Code
   - Accessible via `f` in transient menu or `M-x claude-code-emacs-fix-diagnostic`
   - Requires `lsp-mode` to be active
+- **Standard Emacs key bindings**: Added dedicated keymap for `claude-code-emacs-vterm-mode`
+  - `C-c C-q`: Close Claude Code window
+  - `C-c C-e`: Send Escape key
+  - `C-c C-r`: Send Ctrl+R (reverse search)
+  - `C-c RET`: Send Return key
+  - `C-c TAB`: Send Shift+Tab (toggle auto-accept)
+  - `C-c C-t`: Open transient menu
+  - Removed evil-collection dependency for better accessibility
+- **vterm-send-string timing**: Added wait time after `vterm-send-string` to ensure proper processing
+  - Waits for 3x `vterm-timer-delay` after sending strings
+  - Ensures `accept-process-output` completion before sending return key

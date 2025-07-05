@@ -44,15 +44,31 @@ Claude Code can directly interact with your Emacs environment:
 
 ### ⌨️ Key Bindings
 
+#### Global
 | Key | Action |
 |-----|--------|
 | `C-c c` | Open main transient menu |
 | `C-u M-x claude-code-emacs-run` | Start with options (model, resume, etc.) |
+
+#### In Claude Code Session (vterm mode)
+| Key | Action |
+|-----|--------|
+| `C-c C-q` | Close Claude Code window |
+| `C-c C-e` | Send Escape key |
+| `C-c C-r` | Send Ctrl+R (reverse search) |
+| `C-c RET` | Send Return key |
+| `C-c TAB` | Send Shift+Tab (toggle auto-accept) |
+| `C-c C-t` | Open transient menu |
 | `1`/`y` | Quick "yes" response |
 | `TAB` | Toggle auto-accept |
 | `r` | Toggle expand (Ctrl+R) |
-| `C-c C-s` | Send section at point (in prompt buffer) |
-| `@` | File completion (in prompt buffer) |
+
+#### In Prompt Buffer
+| Key | Action |
+|-----|--------|
+| `C-c C-s` | Send section at point |
+| `C-c C-r` | Send selected region |
+| `@` | File completion |
 
 ## Common Workflows
 
