@@ -62,8 +62,8 @@
 
 ;;; Process Management
 
-(defun claude-code-native-v2-ensure-process ()
-  "Ensure a Claude process is running for the current buffer."
+(defun claude-code-native-v2-ensure-process (initial-prompt)
+  "Ensure a Claude process is running with INITIAL-PROMPT."
   (unless (and claude-code-native-v2-process
                (process-live-p claude-code-native-v2-process))
     (let* ((project-root (project-root (project-current)))
@@ -72,7 +72,7 @@
                           (list claude-code-native-v2-claude-command)
                           (when session-id
                             (list "--resume" session-id))
-                          (list "-p"  ; Just -p, no prompt
+                          (list "-p" "Starting conversation..."  ; Need initial prompt
                                 "--output-format" "stream-json"
                                 "--input-format" "stream-json"
                                 "--verbose"
@@ -84,7 +84,14 @@
              :command command-args
              :filter #'claude-code-native-v2-process-filter
              :sentinel #'claude-code-native-v2-process-sentinel))
-      (message "Started new Claude process"))))
+      ;; Send initial prompt immediately
+      (let ((json-message (json-encode
+                           `((type . "user")
+                             (message . ((role . "user")
+                                         (content . [((type . "text")
+                                                      (text . ,initial-prompt))])))))))
+        (process-send-string claude-code-native-v2-process (concat json-message "\n")))
+      (message "Started new Claude process with initial prompt"))))
 
 (defun claude-code-native-v2-send-prompt (prompt)
   "Send PROMPT to Claude Code."
@@ -92,26 +99,28 @@
   (let* ((buffer (claude-code-native-v2-get-or-create-buffer))
          (project-root (project-root (project-current))))
     (with-current-buffer buffer
-      ;; Ensure process is running
-      (claude-code-native-v2-ensure-process)
-      
       ;; Insert user prompt in buffer
       (goto-char (point-max))
       (insert (propertize (format "\n## User\n%s\n\n" prompt)
                           'face 'font-lock-keyword-face))
-      
-      ;; Send JSON message via stdin
-      (let ((json-message (json-encode
-                           `((type . "user")
-                             (message . ((role . "user")
-                                         (content . [((type . "text")
-                                                      (text . ,prompt))])))))))
-        (when claude-code-native-v2-debug
-          (message "Sending: %s" json-message))
-        (process-send-string claude-code-native-v2-process (concat json-message "\n")))
-      
+
+      ;; Check if process exists
+      (if (and claude-code-native-v2-process
+               (process-live-p claude-code-native-v2-process))
+          ;; Process exists, just send message
+          (let ((json-message (json-encode
+                               `((type . "user")
+                                 (message . ((role . "user")
+                                             (content . [((type . "text")
+                                                          (text . ,prompt))])))))))
+            (when claude-code-native-v2-debug
+              (message "Sending to existing process: %s" json-message))
+            (process-send-string claude-code-native-v2-process (concat json-message "\n")))
+        ;; No process, create with initial prompt
+        (claude-code-native-v2-ensure-process prompt))
+
       (insert (propertize "## Assistant\n" 'face 'font-lock-function-name-face)))
-    
+
     ;; Show the buffer
     (pop-to-buffer buffer)))
 
@@ -123,7 +132,7 @@
       (goto-char (point-max))
       (insert (propertize (format "\n[DEBUG] Raw output: %s\n" output)
                           'face 'font-lock-comment-face)))
-    
+
     ;; Process JSON lines
     (let ((lines (split-string (concat claude-code-native-v2-partial-json output) "\n")))
       (while (> (length lines) 1)
@@ -146,13 +155,13 @@
                      (project-root (project-root (project-current))))
                  (setq claude-code-native-v2-session-id session-id)
                  (puthash project-root session-id claude-code-native-v2-sessions))
-               
+
                (goto-char (point-max))
                (insert (propertize "=== Session Info ===\n" 'face 'font-lock-comment-face))
                (insert (format "Session ID: %s\n" (alist-get 'session_id json-data)))
                (insert (format "Model: %s\n" (alist-get 'model json-data)))
                (insert (propertize "==================\n\n" 'face 'font-lock-comment-face))))
-            
+
             ;; Assistant response
             ("assistant"
              (let ((message (alist-get 'message json-data)))
@@ -169,7 +178,7 @@
                       (insert (propertize
                                (format "\n🔧 Tool: %s\n" (alist-get 'name content))
                                'face 'font-lock-warning-face))))))))
-            
+
             ;; Result
             ("result"
              (goto-char (point-max))
@@ -245,7 +254,7 @@
   (interactive)
   (unless (executable-find claude-code-native-v2-claude-command)
     (error "Claude command not found!"))
-  
+
   (let ((buffer (claude-code-native-v2-get-or-create-buffer)))
     (switch-to-buffer buffer)
     (when (= (point-max) 1)
