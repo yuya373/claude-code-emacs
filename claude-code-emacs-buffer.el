@@ -21,7 +21,9 @@
 
 ;;; Commentary:
 
-;; Buffer management and key sending functionality for Claude Code Emacs.
+;; Buffer management and string sending functionality for Claude Code Emacs.
+;; This module provides the core functionality for sending strings to the
+;; Claude Code vterm session.
 
 ;;; Code:
 

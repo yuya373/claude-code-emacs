@@ -418,8 +418,14 @@ The MCP server supports real-time notifications from Emacs:
 - **Ctrl+E command**: Added `claude-code-emacs-send-ctrl-e` function
   - Send Ctrl+E to toggle expand more
 - **UI cleanup**: Removed redundant functions
-  - Removed `claude-code-emacs-insert-file-path` and `claude-code-emacs-insert-open-buffer-paths`
+  - Removed `claude-code-emacs-insert-file-path` and `claude-code-emacs-insert-open-buffer-paths` from UI module
   - Cleaned up prompt mode keymap and transient menus
+  - Removed unused buffer path functions from buffer module:
+    - `claude-code-emacs-get-buffer-paths`
+    - `claude-code-emacs-format-buffer-path`
+    - `claude-code-emacs-insert-file-path`
+    - `claude-code-emacs-insert-open-buffer-paths`
+  - Removed duplicate implementations in UI module
   - Bound to `C-c C-e` in vterm mode
   - Available as `e` in transient menu
 - **Improved key bindings**:
