@@ -68,6 +68,18 @@ Claude Code can directly interact with your Emacs environment:
 | `C-c C-r` | Send selected region |
 | `@` | File completion |
 
+#### In Transient Menu (C-c c)
+| Key | Action |
+|-----|--------|
+| `1`/`y` | Send 1 (yes) |
+| `2` | Send 2 |
+| `3` | Send 3 |
+| `k` | Send Escape |
+| `e` | Send Ctrl+E (toggle expand more) |
+| `r` | Send Ctrl+R (toggle expand) |
+| `g` | Git & GitHub menu |
+| `/` | Slash commands menu |
+
 ## Common Workflows
 
 ### Project Prompts
