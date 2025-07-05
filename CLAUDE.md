@@ -408,3 +408,10 @@ The MCP server supports real-time notifications from Emacs:
 - **vterm-send-string timing**: Added wait time after `vterm-send-string` to ensure proper processing
   - Waits for 3x `vterm-timer-delay` after sending strings
   - Ensures `accept-process-output` completion before sending return key
+- **Ctrl+E command**: Added `claude-code-emacs-send-ctrl-e` function
+  - Send Ctrl+E to toggle expand more
+  - Bound to `C-c C-e` in vterm mode
+  - Available as `e` in transient menu
+- **Improved key bindings**:
+  - Changed Escape from `C-c C-e` to `C-c C-g` (more intuitive)
+  - Fixed transient menu key conflict (Escape moved from `g` to `k`)
