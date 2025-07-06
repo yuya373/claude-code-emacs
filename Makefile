@@ -15,15 +15,16 @@ MCP_MODULES = claude-code-emacs-mcp-connection.el \
 	      claude-code-emacs-mcp-tools.el \
 	      claude-code-emacs-mcp-events.el
 
-TEST_CORE_FILES = test-claude-code-emacs-core.el \
-		  test-claude-code-emacs-buffer.el \
-		  test-claude-code-emacs-commands.el \
-		  test-claude-code-emacs-ui.el \
-		  test-claude-code-emacs-prompt.el
+TEST_CORE_FILES = claude-code-emacs-core-test.el \
+		  claude-code-emacs-buffer-test.el \
+		  claude-code-emacs-commands-test.el \
+		  claude-code-emacs-ui-test.el \
+		  claude-code-emacs-prompt-test.el
 
-TEST_MCP_FILES = test-claude-code-emacs-mcp-connection.el \
-		 test-claude-code-emacs-mcp-protocol.el \
-		 test-claude-code-emacs-mcp-tools.el
+TEST_MCP_FILES = claude-code-emacs-mcp-connection-test.el \
+		 claude-code-emacs-mcp-protocol-test.el \
+		 claude-code-emacs-mcp-tools-test.el \
+		 claude-code-emacs-mcp-events-test.el
 
 EL_FILES = $(CORE_FILES) claude-code-emacs.el
 MCP_EL_FILES = $(MCP_MODULES) claude-code-emacs-mcp.el

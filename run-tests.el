@@ -19,18 +19,18 @@
 
 ;; Load test files in order
 ;; Core module tests
-(load-file "test-claude-code-emacs-core.el")
-(load-file "test-claude-code-emacs-buffer.el")
-(load-file "test-claude-code-emacs-commands.el")
-(load-file "test-claude-code-emacs-ui.el")
-(load-file "test-claude-code-emacs-prompt.el")
+(load-file "claude-code-emacs-core-test.el")
+(load-file "claude-code-emacs-buffer-test.el")
+(load-file "claude-code-emacs-commands-test.el")
+(load-file "claude-code-emacs-ui-test.el")
+(load-file "claude-code-emacs-prompt-test.el")
 
 ;; MCP module tests (if available)
-(when (file-exists-p "test-claude-code-emacs-mcp-connection.el")
-  (load-file "test-claude-code-emacs-mcp-connection.el")
-  (load-file "test-claude-code-emacs-mcp-protocol.el")
-  (load-file "test-claude-code-emacs-mcp-tools.el")
-  (load-file "test-claude-code-emacs-mcp-events.el"))
+(when (file-exists-p "claude-code-emacs-mcp-connection-test.el")
+  (load-file "claude-code-emacs-mcp-connection-test.el")
+  (load-file "claude-code-emacs-mcp-protocol-test.el")
+  (load-file "claude-code-emacs-mcp-tools-test.el")
+  (load-file "claude-code-emacs-mcp-events-test.el"))
 
 ;; Note: Old test files are no longer loaded to avoid duplicate test definitions
 ;; The tests have been split into module-specific files above
