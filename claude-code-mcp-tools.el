@@ -1,4 +1,4 @@
-;;; claude-code-emacs-mcp-tools.el --- MCP tool handlers for Claude Code Emacs -*- lexical-binding: t; -*-
+;;; claude-code-mcp-tools.el --- MCP tool handlers for Claude Code Emacs -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025
 
@@ -29,7 +29,7 @@
 
 ;;; Code:
 
-(require 'claude-code-emacs-core)
+(require 'claude-code-core)
 (require 'projectile)
 (require 'lsp-mode nil t)
 (require 'lsp-protocol nil t)
@@ -64,10 +64,10 @@
 ;;; MCP Tool Handlers
 
 
-(defun claude-code-emacs-mcp-handle-getOpenBuffers (params)
+(defun claude-code-mcp-handle-getOpenBuffers (params)
   "Handle getOpenBuffers request with PARAMS."
   (let* ((include-hidden (cdr (assoc 'includeHidden params)))
-         (project-root (claude-code-emacs-normalize-project-root (projectile-project-root)))
+         (project-root (claude-code-normalize-project-root (projectile-project-root)))
          (buffers '()))
 
     (dolist (buffer (buffer-list))
@@ -85,7 +85,7 @@
 
     `((buffers . ,(nreverse buffers)))))
 
-(defun claude-code-emacs-mcp-handle-getCurrentSelection (_params)
+(defun claude-code-mcp-handle-getCurrentSelection (_params)
   "Handle getCurrentSelection request."
   (if (use-region-p)
       (let* ((start (region-beginning))
@@ -112,7 +112,7 @@
       (endChar . 0)
       (fileName . ""))))
 
-(defun claude-code-emacs-mcp-handle-getDiagnostics (params)
+(defun claude-code-mcp-handle-getDiagnostics (params)
   "Handle getDiagnostics request with PARAMS.
 Returns project-wide diagnostics using specified buffer for LSP context."
   (condition-case err
@@ -169,7 +169,7 @@ Returns project-wide diagnostics using specified buffer for LSP context."
 
 ;;; Diff Tool Handlers
 
-(defun claude-code-emacs-mcp-handle-openDiffFile (params)
+(defun claude-code-mcp-handle-openDiffFile (params)
   "Handle openDiffFile request with PARAMS."
   (let ((file-a (cdr (assoc 'fileA params)))
         (file-b (cdr (assoc 'fileB params))))
@@ -177,8 +177,8 @@ Returns project-wide diagnostics using specified buffer for LSP context."
         (progn
           (unless (and file-a file-b)
             (error "Missing required parameters: fileA and fileB"))
-          (let ((path-a (expand-file-name file-a (claude-code-emacs-normalize-project-root (projectile-project-root))))
-                (path-b (expand-file-name file-b (claude-code-emacs-normalize-project-root (projectile-project-root)))))
+          (let ((path-a (expand-file-name file-a (claude-code-normalize-project-root (projectile-project-root))))
+                (path-b (expand-file-name file-b (claude-code-normalize-project-root (projectile-project-root)))))
             (unless (file-exists-p path-a)
               (error "File not found: %s" path-a))
             (unless (file-exists-p path-b)
@@ -190,7 +190,7 @@ Returns project-wide diagnostics using specified buffer for LSP context."
        `((status . "error")
          (message . ,(error-message-string err)))))))
 
-(defun claude-code-emacs-mcp-handle-openRevisionDiff (params)
+(defun claude-code-mcp-handle-openRevisionDiff (params)
   "Handle openRevisionDiff request with PARAMS."
   (let ((file (cdr (assoc 'file params)))
         (revision (or (cdr (assoc 'revision params)) "HEAD")))
@@ -198,7 +198,7 @@ Returns project-wide diagnostics using specified buffer for LSP context."
         (progn
           (unless file
             (error "Missing required parameter: file"))
-          (let ((full-path (expand-file-name file (claude-code-emacs-normalize-project-root (projectile-project-root)))))
+          (let ((full-path (expand-file-name file (claude-code-normalize-project-root (projectile-project-root)))))
             (unless (file-exists-p full-path)
               (error "File not found: %s" full-path))
             ;; Open the file and compare with revision
@@ -220,12 +220,12 @@ Returns project-wide diagnostics using specified buffer for LSP context."
        `((status . "error")
          (message . ,(error-message-string err)))))))
 
-(defun claude-code-emacs-mcp-handle-openCurrentChanges (params)
+(defun claude-code-mcp-handle-openCurrentChanges (params)
   "Handle openCurrentChanges request with PARAMS."
   (let ((file (cdr (assoc 'file params))))
     (condition-case err
         (let ((target-file (if file
-                               (expand-file-name file (claude-code-emacs-normalize-project-root (projectile-project-root)))
+                               (expand-file-name file (claude-code-normalize-project-root (projectile-project-root)))
                              (buffer-file-name))))
           (unless target-file
             (error "No file specified and current buffer has no file"))
@@ -241,7 +241,7 @@ Returns project-wide diagnostics using specified buffer for LSP context."
        `((status . "error")
          (message . ,(error-message-string err)))))))
 
-(defun claude-code-emacs-mcp-handle-openDiffContent (params)
+(defun claude-code-mcp-handle-openDiffContent (params)
   "Handle openDiffContent request with PARAMS."
   (let ((content-a (cdr (assoc 'contentA params)))
         (content-b (cdr (assoc 'contentB params)))
@@ -273,10 +273,10 @@ Returns project-wide diagnostics using specified buffer for LSP context."
 
 ;;; Resource Handlers
 
-(defun claude-code-emacs-mcp-handle-get-buffer-content (params)
+(defun claude-code-mcp-handle-get-buffer-content (params)
   "Get content of a buffer specified by PATH in PARAMS."
   (let* ((path (cdr (assoc 'path params)))
-         (full-path (expand-file-name path (claude-code-emacs-normalize-project-root (projectile-project-root)))))
+         (full-path (expand-file-name path (claude-code-normalize-project-root (projectile-project-root)))))
     (if (file-exists-p full-path)
         (let ((buffer (find-buffer-visiting full-path)))
           (if buffer
@@ -292,9 +292,9 @@ Returns project-wide diagnostics using specified buffer for LSP context."
       `((success . nil)
         (error . ,(format "File not found: %s" full-path))))))
 
-(defun claude-code-emacs-mcp-handle-get-project-info (_params)
+(defun claude-code-mcp-handle-get-project-info (_params)
   "Get project information."
-  (let ((project-root (claude-code-emacs-normalize-project-root (projectile-project-root))))
+  (let ((project-root (claude-code-normalize-project-root (projectile-project-root))))
     `((success . t)
       (projectRoot . ,project-root)
       (projectName . ,(projectile-project-name))
@@ -306,25 +306,25 @@ Returns project-wide diagnostics using specified buffer for LSP context."
                      (vc-working-revision project-root))))
       (lastModified . ,(format-time-string "%Y-%m-%dT%H:%M:%S%z")))))
 
-(defun claude-code-emacs-mcp-handle-get-project-files (_params)
+(defun claude-code-mcp-handle-get-project-files (_params)
   "Get list of project files."
   (let ((files (projectile-current-project-files)))
     `((success . t)
       (files . ,(mapcar (lambda (file)
                           `((path . ,file)
                             (relativePath . ,file)
-                            (absolutePath . ,(expand-file-name file (claude-code-emacs-normalize-project-root (projectile-project-root))))))
+                            (absolutePath . ,(expand-file-name file (claude-code-normalize-project-root (projectile-project-root))))))
                         files)))))
 
 
-(defun claude-code-emacs-mcp-handle-get-open-buffers (params)
+(defun claude-code-mcp-handle-get-open-buffers (params)
   "Handle get-open-buffers request for resources with PARAMS."
-  (claude-code-emacs-mcp-handle-getOpenBuffers params))
+  (claude-code-mcp-handle-getOpenBuffers params))
 
 
 ;;; Definition finding
 
-(defun claude-code-emacs-mcp-handle-getDefinition (params)
+(defun claude-code-mcp-handle-getDefinition (params)
   "Handle getDefinition request with PARAMS using LSP.
 PARAMS must include \\='file\\=', \\='line\\=', and \\='symbol\\=' parameters."
   (let* ((symbol-name (cdr (assoc 'symbol params)))
@@ -348,7 +348,7 @@ PARAMS must include \\='file\\=', \\='line\\=', and \\='symbol\\=' parameters."
             (error "Missing required parameter: symbol"))
 
           ;; Visit the specified file
-          (let* ((full-path (expand-file-name file-path (claude-code-emacs-normalize-project-root (projectile-project-root))))
+          (let* ((full-path (expand-file-name file-path (claude-code-normalize-project-root (projectile-project-root))))
                  (buffer (find-file-noselect full-path)))
             (with-current-buffer buffer
               ;; Check if LSP is active in this buffer
@@ -367,7 +367,7 @@ PARAMS must include \\='file\\=', \\='line\\=', and \\='symbol\\=' parameters."
                   (beginning-of-line)))
 
               ;; Get definitions using lsp-request
-              (setq definitions (claude-code-emacs-mcp-get-lsp-definitions-with-request))))
+              (setq definitions (claude-code-mcp-get-lsp-definitions-with-request))))
 
           ;; Return results
           (if definitions
@@ -378,7 +378,7 @@ PARAMS must include \\='file\\=', \\='line\\=', and \\='symbol\\=' parameters."
       (error
        (error "Failed to find definition: %s" (error-message-string err))))))
 
-(defun claude-code-emacs-mcp-get-lsp-definitions-with-request ()
+(defun claude-code-mcp-get-lsp-definitions-with-request ()
   "Get definitions using `lsp-request'."
   (require 'lsp-mode)
   (condition-case _
@@ -406,7 +406,7 @@ PARAMS must include \\='file\\=', \\='line\\=', and \\='symbol\\=' parameters."
                      (file (when uri (lsp--uri-to-path uri))))
 
                 (when (and file range)
-                  (let* ((def-info (claude-code-emacs-mcp-get-definition-info-at file range)))
+                  (let* ((def-info (claude-code-mcp-get-definition-info-at file range)))
                     (when def-info
                       (push def-info definitions))))))))
 
@@ -416,24 +416,24 @@ PARAMS must include \\='file\\=', \\='line\\=', and \\='symbol\\=' parameters."
      ;; Return empty list on error
      nil)))
 
-(defun claude-code-emacs-mcp-get-definition-info-at (file range)
+(defun claude-code-mcp-get-definition-info-at (file range)
   "Get definition information at FILE with RANGE."
   (condition-case nil
-      (let* ((preview (claude-code-emacs-mcp-get-preview-text file range)))
+      (let* ((preview (claude-code-mcp-get-preview-text file range)))
         `((file . ,file)
           (preview . ,preview)
           (range . ,range)))
     (error nil)))
 
-(defun claude-code-emacs-mcp-get-preview-text (file-path range)
+(defun claude-code-mcp-get-preview-text (file-path range)
   "Get preview text around RANGE with 3 lines of context from FILE-PATH."
   (condition-case nil
       (with-temp-buffer
         (insert-file-contents file-path)
-        (claude-code-emacs-mcp-get-preview-text-internal range))
+        (claude-code-mcp-get-preview-text-internal range))
     (error "")))
 
-(defun claude-code-emacs-mcp-get-preview-text-internal (range)
+(defun claude-code-mcp-get-preview-text-internal (range)
   "Internal function to get preview text for RANGE.
 Assumes we're in the correct buffer."
   (let* ((start-line (lsp:position-line (lsp:range-start range)))
@@ -462,7 +462,7 @@ Assumes we're in the correct buffer."
 
 ;;; Reference finding
 
-(defun claude-code-emacs-mcp-handle-findReferences (params)
+(defun claude-code-mcp-handle-findReferences (params)
   "Handle findReferences request with PARAMS using LSP.
 PARAMS must include \\='file\\=', \\='line\\=', \\='symbol\\=' parameters.
 Optional: \\='includeDeclaration\\=' (boolean)."
@@ -488,7 +488,7 @@ Optional: \\='includeDeclaration\\=' (boolean)."
             (error "Symbol parameter is required"))
 
           ;; Find the file
-          (let* ((project-root (claude-code-emacs-normalize-project-root (projectile-project-root)))
+          (let* ((project-root (claude-code-normalize-project-root (projectile-project-root)))
                  (absolute-path (expand-file-name file-path project-root))
                  (buffer (find-file-noselect absolute-path)))
 
@@ -515,7 +515,7 @@ Optional: \\='includeDeclaration\\=' (boolean)."
                      (lsp-response (lsp-request "textDocument/references" params)))
 
                 (when lsp-response
-                  (setq references (claude-code-emacs-mcp-convert-lsp-references lsp-response project-root))))))
+                  (setq references (claude-code-mcp-convert-lsp-references lsp-response project-root))))))
 
           ;; Return the references
           `((references . ,references)
@@ -524,7 +524,7 @@ Optional: \\='includeDeclaration\\=' (boolean)."
       (error
        `((error . ,(error-message-string err)))))))
 
-(defun claude-code-emacs-mcp-convert-lsp-references (lsp-references project-root)
+(defun claude-code-mcp-convert-lsp-references (lsp-references project-root)
   "Convert LSP-REFERENCES to MCP format relative to PROJECT-ROOT."
   (mapcar (lambda (location)
             (let* ((uri (lsp:location-uri location))
@@ -532,7 +532,7 @@ Optional: \\='includeDeclaration\\=' (boolean)."
                    (file-path (lsp--uri-to-path uri))
                    (relative-path (file-relative-name file-path project-root)))
               ;; Get preview text for this reference
-              (let ((preview (claude-code-emacs-mcp-get-preview-text file-path range)))
+              (let ((preview (claude-code-mcp-get-preview-text file-path range)))
                 `((file . ,relative-path)
                   (absolutePath . ,file-path)
                   (range . ,range)
@@ -541,7 +541,7 @@ Optional: \\='includeDeclaration\\=' (boolean)."
 
 ;;; Symbol description
 
-(defun claude-code-emacs-mcp-handle-describeSymbol (params)
+(defun claude-code-mcp-handle-describeSymbol (params)
   "Handle describeSymbol request with PARAMS using LSP hover.
 PARAMS must include \\='file\\=', \\='line\\=', and \\='symbol\\=' parameters."
   (let* ((symbol-name (cdr (assoc 'symbol params)))
@@ -565,7 +565,7 @@ PARAMS must include \\='file\\=', \\='line\\=', and \\='symbol\\=' parameters."
             (error "Missing required parameter: symbol"))
 
           ;; Visit the specified file
-          (let* ((full-path (expand-file-name file-path (claude-code-emacs-normalize-project-root (projectile-project-root))))
+          (let* ((full-path (expand-file-name file-path (claude-code-normalize-project-root (projectile-project-root))))
                  (buffer (find-file-noselect full-path)))
             (with-current-buffer buffer
               ;; Check if LSP is active in this buffer
@@ -584,7 +584,7 @@ PARAMS must include \\='file\\=', \\='line\\=', and \\='symbol\\=' parameters."
                   (beginning-of-line)))
 
               ;; Get hover information using lsp-request
-              (setq description (claude-code-emacs-mcp-get-lsp-hover-info))))
+              (setq description (claude-code-mcp-get-lsp-hover-info))))
 
           ;; Return results
           (if description
@@ -595,7 +595,7 @@ PARAMS must include \\='file\\=', \\='line\\=', and \\='symbol\\=' parameters."
       (error
        (error "Failed to describe symbol: %s" (error-message-string err))))))
 
-(defun claude-code-emacs-mcp-get-lsp-hover-info ()
+(defun claude-code-mcp-get-lsp-hover-info ()
   "Get hover information using `lsp-request'."
   (require 'lsp-mode)
   (condition-case nil
@@ -641,7 +641,7 @@ PARAMS must include \\='file\\=', \\='line\\=', and \\='symbol\\=' parameters."
 
 ;;; Notification handler
 
-(defun claude-code-emacs-mcp-handle-sendNotification (params)
+(defun claude-code-mcp-handle-sendNotification (params)
   "Handle sendNotification request with PARAMS.
 PARAMS should include \\='title\\=' and \\='message\\='."
   (let ((title (cdr (assoc 'title params)))
@@ -665,5 +665,5 @@ PARAMS should include \\='title\\=' and \\='message\\='."
     `((success . t)
       (message . "Notification sent"))))
 
-(provide 'claude-code-emacs-mcp-tools)
-;;; claude-code-emacs-mcp-tools.el ends here
+(provide 'claude-code-mcp-tools)
+;;; claude-code-mcp-tools.el ends here

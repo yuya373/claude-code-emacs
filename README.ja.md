@@ -1,6 +1,6 @@
 # Claude Code Emacs
 
-[![CI Tests](https://github.com/yuya373/claude-code-emacs/actions/workflows/test.yml/badge.svg)](https://github.com/yuya373/claude-code-emacs/actions/workflows/test.yml)
+[![CI Tests](https://github.com/yuya373/claude-code/actions/workflows/test.yml/badge.svg)](https://github.com/yuya373/claude-code/actions/workflows/test.yml)
 
 [Claude Code](https://docs.anthropic.com/ja/docs/claude-code) AIコーディングセッションをEmacsで直接実行。強力なMCP統合付き。
 
@@ -8,23 +8,23 @@
 
 ```elisp
 ;; init.elに追加
-(add-to-list 'load-path "/path/to/claude-code-emacs")
-(require 'claude-code-emacs)
-(global-set-key (kbd "C-c c") 'claude-code-emacs-transient)
+(add-to-list 'load-path "/path/to/claude-code")
+(require 'claude-code)
+(global-set-key (kbd "C-c c") 'claude-code-transient)
 ```
 
 ```bash
 # MCPサーバーをグローバルにインストール
-npm install -g claude-code-emacs-mcp-server
+npm install -g claude-code-mcp-server
 
 # Claude CodeでMCPを設定
 claude mcp add-json emacs '{
   "type": "stdio",
-  "command": "claude-code-emacs-mcp"
+  "command": "claude-code-mcp"
 }'
 ```
 
-`M-x claude-code-emacs-run` でセッションを開始！
+`M-x claude-code-run` でセッションを開始！
 
 ## 主な機能
 
@@ -33,7 +33,7 @@ claude mcp add-json emacs '{
 - **スマートファイル補完** - プロンプトで`@`を入力してファイル参照
 - **Transientメニュー** - `C-c c`でメインメニューと全コマンドにアクセス
 - **カスタムコマンド** - `.claude/commands/*.md`に再利用可能なコマンドを定義
-- **プロジェクトプロンプト** - プロジェクトごとの`.claude-code-emacs.prompt.md`ファイルで永続的なコンテキスト
+- **プロジェクトプロンプト** - プロジェクトごとの`.claude-code.prompt.md`ファイルで永続的なコンテキスト
 
 ### 🔌 MCP統合
 Claude CodeがEmacs環境と直接やり取り：
@@ -48,7 +48,7 @@ Claude CodeがEmacs環境と直接やり取り：
 | キー | アクション |
 |-----|--------|
 | `C-c c` | メインTransientメニューを開く |
-| `C-u M-x claude-code-emacs-run` | オプション付きで起動（モデル、再開など） |
+| `C-u M-x claude-code-run` | オプション付きで起動（モデル、再開など） |
 
 #### Claude Codeセッション内（vtermモード）
 | キー | アクション |
@@ -85,7 +85,7 @@ Claude CodeがEmacs環境と直接やり取り：
 ## よくある使い方
 
 ### プロジェクトプロンプト
-各プロジェクトのルートに`.claude-code-emacs.prompt.md`ファイルが作成されます。このファイルを開くと、素早くプロンプトを入力できるよう自動的に最後尾に移動します：
+各プロジェクトのルートに`.claude-code.prompt.md`ファイルが作成されます。このファイルを開くと、素早くプロンプトを入力できるよう自動的に最後尾に移動します：
 ```markdown
 # Claude Code Prompts for my-project
 
@@ -99,11 +99,11 @@ Claude CodeがEmacs環境と直接やり取り：
 
 @src/api/auth.jsのユニットテストを追加
 ```
-`M-x claude-code-emacs-open-prompt-file`またはTransientメニューの`p`で開きます。
+`M-x claude-code-open-prompt-file`またはTransientメニューの`p`で開きます。
 
 ### LSPエラーの修正
 ```elisp
-M-x claude-code-emacs-fix-diagnostic
+M-x claude-code-fix-diagnostic
 ;; またはTransientメニューで 'f'
 ```
 
@@ -139,12 +139,12 @@ Transientメニューで`x` → "refactor"を選択して実行
 #### オプション1: グローバルインストール（推奨）
 ```bash
 # npmからグローバルにインストール
-npm install -g claude-code-emacs-mcp-server
+npm install -g claude-code-mcp-server
 
 # Claude Codeを設定
 claude mcp add-json emacs '{
   "type": "stdio",
-  "command": "claude-code-emacs-mcp"
+  "command": "claude-code-mcp"
 }'
 ```
 
@@ -155,14 +155,14 @@ claude mcp add-json emacs '{
 claude mcp add-json emacs '{
   "type": "stdio",
   "command": "npx",
-  "args": ["claude-code-emacs-mcp-server"]
+  "args": ["claude-code-mcp-server"]
 }'
 ```
 
 #### オプション3: ソースからビルド
 ```bash
 # リポジトリをクローンした場合
-cd /path/to/claude-code-emacs/mcp-server
+cd /path/to/claude-code/mcp-server
 npm install
 npm run build
 
@@ -170,7 +170,7 @@ npm run build
 claude mcp add-json emacs '{
   "type": "stdio",
   "command": "node",
-  "args": ["/path/to/claude-code-emacs/mcp-server/dist/index.js"]
+  "args": ["/path/to/claude-code/mcp-server/dist/index.js"]
 }'
 ```
 
@@ -235,7 +235,7 @@ GitHub Actionsを使用した自動リリース：
 3. **自動化されるステップ**（公開後）：
    - Gitタグが自動的に作成されます
    - 以下のファイルのバージョン番号が更新されます：
-     - `claude-code-emacs.el`
+     - `claude-code.el`
      - `mcp-server/package.json`
    - MCPサーバーがnpmに公開されます
    - MELPAレシピが生成されます

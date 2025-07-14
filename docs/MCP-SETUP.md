@@ -5,14 +5,14 @@ This guide explains how to set up and use the MCP (Model Context Protocol) integ
 ## Prerequisites
 
 - Node.js (v16 or later)
-- Emacs with claude-code-emacs package
+- Emacs with claude-code package
 - Claude Code CLI
 
 ## Installation
 
 1. **Build the MCP server**:
    ```bash
-   cd /path/to/claude-code-emacs
+   cd /path/to/claude-code
    make mcp-build
    ```
 
@@ -24,26 +24,26 @@ This guide explains how to set up and use the MCP (Model Context Protocol) integ
      "type": "stdio",
      "command": "node",
      "args": [
-       "/path/to/claude-code-emacs/mcp-server/dist/index.js"
+       "/path/to/claude-code/mcp-server/dist/index.js"
      ]
    }'
    ```
    
-   Note: Replace `/path/to/claude-code-emacs` with the actual path
+   Note: Replace `/path/to/claude-code` with the actual path
 
 3. **Load the Emacs package**:
    
    In your Emacs configuration:
    ```elisp
-   (add-to-list 'load-path "/path/to/claude-code-emacs")
-   (require 'claude-code-emacs)
-   (require 'claude-code-emacs-mcp)  ; MCP integration
+   (add-to-list 'load-path "/path/to/claude-code")
+   (require 'claude-code)
+   (require 'claude-code-mcp)  ; MCP integration
    ```
 
 ## Usage
 
 1. Start Emacs and open a project
-2. Run `M-x claude-code-emacs-run` to start Claude Code
+2. Run `M-x claude-code-run` to start Claude Code
 3. Type `/mcp` in the Claude Code session to enable MCP integration
 4. The MCP server will start and Emacs will automatically connect
 
@@ -117,23 +117,23 @@ The MCP connection includes automatic health monitoring to ensure a stable conne
 
 ### Ping/Pong Mechanism
 - Emacs sends ping messages to the MCP server at regular intervals
-- Default interval: 30 seconds (customizable via `claude-code-emacs-mcp-ping-interval`)
+- Default interval: 30 seconds (customizable via `claude-code-mcp-ping-interval`)
 - If no pong response is received within the timeout period, the connection is considered lost
-- Default timeout: 10 seconds (customizable via `claude-code-emacs-mcp-ping-timeout`)
+- Default timeout: 10 seconds (customizable via `claude-code-mcp-ping-timeout`)
 
 ### Customization
 ```elisp
 ;; Adjust ping interval (in seconds)
-(setq claude-code-emacs-mcp-ping-interval 60)  ; Ping every 60 seconds
+(setq claude-code-mcp-ping-interval 60)  ; Ping every 60 seconds
 
 ;; Adjust ping timeout (in seconds)
-(setq claude-code-emacs-mcp-ping-timeout 15)   ; Wait 15 seconds for pong
+(setq claude-code-mcp-ping-timeout 15)   ; Wait 15 seconds for pong
 ```
 
 ## Troubleshooting
 
 ### MCP server not starting
-- Check MCP server logs: `tail -f .claude-code-emacs-mcp.log` (in project root)
+- Check MCP server logs: `tail -f .claude-code-mcp.log` (in project root)
 - The MCP server uses dynamic port allocation for each project
 - Verify Node.js is installed and accessible: `node --version`
 - Check if the MCP server is running: `ps aux | grep mcp-server`
@@ -143,14 +143,14 @@ The MCP connection includes automatic health monitoring to ensure a stable conne
 - Make sure the MCP server path in Claude Code config is absolute
 - Check that the Emacs package is loaded correctly
 - Verify `lsp-mode` is installed for diagnostics functionality (optional)
-- Check port info file: `ls /tmp/claude-code-emacs-mcp-*.port`
+- Check port info file: `ls /tmp/claude-code-mcp-*.port`
 
 ### Testing the connection
-1. Start Claude Code: `M-x claude-code-emacs-run`
+1. Start Claude Code: `M-x claude-code-run`
 2. Type `/mcp` to start the MCP server
 3. Check the `*Messages*` buffer for "MCP WebSocket opened for project"
 4. In Claude Code, try using a tool like: "Show me all open buffers"
-5. To manually reconnect: `M-x claude-code-emacs-mcp-maybe-ensure-connection`
+5. To manually reconnect: `M-x claude-code-mcp-maybe-ensure-connection`
 
 ### Common issues and solutions
 - **"WebSocket 400 error"**: Fixed in latest version - ensure WebSocket URL has leading slash

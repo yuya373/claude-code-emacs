@@ -1,4 +1,4 @@
-;;; test-claude-code-emacs-mcp-tools.el --- Tests for MCP tool handlers -*- lexical-binding: t; -*-
+;;; test-claude-code-mcp-tools.el --- Tests for MCP tool handlers -*- lexical-binding: t; -*-
 
 ;;; Commentary:
 
@@ -7,7 +7,7 @@
 ;;; Code:
 
 (require 'ert)
-(require 'claude-code-emacs-mcp-tools)
+(require 'claude-code-mcp-tools)
 (require 'cl-lib)
 ;; Optional requirement for lsp-protocol structures
 (require 'lsp-protocol nil t)
@@ -28,7 +28,7 @@
       (unwind-protect
           (with-current-buffer test-buffer
             (setq buffer-file-name "/test/project/file1.el")
-            (let ((result (claude-code-emacs-mcp-handle-getOpenBuffers '((includeHidden . nil)))))
+            (let ((result (claude-code-mcp-handle-getOpenBuffers '((includeHidden . nil)))))
               (should (assoc 'buffers result))
               (let ((buffers (cdr (assoc 'buffers result))))
                 (should (> (length buffers) 0))
@@ -50,7 +50,7 @@
     (goto-char (point-min))
     (push-mark (point-max) t t)
     (activate-mark)
-    (let ((result (claude-code-emacs-mcp-handle-getCurrentSelection nil)))
+    (let ((result (claude-code-mcp-handle-getCurrentSelection nil)))
       (should (assoc 'text result))
       (should (equal (cdr (assoc 'text result)) "Line 1\nLine 2\nLine 3"))
       (should (assoc 'startLine result))
@@ -59,7 +59,7 @@
 (ert-deftest test-mcp-handle-getDiagnostics-no-buffer ()
   "Test getDiagnostics handler without buffer parameter should error."
   (should-error
-   (claude-code-emacs-mcp-handle-getDiagnostics nil)
+   (claude-code-mcp-handle-getDiagnostics nil)
    :type 'error))
 
 (ert-deftest test-mcp-handle-getDiagnostics-buffer-not-found ()
@@ -71,7 +71,7 @@
                                            lsp:position-line lsp:position-character))
                                (and (boundp sym) (symbol-value sym))))))
     (should-error
-     (claude-code-emacs-mcp-handle-getDiagnostics '((buffer . "non-existent-buffer")))
+     (claude-code-mcp-handle-getDiagnostics '((buffer . "non-existent-buffer")))
      :type 'error)))
 
 (ert-deftest test-mcp-handle-getDiagnostics-with-buffer ()
@@ -108,7 +108,7 @@
                   ((symbol-function 'lsp:diagnostic-source)
                    (lambda (_) "test-lsp")))
           (with-current-buffer test-buffer
-            (let ((result (claude-code-emacs-mcp-handle-getDiagnostics
+            (let ((result (claude-code-mcp-handle-getDiagnostics
                            `((buffer . ,(buffer-name test-buffer))))))
               (should (assoc 'diagnostics result))
               (let ((diags (cdr (assoc 'diagnostics result))))
@@ -136,7 +136,7 @@
                      (lambda (file-a file-b)
                        (should (file-exists-p file-a))
                        (should (file-exists-p file-b)))))
-            (let ((result (claude-code-emacs-mcp-handle-openDiffFile params)))
+            (let ((result (claude-code-mcp-handle-openDiffFile params)))
               (should (assoc 'status result))
               (should (equal (cdr (assoc 'status result)) "success")))))
       (delete-file test-file-a)
@@ -160,7 +160,7 @@
                      (contentB . "Content B\nLine 2 modified")
                      (titleA . "Test Buffer A")
                      (titleB . "Test Buffer B")))
-           (result (claude-code-emacs-mcp-handle-openDiffContent params)))
+           (result (claude-code-mcp-handle-openDiffContent params)))
       (should ediff-called)
       (should (assoc 'status result))
       (should (equal (cdr (assoc 'status result)) "success"))
@@ -175,14 +175,14 @@
 (ert-deftest test-mcp-handle-openDiffContent-error ()
   "Test openDiffContent handler error cases."
   ;; Test missing parameters
-  (let ((result (claude-code-emacs-mcp-handle-openDiffContent '())))
+  (let ((result (claude-code-mcp-handle-openDiffContent '())))
     (should (assoc 'status result))
     (should (equal (cdr (assoc 'status result)) "error"))
     (should (assoc 'message result))
     (should (string-match "Missing required parameters" (cdr (assoc 'message result)))))
 
   ;; Test missing contentB
-  (let ((result (claude-code-emacs-mcp-handle-openDiffContent
+  (let ((result (claude-code-mcp-handle-openDiffContent
                  '((contentA . "test")
                    (titleA . "A")
                    (titleB . "B")))))
@@ -190,7 +190,7 @@
     (should (equal (cdr (assoc 'status result)) "error")))
 
   ;; Test missing titleA
-  (let ((result (claude-code-emacs-mcp-handle-openDiffContent
+  (let ((result (claude-code-mcp-handle-openDiffContent
                  '((contentA . "test")
                    (contentB . "test")
                    (titleB . "B")))))
@@ -225,7 +225,7 @@
                        ;; Just message and return to avoid calling real VC
                        (message "Mock vc-version-ediff called")
                        t)))
-            (let ((result (claude-code-emacs-mcp-handle-openRevisionDiff params)))
+            (let ((result (claude-code-mcp-handle-openRevisionDiff params)))
               (should (assoc 'status result))
               (should (equal (cdr (assoc 'status result)) "success"))))
 
@@ -234,7 +234,7 @@
                      (lambda () (file-name-directory test-file)))
                     ((symbol-function 'vc-backend)
                      (lambda (file) nil)))  ;; File not under version control
-            (let ((result (claude-code-emacs-mcp-handle-openRevisionDiff params)))
+            (let ((result (claude-code-mcp-handle-openRevisionDiff params)))
               (should (assoc 'status result))
               (should (equal (cdr (assoc 'status result)) "error"))
               (should (assoc 'message result))
@@ -253,7 +253,7 @@
                      (lambda () (file-name-directory test-file)))
                     ((symbol-function 'vc-diff)
                      (lambda (&rest args) t)))
-            (let ((result (claude-code-emacs-mcp-handle-openCurrentChanges params)))
+            (let ((result (claude-code-mcp-handle-openCurrentChanges params)))
               (should (assoc 'status result))
               (should (equal (cdr (assoc 'status result)) "success")))))
       (delete-file test-file))))
@@ -289,7 +289,7 @@
                                         (and (boundp sym) (symbol-value sym)))))
                      ((symbol-function 'projectile-project-root)
                       (lambda () (file-name-directory test-file)))
-                     ((symbol-function 'claude-code-emacs-normalize-project-root)
+                     ((symbol-function 'claude-code-normalize-project-root)
                       (lambda (root) root))
                      ;; Don't mock expand-file-name, use the real one
                      ;;((symbol-function 'expand-file-name)
@@ -340,14 +340,14 @@
                      ((symbol-function 'lsp:range-end)
                       (lambda (range) (plist-get range :end)))
                      ;; Mock the function that actually calls lsp-request
-                     ((symbol-function 'claude-code-emacs-mcp-get-lsp-definitions-with-request)
+                     ((symbol-function 'claude-code-mcp-get-lsp-definitions-with-request)
                       (lambda ()
                         ;; Return a list with one definition
                         (list `((file . ,test-file)
                                 (preview . "(defun test-func () nil)")
                                 (range . (:start (:line 0 :character 0)
                                           :end (:line 0 :character 23))))))))
-            (let ((result (claude-code-emacs-mcp-handle-getDefinition
+            (let ((result (claude-code-mcp-handle-getDefinition
                            `((symbol . "test-func")
                              (file . ,(file-name-nondirectory test-file))
                              (line . 1)))))
@@ -360,7 +360,7 @@
   "Test getting definition with no results."
   (cl-letf (((symbol-function 'fboundp) (lambda (_) nil)))
     (should-error
-     (claude-code-emacs-mcp-handle-getDefinition
+     (claude-code-mcp-handle-getDefinition
       '((symbol . "non-existent-func")
         (file . "test.el")
         (line . 1)))
@@ -369,7 +369,7 @@
 (ert-deftest test-mcp-handle-getDefinition-missing-file ()
   "Test getting definition with missing file parameter."
   (should-error
-   (claude-code-emacs-mcp-handle-getDefinition
+   (claude-code-mcp-handle-getDefinition
     '((symbol . "test-func")
       (line . 1)))
    :type 'error))
@@ -377,7 +377,7 @@
 (ert-deftest test-mcp-handle-getDefinition-missing-line ()
   "Test getting definition with missing line parameter."
   (should-error
-   (claude-code-emacs-mcp-handle-getDefinition
+   (claude-code-mcp-handle-getDefinition
     '((symbol . "test-func")
       (file . "test.el")))
    :type 'error))
@@ -385,7 +385,7 @@
 (ert-deftest test-mcp-handle-getDefinition-missing-symbol ()
   "Test getting definition with missing symbol parameter."
   (should-error
-   (claude-code-emacs-mcp-handle-getDefinition
+   (claude-code-mcp-handle-getDefinition
     '((file . "test.el")
       (line . 1)))
    :type 'error))
@@ -406,9 +406,9 @@
           ;; Test getting content
           (cl-letf (((symbol-function 'projectile-project-root)
                      (lambda () (file-name-directory test-file)))
-                    ((symbol-function 'claude-code-emacs-normalize-project-root)
+                    ((symbol-function 'claude-code-normalize-project-root)
                      (lambda (root) root)))
-            (let ((result (claude-code-emacs-mcp-handle-get-buffer-content
+            (let ((result (claude-code-mcp-handle-get-buffer-content
                            `((path . ,(file-name-nondirectory test-file))))))
               (should (equal (cdr (assoc 'success result)) t))
               (should (equal (cdr (assoc 'content result))
@@ -424,11 +424,11 @@
              (lambda () "test-project"))
             ((symbol-function 'projectile-project-type)
              (lambda () 'generic))
-            ((symbol-function 'claude-code-emacs-normalize-project-root)
+            ((symbol-function 'claude-code-normalize-project-root)
              (lambda (root) root))
             ((symbol-function 'vc-responsible-backend)
              (lambda (_) nil)))
-    (let ((result (claude-code-emacs-mcp-handle-get-project-info nil)))
+    (let ((result (claude-code-mcp-handle-get-project-info nil)))
       (should (equal (cdr (assoc 'success result)) t))
       (should (equal (cdr (assoc 'projectRoot result)) "/test/project/"))
       (should (equal (cdr (assoc 'projectName result)) "test-project")))))
@@ -439,9 +439,9 @@
              (lambda () "/test/project/"))
             ((symbol-function 'projectile-current-project-files)
              (lambda () '("file1.el" "src/file2.el" "test/file3.el")))
-            ((symbol-function 'claude-code-emacs-normalize-project-root)
+            ((symbol-function 'claude-code-normalize-project-root)
              (lambda (root) root)))
-    (let ((result (claude-code-emacs-mcp-handle-get-project-files nil)))
+    (let ((result (claude-code-mcp-handle-get-project-files nil)))
       (should (equal (cdr (assoc 'success result)) t))
       (let ((files (cdr (assoc 'files result))))
         (should (= (length files) 3))
@@ -473,7 +473,7 @@
                     ((symbol-function 'lsp:range-end)
                      (lambda (range) (plist-get range :end))))
             (let* ((range '(:start (:line 0 :character 7) :end (:line 0 :character 20)))
-                   (result (claude-code-emacs-mcp-get-definition-info-at test-file range)))
+                   (result (claude-code-mcp-get-definition-info-at test-file range)))
               (should result)
               (should (equal (cdr (assoc 'file result)) test-file))
               (should (string-match "defun test-function" (cdr (assoc 'preview result))))
@@ -513,7 +513,7 @@
             ;; Create a range for the function definition (line 3 to line 11, 0-based)
             (let* ((range '(:start (:line 3 :character 7)
                             :end (:line 11 :character 24)))
-                   (preview (claude-code-emacs-mcp-get-preview-text test-file range)))
+                   (preview (claude-code-mcp-get-preview-text test-file range)))
               (should preview)
               ;; Should include the function definition
               (should (string-match "defun my-long-function" preview))
@@ -566,7 +566,7 @@
                                         (and (boundp sym) (symbol-value sym)))))
                      ((symbol-function 'projectile-project-root)
                       (lambda () (file-name-directory test-file)))
-                     ((symbol-function 'claude-code-emacs-normalize-project-root)
+                     ((symbol-function 'claude-code-normalize-project-root)
                       (lambda (root) root))
                      ((symbol-function 'find-file-noselect)
                       (lambda (file)
@@ -608,7 +608,7 @@
                      ((symbol-function 'lsp:range-end)
                       (lambda (range) (plist-get range :end))))
 
-            (let ((result (claude-code-emacs-mcp-handle-findReferences
+            (let ((result (claude-code-mcp-handle-findReferences
                            `((file . ,(file-name-nondirectory test-file))
                              (line . 1)
                              (symbol . "test-func")
@@ -632,7 +632,7 @@
 (ert-deftest test-mcp-handle-findReferences-no-lsp ()
   "Test finding references without LSP available."
   (cl-letf (((symbol-function 'fboundp) (lambda (_) nil)))
-    (let ((result (claude-code-emacs-mcp-handle-findReferences
+    (let ((result (claude-code-mcp-handle-findReferences
                    '((file . "test.el")
                      (line . 1)
                      (symbol . "test-symbol")))))
@@ -642,19 +642,19 @@
 (ert-deftest test-mcp-handle-findReferences-missing-params ()
   "Test finding references with missing parameters."
   ;; Missing file
-  (let ((result (claude-code-emacs-mcp-handle-findReferences
+  (let ((result (claude-code-mcp-handle-findReferences
                  '((line . 1) (symbol . "test")))))
     (should (assoc 'error result))
     (should (string-match "file parameter is required" (cdr (assoc 'error result)))))
 
   ;; Missing line
-  (let ((result (claude-code-emacs-mcp-handle-findReferences
+  (let ((result (claude-code-mcp-handle-findReferences
                  '((file . "test.el") (symbol . "test")))))
     (should (assoc 'error result))
     (should (string-match "line parameter is required" (cdr (assoc 'error result)))))
 
   ;; Missing symbol
-  (let ((result (claude-code-emacs-mcp-handle-findReferences
+  (let ((result (claude-code-mcp-handle-findReferences
                  '((file . "test.el") (line . 1)))))
     (should (assoc 'error result))
     (should (string-match "symbol parameter is required" (cdr (assoc 'error result))))))
@@ -690,7 +690,7 @@
             (let* ((range (lsp-make-range
                            :start (lsp-make-position :line 1 :character 7)
                            :end (lsp-make-position :line 1 :character 16)))
-                   (preview (claude-code-emacs-mcp-get-preview-text test-file range)))
+                   (preview (claude-code-mcp-get-preview-text test-file range)))
               (should preview)
               ;; Should include line 0 (3 lines before)
               (should (string-match ";; Line 0" preview))
@@ -729,7 +729,7 @@
                                         (and (boundp sym) (symbol-value sym)))))
                      ((symbol-function 'projectile-project-root)
                       (lambda () (file-name-directory test-file)))
-                     ((symbol-function 'claude-code-emacs-normalize-project-root)
+                     ((symbol-function 'claude-code-normalize-project-root)
                       (lambda (root) root))
                      ((symbol-function 'find-file-noselect)
                       (lambda (file)
@@ -771,7 +771,7 @@
                      ((symbol-function 'lsp:markup-content-value)
                       (lambda (mc) (plist-get mc :value))))
 
-            (let* ((result (claude-code-emacs-mcp-handle-describeSymbol
+            (let* ((result (claude-code-mcp-handle-describeSymbol
                            `((file . ,(file-name-nondirectory test-file))
                              (line . 1)
                              (symbol . "test-function")))))
@@ -800,7 +800,7 @@
                                         (and (boundp sym) (symbol-value sym)))))
                      ((symbol-function 'projectile-project-root)
                       (lambda () (file-name-directory test-file)))
-                     ((symbol-function 'claude-code-emacs-normalize-project-root)
+                     ((symbol-function 'claude-code-normalize-project-root)
                       (lambda (root) root))
                      ((symbol-function 'find-file-noselect)
                       (lambda (file)
@@ -836,7 +836,7 @@
                      ((symbol-function 'lsp:markup-content-value)
                       (lambda (mc) (plist-get mc :value))))
 
-            (let* ((result (claude-code-emacs-mcp-handle-describeSymbol
+            (let* ((result (claude-code-mcp-handle-describeSymbol
                            `((file . ,(file-name-nondirectory test-file))
                              (line . 1)
                              (symbol . "test-function")))))
@@ -856,7 +856,7 @@
   "Test describing symbol without LSP available."
   (cl-letf (((symbol-function 'fboundp) (lambda (_) nil)))
     (should-error
-     (claude-code-emacs-mcp-handle-describeSymbol
+     (claude-code-mcp-handle-describeSymbol
       '((file . "test.el")
         (line . 1)
         (symbol . "test-symbol")))
@@ -866,19 +866,19 @@
   "Test describing symbol with missing parameters."
   ;; Missing file
   (should-error
-   (claude-code-emacs-mcp-handle-describeSymbol
+   (claude-code-mcp-handle-describeSymbol
     '((line . 1) (symbol . "test")))
    :type 'error)
 
   ;; Missing line
   (should-error
-   (claude-code-emacs-mcp-handle-describeSymbol
+   (claude-code-mcp-handle-describeSymbol
     '((file . "test.el") (symbol . "test")))
    :type 'error)
 
   ;; Missing symbol
   (should-error
-   (claude-code-emacs-mcp-handle-describeSymbol
+   (claude-code-mcp-handle-describeSymbol
     '((file . "test.el") (line . 1)))
    :type 'error))
 
@@ -893,7 +893,7 @@
                  (push (list 'message message 'args args) alert-calls))))
 
       ;; Test successful notification
-      (let ((result (claude-code-emacs-mcp-handle-sendNotification
+      (let ((result (claude-code-mcp-handle-sendNotification
                      '((title . "Test Title")
                        (message . "Test message content")))))
         (should (equal (cdr (assoc 'success result)) t))
@@ -915,7 +915,7 @@
                  (push (list 'message message 'args args) alert-calls))))
 
       ;; Call without category parameter
-      (claude-code-emacs-mcp-handle-sendNotification
+      (claude-code-mcp-handle-sendNotification
        '((title . "Test")
          (message . "Message")))
 
@@ -927,14 +927,14 @@
 (ert-deftest test-mcp-handle-sendNotification-missing-title ()
   "Test sendNotification with missing title."
   (should-error
-   (claude-code-emacs-mcp-handle-sendNotification
+   (claude-code-mcp-handle-sendNotification
     '((message . "Test message")))
    :type 'error))
 
 (ert-deftest test-mcp-handle-sendNotification-missing-message ()
   "Test sendNotification with missing message."
   (should-error
-   (claude-code-emacs-mcp-handle-sendNotification
+   (claude-code-mcp-handle-sendNotification
     '((title . "Test Title")))
    :type 'error))
 
@@ -950,7 +950,7 @@
                (lambda (format &rest args)
                  (push (list 'format format 'args args) message-calls))))
 
-      (let ((result (claude-code-emacs-mcp-handle-sendNotification
+      (let ((result (claude-code-mcp-handle-sendNotification
                      '((title . "Test Title")
                        (message . "Test message")))))
         (should (equal (cdr (assoc 'success result)) t))
@@ -961,5 +961,5 @@
           (should (equal (plist-get call 'format) "[%s] %s"))
           (should (equal (plist-get call 'args) '("Test Title" "Test message"))))))))
 
-(provide 'test-claude-code-emacs-mcp-tools)
-;;; test-claude-code-emacs-mcp-tools.el ends here
+(provide 'test-claude-code-mcp-tools)
+;;; test-claude-code-mcp-tools.el ends here

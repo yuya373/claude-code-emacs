@@ -1,32 +1,32 @@
-# Makefile for claude-code-emacs
+# Makefile for claude-code
 
 EMACS ?= emacs
 BATCH = $(EMACS) -batch -Q -L .
 
 # Files
-CORE_FILES = claude-code-emacs-core.el \
-	     claude-code-emacs-commands.el \
-	     claude-code-emacs-ui.el \
-	     claude-code-emacs-prompt.el
+CORE_FILES = claude-code-core.el \
+	     claude-code-commands.el \
+	     claude-code-ui.el \
+	     claude-code-prompt.el
 
-MCP_MODULES = claude-code-emacs-mcp-connection.el \
-	      claude-code-emacs-mcp-protocol.el \
-	      claude-code-emacs-mcp-tools.el \
-	      claude-code-emacs-mcp-events.el
+MCP_MODULES = claude-code-mcp-connection.el \
+	      claude-code-mcp-protocol.el \
+	      claude-code-mcp-tools.el \
+	      claude-code-mcp-events.el
 
-TEST_CORE_FILES = claude-code-emacs-core-test.el \
-		  claude-code-emacs-buffer-test.el \
-		  claude-code-emacs-commands-test.el \
-		  claude-code-emacs-ui-test.el \
-		  claude-code-emacs-prompt-test.el
+TEST_CORE_FILES = claude-code-core-test.el \
+		  claude-code-buffer-test.el \
+		  claude-code-commands-test.el \
+		  claude-code-ui-test.el \
+		  claude-code-prompt-test.el
 
-TEST_MCP_FILES = claude-code-emacs-mcp-connection-test.el \
-		 claude-code-emacs-mcp-protocol-test.el \
-		 claude-code-emacs-mcp-tools-test.el \
-		 claude-code-emacs-mcp-events-test.el
+TEST_MCP_FILES = claude-code-mcp-connection-test.el \
+		 claude-code-mcp-protocol-test.el \
+		 claude-code-mcp-tools-test.el \
+		 claude-code-mcp-events-test.el
 
-EL_FILES = $(CORE_FILES) claude-code-emacs.el
-MCP_EL_FILES = $(MCP_MODULES) claude-code-emacs-mcp.el
+EL_FILES = $(CORE_FILES) claude-code.el
+MCP_EL_FILES = $(MCP_MODULES) claude-code-mcp.el
 ALL_EL_FILES = $(EL_FILES) $(MCP_EL_FILES)
 TEST_FILES = $(TEST_CORE_FILES) $(TEST_MCP_FILES)
 
@@ -72,8 +72,8 @@ package-lint:
 			      (unless (package-installed-p 'package-lint) \
 				(package-install 'package-lint)))" \
 		--eval "(require 'package-lint)" \
-		--eval "(setq package-lint-main-file \"claude-code-emacs.el\")" \
-		--eval "(setq package-lint-batch-fail-on-warnings nil)" \
+		--eval "(setq package-lint-main-file \"claude-code.el\")" \
+		--eval "(setq package-lint-batch-fail-on-warnings t)" \
 		-f package-lint-batch-and-exit $(ALL_EL_FILES)
 
 lint: package-lint

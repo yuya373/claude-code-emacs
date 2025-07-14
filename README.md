@@ -1,6 +1,6 @@
 # Claude Code Emacs
 
-[![CI Tests](https://github.com/yuya373/claude-code-emacs/actions/workflows/test.yml/badge.svg)](https://github.com/yuya373/claude-code-emacs/actions/workflows/test.yml)
+[![CI Tests](https://github.com/yuya373/claude-code/actions/workflows/test.yml/badge.svg)](https://github.com/yuya373/claude-code/actions/workflows/test.yml)
 
 Run [Claude Code](https://docs.anthropic.com/en/docs/claude-code) AI coding sessions directly in Emacs with powerful MCP integration.
 
@@ -8,23 +8,23 @@ Run [Claude Code](https://docs.anthropic.com/en/docs/claude-code) AI coding sess
 
 ```elisp
 ;; Add to your init.el
-(add-to-list 'load-path "/path/to/claude-code-emacs")
-(require 'claude-code-emacs)
-(global-set-key (kbd "C-c c") 'claude-code-emacs-transient)
+(add-to-list 'load-path "/path/to/claude-code")
+(require 'claude-code)
+(global-set-key (kbd "C-c c") 'claude-code-transient)
 ```
 
 ```bash
 # Install MCP server globally
-npm install -g claude-code-emacs-mcp-server
+npm install -g claude-code-mcp-server
 
 # Configure Claude Code to use MCP
 claude mcp add-json emacs '{
   "type": "stdio",
-  "command": "claude-code-emacs-mcp"
+  "command": "claude-code-mcp"
 }'
 ```
 
-Now run `M-x claude-code-emacs-run` to start a session!
+Now run `M-x claude-code-run` to start a session!
 
 ## Key Features
 
@@ -33,7 +33,7 @@ Now run `M-x claude-code-emacs-run` to start a session!
 - **Smart file completion** - Type `@` in prompts to reference project files
 - **Transient menus** - Press `C-c c` for the main menu with all commands
 - **Custom commands** - Define reusable commands in `.claude/commands/*.md`
-- **Project prompts** - `.claude-code-emacs.prompt.md` file per project for persistent context
+- **Project prompts** - `.claude-code.prompt.md` file per project for persistent context
 
 ### 🔌 MCP Integration
 Claude Code can directly interact with your Emacs environment:
@@ -48,7 +48,7 @@ Claude Code can directly interact with your Emacs environment:
 | Key | Action |
 |-----|--------|
 | `C-c c` | Open main transient menu |
-| `C-u M-x claude-code-emacs-run` | Start with options (model, resume, etc.) |
+| `C-u M-x claude-code-run` | Start with options (model, resume, etc.) |
 
 #### In Claude Code Session (vterm mode)
 | Key | Action |
@@ -85,7 +85,7 @@ Claude Code can directly interact with your Emacs environment:
 ## Common Workflows
 
 ### Project Prompts
-Each project gets a `.claude-code-emacs.prompt.md` file at the project root. When you open this file, it automatically positions at the end for quick prompt entry:
+Each project gets a `.claude-code.prompt.md` file at the project root. When you open this file, it automatically positions at the end for quick prompt entry:
 ```markdown
 # Claude Code Prompts for my-project
 
@@ -99,11 +99,11 @@ Fix the bug in @src/utils.js where the parser fails on empty strings
 
 Add unit tests for @src/api/auth.js
 ```
-Open with `M-x claude-code-emacs-open-prompt-file` or `p` in transient menu.
+Open with `M-x claude-code-open-prompt-file` or `p` in transient menu.
 
 ### Fix LSP Errors
 ```elisp
-M-x claude-code-emacs-fix-diagnostic
+M-x claude-code-fix-diagnostic
 ;; or press 'f' in transient menu
 ```
 
@@ -139,12 +139,12 @@ Press `g` in main menu for git commands:
 #### Option 1: Global Installation (Recommended)
 ```bash
 # Install globally from npm
-npm install -g claude-code-emacs-mcp-server
+npm install -g claude-code-mcp-server
 
 # Configure Claude Code
 claude mcp add-json emacs '{
   "type": "stdio",
-  "command": "claude-code-emacs-mcp"
+  "command": "claude-code-mcp"
 }'
 ```
 
@@ -155,14 +155,14 @@ claude mcp add-json emacs '{
 claude mcp add-json emacs '{
   "type": "stdio",
   "command": "npx",
-  "args": ["claude-code-emacs-mcp-server"]
+  "args": ["claude-code-mcp-server"]
 }'
 ```
 
 #### Option 3: Build from Source
 ```bash
 # If you cloned the repository
-cd /path/to/claude-code-emacs/mcp-server
+cd /path/to/claude-code/mcp-server
 npm install
 npm run build
 
@@ -170,7 +170,7 @@ npm run build
 claude mcp add-json emacs '{
   "type": "stdio",
   "command": "node",
-  "args": ["/path/to/claude-code-emacs/mcp-server/dist/index.js"]
+  "args": ["/path/to/claude-code/mcp-server/dist/index.js"]
 }'
 ```
 
@@ -235,7 +235,7 @@ Releases are automated using GitHub Actions:
 3. **Automated Steps** (After publishing):
    - Git tag is created automatically
    - Version numbers are updated in:
-     - `claude-code-emacs.el`
+     - `claude-code.el`
      - `mcp-server/package.json`
    - MCP server is published to npm
    - MELPA recipe is generated

@@ -1,4 +1,4 @@
-;;; test-claude-code-emacs-ui.el --- Tests for UI, transient, and modes -*- lexical-binding: t; -*-
+;;; test-claude-code-ui.el --- Tests for UI, transient, and modes -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025
 
@@ -7,21 +7,21 @@
 
 ;;; Commentary:
 
-;; Test suite for claude-code-emacs-ui module
+;; Test suite for claude-code-ui module
 
 ;;; Code:
 
 (require 'ert)
-(require 'claude-code-emacs-ui)
+(require 'claude-code-ui)
 (require 'cl-lib)
 
 ;;; Tests for mode definitions
 
-(ert-deftest test-claude-code-emacs-vterm-mode ()
+(ert-deftest test-claude-code-vterm-mode ()
   "Test vterm mode setup."
   (skip-unless (fboundp 'vterm-mode))
   (with-temp-buffer
-    (claude-code-emacs-vterm-mode)
+    (claude-code-vterm-mode)
 
     ;; Test mode inheritance
     (should (derived-mode-p 'vterm-mode))
@@ -31,20 +31,20 @@
 
 ;;; Tests for LSP integration
 
-(ert-deftest test-claude-code-emacs-lsp-integration ()
+(ert-deftest test-claude-code-lsp-integration ()
   "Test LSP mode integration."
   (let ((lsp-language-id-configuration nil))
     (with-temp-buffer
-      (claude-code-emacs-prompt-mode)
-      (should (member '(claude-code-emacs-prompt-mode . "markdown")
+      (claude-code-prompt-mode)
+      (should (member '(claude-code-prompt-mode . "markdown")
                       lsp-language-id-configuration)))))
 
 ;;; Tests for transient menus
 
-(ert-deftest test-claude-code-emacs-transient-defined ()
+(ert-deftest test-claude-code-transient-defined ()
   "Test that transient menus are properly defined."
-  (should (fboundp 'claude-code-emacs-transient))
-  (should (fboundp 'claude-code-emacs-prompt-transient)))
+  (should (fboundp 'claude-code-transient))
+  (should (fboundp 'claude-code-prompt-transient)))
 
-(provide 'test-claude-code-emacs-ui)
-;;; test-claude-code-emacs-ui.el ends here
+(provide 'test-claude-code-ui)
+;;; test-claude-code-ui.el ends here

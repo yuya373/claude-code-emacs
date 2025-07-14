@@ -1,10 +1,10 @@
 {
-  "name": "claude-code-emacs-mcp-server",
+  "name": "claude-code-mcp-server",
   "version": "0.4.3",
   "description": "MCP server for Claude Code Emacs integration",
   "main": "dist/index.js",
   "bin": {
-    "claude-code-emacs-mcp": "dist/index.js"
+    "claude-code-mcp": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",
@@ -24,14 +24,14 @@
     "node": ">=16.0.0"
   },
   "author": "Yuya Minami",
-  "homepage": "https://github.com/yuya373/claude-code-emacs#readme",
+  "homepage": "https://github.com/yuya373/claude-code#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yuya373/claude-code-emacs.git",
+    "url": "git+https://github.com/yuya373/claude-code.git",
     "directory": "mcp-server"
   },
   "bugs": {
-    "url": "https://github.com/yuya373/claude-code-emacs/issues"
+    "url": "https://github.com/yuya373/claude-code/issues"
   },
   "license": "GPL-3.0-or-later",
   "dependencies": {

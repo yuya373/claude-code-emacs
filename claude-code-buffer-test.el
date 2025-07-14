@@ -1,4 +1,4 @@
-;;; test-claude-code-emacs-buffer.el --- Tests for buffer management and key sending -*- lexical-binding: t; -*-
+;;; test-claude-code-buffer.el --- Tests for buffer management and key sending -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025
 
@@ -7,12 +7,12 @@
 
 ;;; Commentary:
 
-;; Test suite for claude-code-emacs-buffer module
+;; Test suite for claude-code-buffer module
 
 ;;; Code:
 
 (require 'ert)
-(require 'claude-code-emacs-core)
+(require 'claude-code-core)
 (require 'cl-lib)
 
 ;;; Test utilities
@@ -32,9 +32,9 @@
 (defmacro with-claude-mock-buffer (&rest body)
   "Execute BODY with a mock Claude Code buffer."
   `(with-claude-test-project
-    (let ((buffer-name (claude-code-emacs-buffer-name)))
+    (let ((buffer-name (claude-code-buffer-name)))
       (with-current-buffer (get-buffer-create buffer-name)
-        (claude-code-emacs-vterm-mode)
+        (claude-code-vterm-mode)
         ,@body)
       (when (get-buffer buffer-name)
         (let ((kill-buffer-query-functions nil))
@@ -42,19 +42,19 @@
 
 ;;; Tests for buffer management
 
-(ert-deftest test-claude-code-emacs-buffer-name ()
+(ert-deftest test-claude-code-buffer-name ()
   "Test buffer name generation."
   (with-claude-test-project
-   (should (string-match-p "\\*claude:.*\\*" (claude-code-emacs-buffer-name)))
-   (should (string-match-p (regexp-quote temp-dir) (claude-code-emacs-buffer-name)))))
+   (should (string-match-p "\\*claude:.*\\*" (claude-code-buffer-name)))
+   (should (string-match-p (regexp-quote temp-dir) (claude-code-buffer-name)))))
 
-(ert-deftest test-claude-code-emacs-switch-to-buffer ()
+(ert-deftest test-claude-code-switch-to-buffer ()
   "Test switching to Claude Code buffer."
   (with-claude-mock-buffer
-   (let ((buffer-name (claude-code-emacs-buffer-name)))
+   (let ((buffer-name (claude-code-buffer-name)))
      ;; Test switching to existing buffer
      (with-temp-buffer
-       (claude-code-emacs-switch-to-buffer)
+       (claude-code-switch-to-buffer)
        (should (string= (buffer-name) buffer-name)))
 
      ;; Test when buffer doesn't exist
@@ -65,13 +65,13 @@
        (cl-letf (((symbol-function 'y-or-n-p)
                   (lambda (_prompt) nil)))
          (let ((inhibit-message t))
-           (claude-code-emacs-switch-to-buffer))
+           (claude-code-switch-to-buffer))
          ;; Should stay in current buffer when user declines
          (should-not (string= (buffer-name) buffer-name)))))))
 
 ;;; Tests for send functions with mock vterm
 
-(ert-deftest test-claude-code-emacs-send-string-mock ()
+(ert-deftest test-claude-code-send-string-mock ()
   "Test send-string with mocked vterm functions."
   (cl-letf* ((vterm-strings nil)
              ((symbol-function 'vterm-send-string)
@@ -80,10 +80,10 @@
 
     (with-claude-mock-buffer
      ;; Test normal send
-     (claude-code-emacs-send-string "test command")
+     (claude-code-send-string "test command")
      (should (member "test command" vterm-strings)))))
 
-(ert-deftest test-claude-code-emacs-special-key-functions ()
+(ert-deftest test-claude-code-special-key-functions ()
   "Test special key sending functions."
   (cl-letf* ((escape-sent nil)
              (return-sent nil)
@@ -105,44 +105,44 @@
 
     (with-claude-mock-buffer
      ;; Test escape sending
-     (claude-code-emacs-send-escape)
+     (claude-code-send-escape)
      (should escape-sent)
 
      ;; Test return sending
-     (claude-code-emacs-send-return)
+     (claude-code-send-return)
      (should return-sent)
 
      ;; Test ctrl-r sending
-     (claude-code-emacs-send-ctrl-r)
+     (claude-code-send-ctrl-r)
      (should ctrl-r-sent))))
 
 ;;; Tests for quick send functions
 
-(ert-deftest test-claude-code-emacs-quick-send-functions ()
+(ert-deftest test-claude-code-quick-send-functions ()
   "Test quick send functions."
   (cl-letf* ((sent-commands nil)
-             ((symbol-function 'claude-code-emacs-send-string)
+             ((symbol-function 'claude-code-send-string)
               (lambda (str &optional paste-p)
                 (push str sent-commands))))
 
     ;; Test number sending functions
-    (claude-code-emacs-send-1)
+    (claude-code-send-1)
     (should (member "1" sent-commands))
 
-    (claude-code-emacs-send-2)
+    (claude-code-send-2)
     (should (member "2" sent-commands))
 
-    (claude-code-emacs-send-3)
+    (claude-code-send-3)
     (should (member "3" sent-commands))
 
     ;; Test commit sending
-    (claude-code-emacs-send-commit)
+    (claude-code-send-commit)
     (should (member "commit" sent-commands))))
 
 
 
 
-(ert-deftest test-claude-code-emacs-at-sign-complete ()
+(ert-deftest test-claude-code-at-sign-complete ()
   "Test @ completion functionality."
   (cl-letf* ((selected-file nil)
              ((symbol-function 'completing-read)
@@ -156,8 +156,8 @@
     (with-claude-test-project
      ;; Test @ completion
      (with-temp-buffer
-       (claude-code-emacs-at-sign-complete)
+       (claude-code-at-sign-complete)
        (should (equal (buffer-string) "@test.el"))))))
 
-(provide 'test-claude-code-emacs-buffer)
-;;; test-claude-code-emacs-buffer.el ends here
+(provide 'test-claude-code-buffer)
+;;; test-claude-code-buffer.el ends here

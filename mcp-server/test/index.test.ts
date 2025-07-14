@@ -135,7 +135,7 @@ describe('MCP Server ping monitoring', () => {
         }
 
         try {
-          const portFile = `/tmp/claude-code-emacs-mcp-_test_project.port`;
+          const portFile = `/tmp/claude-code-mcp-_test_project.port`;
           await mockUnlink(portFile);
           mockLog(`Removed port file ${portFile}`);
         } catch (error) {
@@ -148,10 +148,10 @@ describe('MCP Server ping monitoring', () => {
       await cleanup();
 
       expect(mockUnregister).toHaveBeenCalledWith('/test/project');
-      expect(mockUnlink).toHaveBeenCalledWith('/tmp/claude-code-emacs-mcp-_test_project.port');
+      expect(mockUnlink).toHaveBeenCalledWith('/tmp/claude-code-mcp-_test_project.port');
       expect(mockBridgeStop).toHaveBeenCalled();
       expect(mockLog).toHaveBeenCalledWith('Unregistered port for project /test/project');
-      expect(mockLog).toHaveBeenCalledWith('Removed port file /tmp/claude-code-emacs-mcp-_test_project.port');
+      expect(mockLog).toHaveBeenCalledWith('Removed port file /tmp/claude-code-mcp-_test_project.port');
     });
   });
 });

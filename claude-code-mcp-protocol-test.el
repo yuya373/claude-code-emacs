@@ -1,4 +1,4 @@
-;;; test-claude-code-emacs-mcp-protocol.el --- Tests for MCP JSON-RPC protocol -*- lexical-binding: t; -*-
+;;; test-claude-code-mcp-protocol.el --- Tests for MCP JSON-RPC protocol -*- lexical-binding: t; -*-
 
 ;;; Commentary:
 
@@ -7,14 +7,14 @@
 ;;; Code:
 
 (require 'ert)
-(require 'claude-code-emacs-mcp-protocol)
+(require 'claude-code-mcp-protocol)
 (require 'cl-lib)
 
 ;;; Test utilities
 
-(defmacro claude-code-emacs-mcp-test-with-connection (&rest body)
+(defmacro claude-code-mcp-test-with-connection (&rest body)
   "Execute BODY with MCP connection mocked."
-  `(let ((claude-code-emacs-mcp-project-connections (make-hash-table :test 'equal)))
+  `(let ((claude-code-mcp-project-connections (make-hash-table :test 'equal)))
      (cl-letf* (((symbol-function 'websocket-open)
                  (lambda (url &rest args)
                    (let ((ws (cons 'mock-websocket nil))
@@ -48,25 +48,25 @@
   "Test handling ping/pong messages."
   (let ((project-root "/test/project/")
         (pong-handled nil))
-    (cl-letf (((symbol-function 'claude-code-emacs-mcp-handle-pong)
+    (cl-letf (((symbol-function 'claude-code-mcp-handle-pong)
                (lambda (root)
                  (when (string= root project-root)
                    (setq pong-handled t)))))
       ;; Test pong message
-      (claude-code-emacs-mcp-handle-message "{\"type\":\"pong\"}" project-root)
+      (claude-code-mcp-handle-message "{\"type\":\"pong\"}" project-root)
       (should pong-handled))))
 
 (ert-deftest test-mcp-handle-message-request ()
   "Test handling incoming requests."
   (let ((project-root "/test/project/")
         (request-handled nil))
-    (cl-letf (((symbol-function 'claude-code-emacs-mcp-handle-request)
+    (cl-letf (((symbol-function 'claude-code-mcp-handle-request)
                (lambda (request root)
                  (when (and (equal (cdr (assoc 'method request)) "testMethod")
                            (string= root project-root))
                    (setq request-handled t)))))
       ;; Test request message
-      (claude-code-emacs-mcp-handle-message
+      (claude-code-mcp-handle-message
        "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"testMethod\",\"params\":{}}"
        project-root)
       (should request-handled))))
@@ -75,8 +75,8 @@
   "Test handling responses to our requests."
   (let* ((project-root "/test/project/")
          (callback-result nil)
-         (claude-code-emacs-mcp-project-connections (make-hash-table :test 'equal)))
-    (cl-letf (((symbol-function 'claude-code-emacs-normalize-project-root)
+         (claude-code-mcp-project-connections (make-hash-table :test 'equal)))
+    (cl-letf (((symbol-function 'claude-code-normalize-project-root)
                (lambda (root) root)))
       ;; Set up connection info with pending request
       (let* ((pending-requests (make-hash-table :test 'equal))
@@ -87,13 +87,13 @@
                      (ping-timer . nil)
                      (ping-timeout-timer . nil)
                      (last-pong-time . nil))))
-        (puthash project-root info claude-code-emacs-mcp-project-connections)
+        (puthash project-root info claude-code-mcp-project-connections)
         ;; Add pending request
         (puthash 1 (lambda (result error)
                      (setq callback-result (or result error)))
                  pending-requests)
         ;; Handle response
-        (claude-code-emacs-mcp-handle-message
+        (claude-code-mcp-handle-message
          "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"data\":\"test\"}}"
          project-root)
         ;; Check callback was called
@@ -103,13 +103,13 @@
   "Test request handling and response."
   (let ((project-root "/test/project/")
         (sent-response nil))
-    (cl-letf (((symbol-function 'claude-code-emacs-mcp-handle-getOpenBuffers)
+    (cl-letf (((symbol-function 'claude-code-mcp-handle-getOpenBuffers)
                (lambda (params) '((buffers . ()))))
-              ((symbol-function 'claude-code-emacs-mcp-send-response)
+              ((symbol-function 'claude-code-mcp-send-response)
                (lambda (id result error root)
                  (setq sent-response (list id result error root)))))
       ;; Handle request
-      (claude-code-emacs-mcp-handle-request
+      (claude-code-mcp-handle-request
        '((id . 123)
          (method . "getOpenBuffers")
          (params . ()))
@@ -124,13 +124,13 @@
   "Test request error handling."
   (let ((project-root "/test/project/")
         (sent-response nil))
-    (cl-letf (((symbol-function 'claude-code-emacs-mcp-handle-getOpenBuffers)
+    (cl-letf (((symbol-function 'claude-code-mcp-handle-getOpenBuffers)
                (lambda (params) (error "Test error")))
-              ((symbol-function 'claude-code-emacs-mcp-send-response)
+              ((symbol-function 'claude-code-mcp-send-response)
                (lambda (id result error root)
                  (setq sent-response (list id result error root)))))
       ;; Handle request that will error
-      (claude-code-emacs-mcp-handle-request
+      (claude-code-mcp-handle-request
        '((id . 123)
          (method . "getOpenBuffers")
          (params . ()))
@@ -145,8 +145,8 @@
   "Test sending JSON-RPC responses."
   (let ((project-root "/test/project/")
         (sent-text nil)
-        (claude-code-emacs-mcp-project-connections (make-hash-table :test 'equal)))
-    (cl-letf (((symbol-function 'claude-code-emacs-normalize-project-root)
+        (claude-code-mcp-project-connections (make-hash-table :test 'equal)))
+    (cl-letf (((symbol-function 'claude-code-normalize-project-root)
                (lambda (root) root)))
       ;; Set up mock websocket
       (let* ((mock-ws 'mock-websocket)
@@ -157,13 +157,13 @@
                      (ping-timer . nil)
                      (ping-timeout-timer . nil)
                      (last-pong-time . nil))))
-        (puthash project-root info claude-code-emacs-mcp-project-connections)
+        (puthash project-root info claude-code-mcp-project-connections)
         (cl-letf (((symbol-function 'websocket-send-text)
                    (lambda (ws text)
                      (when (eq ws mock-ws)
                        (setq sent-text text)))))
           ;; Send success response
-          (claude-code-emacs-mcp-send-response 123 '((result . "ok")) nil project-root)
+          (claude-code-mcp-send-response 123 '((result . "ok")) nil project-root)
           ;; Check JSON structure
           (let* ((json-object-type 'alist)
                  (parsed (json-read-from-string sent-text)))
@@ -171,5 +171,5 @@
             (should (equal (cdr (assoc 'id parsed)) 123))
             (should (equal (cdr (assoc 'result parsed)) '((result . "ok"))))))))))
 
-(provide 'test-claude-code-emacs-mcp-protocol)
-;;; test-claude-code-emacs-mcp-protocol.el ends here
+(provide 'test-claude-code-mcp-protocol)
+;;; test-claude-code-mcp-protocol.el ends here

@@ -1,4 +1,4 @@
-;;; claude-code-emacs-mcp.el --- MCP server integration for Claude Code Emacs -*- lexical-binding: t; -*-
+;;; claude-code-mcp.el --- MCP server integration for Claude Code Emacs -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025
 
@@ -34,9 +34,9 @@
 ;;; Code:
 
 ;; Load MCP modules
-(require 'claude-code-emacs-mcp-connection)
-(require 'claude-code-emacs-mcp-protocol)
-(require 'claude-code-emacs-mcp-tools)
+(require 'claude-code-mcp-connection)
+(require 'claude-code-mcp-protocol)
+(require 'claude-code-mcp-tools)
 
-(provide 'claude-code-emacs-mcp)
-;;; claude-code-emacs-mcp.el ends here
+(provide 'claude-code-mcp)
+;;; claude-code-mcp.el ends here

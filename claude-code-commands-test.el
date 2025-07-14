@@ -1,4 +1,4 @@
-;;; test-claude-code-emacs-commands.el --- Tests for slash commands and custom commands -*- lexical-binding: t; -*-
+;;; test-claude-code-commands.el --- Tests for slash commands and custom commands -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025
 
@@ -7,12 +7,12 @@
 
 ;;; Commentary:
 
-;; Test suite for claude-code-emacs-commands module
+;; Test suite for claude-code-commands module
 
 ;;; Code:
 
 (require 'ert)
-(require 'claude-code-emacs-commands)
+(require 'claude-code-commands)
 (require 'cl-lib)
 
 ;;; Test utilities
@@ -32,9 +32,9 @@
 (defmacro with-claude-mock-buffer (&rest body)
   "Execute BODY with a mock Claude Code buffer."
   `(with-claude-test-project
-    (let ((buffer-name (claude-code-emacs-buffer-name)))
+    (let ((buffer-name (claude-code-buffer-name)))
       (with-current-buffer (get-buffer-create buffer-name)
-        (claude-code-emacs-vterm-mode)
+        (claude-code-vterm-mode)
         ,@body)
       (when (get-buffer buffer-name)
         (let ((kill-buffer-query-functions nil))
@@ -42,34 +42,34 @@
 
 ;;; Tests for slash commands
 
-(ert-deftest test-claude-code-emacs-slash-commands ()
+(ert-deftest test-claude-code-slash-commands ()
   "Test slash command functions."
   (cl-letf* ((sent-commands nil)
-             ((symbol-function 'claude-code-emacs-send-string)
+             ((symbol-function 'claude-code-send-string)
               (lambda (str &optional paste-p)
                 (push str sent-commands))))
 
     ;; Test simple commands
-    (claude-code-emacs-init)
+    (claude-code-init)
     (should (member "/init" sent-commands))
 
-    (claude-code-emacs-clear)
+    (claude-code-clear)
     (should (member "/clear" sent-commands))
 
-    (claude-code-emacs-help)
+    (claude-code-help)
     (should (member "/help" sent-commands))
 
     ;; Test config command (now simplified to just send /config)
-    (claude-code-emacs-config)
+    (claude-code-config)
     (should (member "/config" sent-commands))
 
-    (claude-code-emacs-compact "")
+    (claude-code-compact "")
     (should (member "/compact" sent-commands))
 
-    (claude-code-emacs-compact "focus on tests")
+    (claude-code-compact "focus on tests")
     (should (member "/compact focus on tests" sent-commands))))
 
-(ert-deftest test-claude-code-emacs-key-sending-commands ()
+(ert-deftest test-claude-code-key-sending-commands ()
   "Test key sending commands."
   (with-claude-mock-buffer
    (let ((keys-sent nil))
@@ -83,37 +83,37 @@
                ((symbol-function 'kbd)
                 (lambda (key-string) key-string)))
 
-       (claude-code-emacs-send-escape)
+       (claude-code-send-escape)
        (should (member 'escape keys-sent))
 
-       (claude-code-emacs-send-return)
+       (claude-code-send-return)
        (should (member 'return keys-sent))
 
-       (claude-code-emacs-send-ctrl-r)
+       (claude-code-send-ctrl-r)
        ;; kbd actually returns "\C-r" (ASCII 22)
        (should (member '(key "\C-r" shift nil) keys-sent))
 
        ;; Test shift-tab sending
-       (claude-code-emacs-send-shift-tab)
+       (claude-code-send-shift-tab)
        (should (member '(key "<tab>" shift t) keys-sent))))))
 
 ;;; Tests for custom project command functions
 
-(ert-deftest test-claude-code-emacs-custom-commands-directory ()
+(ert-deftest test-claude-code-custom-commands-directory ()
   "Test custom commands directory path generation."
   (with-claude-test-project
-   (let ((commands-dir (claude-code-emacs-custom-commands-directory)))
+   (let ((commands-dir (claude-code-custom-commands-directory)))
      (should (string-match-p "\\.claude/commands$" commands-dir))
      (should (string-prefix-p temp-dir commands-dir)))))
 
-(ert-deftest test-claude-code-emacs-list-custom-command-files ()
+(ert-deftest test-claude-code-list-custom-command-files ()
   "Test listing custom command files."
   (with-claude-test-project
    ;; Test when directory doesn't exist
-   (should (null (claude-code-emacs-list-custom-command-files)))
+   (should (null (claude-code-list-custom-command-files)))
 
    ;; Create commands directory and files
-   (let ((commands-dir (claude-code-emacs-custom-commands-directory)))
+   (let ((commands-dir (claude-code-custom-commands-directory)))
      (make-directory commands-dir t)
 
      ;; Create some test command files
@@ -125,16 +125,16 @@
        (insert "not a command"))
 
      ;; Test listing
-     (let ((files (claude-code-emacs-list-custom-command-files)))
+     (let ((files (claude-code-list-custom-command-files)))
        (should (= 2 (length files)))
        (should (member "test1.md" files))
        (should (member "test2.md" files))
        (should-not (member "not-markdown.txt" files))))))
 
-(ert-deftest test-claude-code-emacs-read-custom-command-file ()
+(ert-deftest test-claude-code-read-custom-command-file ()
   "Test reading custom command file contents."
   (with-claude-test-project
-   (let ((commands-dir (claude-code-emacs-custom-commands-directory)))
+   (let ((commands-dir (claude-code-custom-commands-directory)))
      (make-directory commands-dir t)
 
      ;; Create test file
@@ -143,49 +143,49 @@
 
      ;; Test reading
      (should (equal "test command content"
-                    (claude-code-emacs-read-custom-command-file "test-command.md")))
+                    (claude-code-read-custom-command-file "test-command.md")))
 
      ;; Test non-existent file
-     (should (null (claude-code-emacs-read-custom-command-file "non-existent.md"))))))
+     (should (null (claude-code-read-custom-command-file "non-existent.md"))))))
 
 
 ;;; Tests for global command functions
 
-(ert-deftest test-claude-code-emacs-global-commands-directory ()
+(ert-deftest test-claude-code-global-commands-directory ()
   "Test global commands directory path generation."
-  (let ((commands-dir (claude-code-emacs-global-commands-directory)))
+  (let ((commands-dir (claude-code-global-commands-directory)))
     (should (string-match-p "/.claude/commands$" commands-dir))
     (should (string-prefix-p (expand-file-name "~") commands-dir))))
 
-(ert-deftest test-claude-code-emacs-list-global-command-files ()
+(ert-deftest test-claude-code-list-global-command-files ()
   "Test listing global command files."
   ;; This test is limited because we can't easily mock the home directory
   ;; We'll just test that the function doesn't error and returns a list
-  (let ((result (claude-code-emacs-list-global-command-files)))
+  (let ((result (claude-code-list-global-command-files)))
     (should (or (null result) (listp result)))
     ;; If there are results, they should all end with .md
     (when result
       (dolist (file result)
         (should (string-suffix-p ".md" file))))))
 
-(ert-deftest test-claude-code-emacs-read-global-command-file ()
+(ert-deftest test-claude-code-read-global-command-file ()
   "Test reading global command file contents."
   ;; This test is limited because we can't easily mock the home directory
   ;; We'll just test that the function doesn't error with non-existent file
-  (should (null (claude-code-emacs-read-global-command-file "non-existent.txt"))))
+  (should (null (claude-code-read-global-command-file "non-existent.txt"))))
 
 
-(ert-deftest test-claude-code-emacs-execute-custom-command-with-multiple-args ()
+(ert-deftest test-claude-code-execute-custom-command-with-multiple-args ()
   "Test custom command execution with multiple $ARGUMENTS."
   (with-claude-mock-buffer
-   (let ((commands-dir (claude-code-emacs-custom-commands-directory))
-         (claude-code-emacs-send-string-called nil)
-         (claude-code-emacs-send-string-arg nil))
+   (let ((commands-dir (claude-code-custom-commands-directory))
+         (claude-code-send-string-called nil)
+         (claude-code-send-string-arg nil))
      ;; Mock send-string to capture calls
-     (cl-letf (((symbol-function 'claude-code-emacs-send-string)
+     (cl-letf (((symbol-function 'claude-code-send-string)
                 (lambda (str)
-                  (setq claude-code-emacs-send-string-called t
-                        claude-code-emacs-send-string-arg str))))
+                  (setq claude-code-send-string-called t
+                        claude-code-send-string-arg str))))
 
        ;; Create commands directory and test file
        (make-directory commands-dir t)
@@ -201,18 +201,18 @@
                       (setq counter (1+ counter))
                       (format "arg%d" counter)))))
 
-         (claude-code-emacs-execute-custom-command)
-         (should claude-code-emacs-send-string-called)
-         (should (equal "/multi-arg arg1 arg2" claude-code-emacs-send-string-arg)))))))
+         (claude-code-execute-custom-command)
+         (should claude-code-send-string-called)
+         (should (equal "/multi-arg arg1 arg2" claude-code-send-string-arg)))))))
 
 
 ;;; Tests for unified command execution
 
-(ert-deftest test-claude-code-emacs-get-custom-commands ()
+(ert-deftest test-claude-code-get-custom-commands ()
   "Test getting all custom commands with prefixes."
   (with-claude-test-project
-   (let ((project-commands-dir (claude-code-emacs-custom-commands-directory))
-         (user-commands-dir (claude-code-emacs-global-commands-directory)))
+   (let ((project-commands-dir (claude-code-custom-commands-directory))
+         (user-commands-dir (claude-code-global-commands-directory)))
 
      ;; Create project commands
      (make-directory project-commands-dir t)
@@ -222,10 +222,10 @@
        (insert "Project command 2"))
 
      ;; Mock global commands
-     (cl-letf (((symbol-function 'claude-code-emacs-list-global-command-files)
+     (cl-letf (((symbol-function 'claude-code-list-global-command-files)
                 (lambda () '("user-cmd1.md" "user-cmd2.md"))))
 
-       (let ((commands (claude-code-emacs-get-custom-commands)))
+       (let ((commands (claude-code-get-custom-commands)))
          ;; Check we have all commands
          (should (= 4 (length commands)))
 
@@ -246,18 +246,18 @@
            (should (eq 'user (cdr (assoc 'type user-info))))
            (should (equal "user-cmd1.md" (cdr (assoc 'filename user-info))))))))))
 
-(ert-deftest test-claude-code-emacs-fix-diagnostic ()
+(ert-deftest test-claude-code-fix-diagnostic ()
   "Test fixing diagnostics using lsp-diagnostics."
   (with-claude-mock-buffer
-   (let ((claude-code-emacs-send-string-called nil)
-         (claude-code-emacs-send-string-arg nil)
+   (let ((claude-code-send-string-called nil)
+         (claude-code-send-string-arg nil)
          (test-diagnostics (make-hash-table :test 'equal)))
 
      ;; Mock functions
-     (cl-letf (((symbol-function 'claude-code-emacs-send-string)
+     (cl-letf (((symbol-function 'claude-code-send-string)
                 (lambda (str)
-                  (setq claude-code-emacs-send-string-called t
-                        claude-code-emacs-send-string-arg str)))
+                  (setq claude-code-send-string-called t
+                        claude-code-send-string-arg str)))
                ((symbol-function 'lsp-mode) nil)
                ((symbol-value 'lsp-mode) t)
                ((symbol-function 'buffer-file-name) 
@@ -284,25 +284,25 @@
                   test-diagnostics)))
 
        ;; Call the function
-       (claude-code-emacs-fix-diagnostic)
+       (claude-code-fix-diagnostic)
        
        ;; Check the result
-       (should claude-code-emacs-send-string-called)
+       (should claude-code-send-string-called)
        (should (string-match-p "Fix the following error in @src/main\\.el at line 10:" 
-                               claude-code-emacs-send-string-arg))
+                               claude-code-send-string-arg))
        (should (string-match-p "Undefined variable 'foo'" 
-                               claude-code-emacs-send-string-arg))
+                               claude-code-send-string-arg))
        (should (string-match-p "Please fix this issue\\." 
-                               claude-code-emacs-send-string-arg))))))
+                               claude-code-send-string-arg))))))
 
-(ert-deftest test-claude-code-emacs-fix-diagnostic-no-lsp ()
+(ert-deftest test-claude-code-fix-diagnostic-no-lsp ()
   "Test fix-diagnostic when LSP is not active."
   (with-claude-mock-buffer
    (cl-letf (((symbol-function 'lsp-mode) nil)
              ((symbol-value 'lsp-mode) nil))
-     (should-error (claude-code-emacs-fix-diagnostic) :type 'user-error))))
+     (should-error (claude-code-fix-diagnostic) :type 'user-error))))
 
-(ert-deftest test-claude-code-emacs-fix-diagnostic-no-diagnostics ()
+(ert-deftest test-claude-code-fix-diagnostic-no-diagnostics ()
   "Test fix-diagnostic when no diagnostics are found."
   (with-claude-mock-buffer
    (let ((message-called nil)
@@ -316,17 +316,17 @@
                ((symbol-function 'lsp-diagnostics)
                 (lambda () (make-hash-table :test 'equal))))
        
-       (claude-code-emacs-fix-diagnostic)
+       (claude-code-fix-diagnostic)
        (should message-called)
        (should (equal "No diagnostics found" message-arg))))))
 
-(ert-deftest test-claude-code-emacs-execute-custom-command-unified ()
+(ert-deftest test-claude-code-execute-custom-command-unified ()
   "Test custom command execution with both project and user commands."
   (with-claude-mock-buffer
-   (let ((project-commands-dir (claude-code-emacs-custom-commands-directory))
+   (let ((project-commands-dir (claude-code-custom-commands-directory))
          (user-commands-dir (expand-file-name ".claude/commands" (expand-file-name "~")))
-         (claude-code-emacs-send-string-called nil)
-         (claude-code-emacs-send-string-arg nil))
+         (claude-code-send-string-called nil)
+         (claude-code-send-string-arg nil))
 
      ;; Create project command
      (make-directory project-commands-dir t)
@@ -337,10 +337,10 @@
      (make-directory user-commands-dir t)
 
      ;; Mock functions
-     (cl-letf (((symbol-function 'claude-code-emacs-send-string)
+     (cl-letf (((symbol-function 'claude-code-send-string)
                 (lambda (str)
-                  (setq claude-code-emacs-send-string-called t
-                        claude-code-emacs-send-string-arg str)))
+                  (setq claude-code-send-string-called t
+                        claude-code-send-string-arg str)))
                ((symbol-function 'read-string)
                 (lambda (&rest _) "test-arg"))
                ((symbol-function 'completing-read)
@@ -352,10 +352,10 @@
                         "project:test-project"
                       "user:commit-push"))))
                ;; Mock the global command files
-               ((symbol-function 'claude-code-emacs-list-global-command-files)
+               ((symbol-function 'claude-code-list-global-command-files)
                 (lambda () '("commit-push.md")))
                ;; Mock reading command file - mock the general function used by execute-custom-command
-               ((symbol-function 'claude-code-emacs-read-command-file)
+               ((symbol-function 'claude-code-read-command-file)
                 (lambda (filepath) 
                   (cond
                    ((string-match-p "test-project\\.md$" filepath) "project command content")
@@ -363,18 +363,18 @@
                    (t nil)))))
 
        ;; Test project command
-       (claude-code-emacs-execute-custom-command)
-       (should claude-code-emacs-send-string-called)
-       (should (equal "/test-project" claude-code-emacs-send-string-arg))
+       (claude-code-execute-custom-command)
+       (should claude-code-send-string-called)
+       (should (equal "/test-project" claude-code-send-string-arg))
 
        ;; Reset and test user command
-       (setq claude-code-emacs-send-string-called nil
-             claude-code-emacs-send-string-arg nil)
+       (setq claude-code-send-string-called nil
+             claude-code-send-string-arg nil)
 
-       (claude-code-emacs-execute-custom-command)
-       (should claude-code-emacs-send-string-called)
+       (claude-code-execute-custom-command)
+       (should claude-code-send-string-called)
        ;; Commands are sent without prefix
-       (should (equal "/commit-push" claude-code-emacs-send-string-arg))))))
+       (should (equal "/commit-push" claude-code-send-string-arg))))))
 
-(provide 'test-claude-code-emacs-commands)
-;;; test-claude-code-emacs-commands.el ends here
+(provide 'test-claude-code-commands)
+;;; test-claude-code-commands.el ends here

@@ -1,15 +1,15 @@
-;;; test-claude-code-emacs-mcp-events.el --- Tests for MCP event system -*- lexical-binding: t; -*-
+;;; test-claude-code-mcp-events.el --- Tests for MCP event system -*- lexical-binding: t; -*-
 
 ;;; Commentary:
-;; Test suite for claude-code-emacs-mcp-events.el
+;; Test suite for claude-code-mcp-events.el
 
 ;;; Code:
 
 (require 'ert)
 
-(require 'claude-code-emacs-mcp-events)
-(require 'claude-code-emacs-mcp)
-(require 'claude-code-emacs-mcp-connection)
+(require 'claude-code-mcp-events)
+(require 'claude-code-mcp)
+(require 'claude-code-mcp-connection)
 
 ;; Test helper for tracking sent messages
 (defvar test-mcp-sent-messages nil)
@@ -21,7 +21,7 @@
 (defmacro with-mcp-message-capture (&rest body)
   "Execute BODY while capturing MCP messages."
   `(let ((test-mcp-sent-messages nil))
-     (cl-letf (((symbol-function 'claude-code-emacs-mcp-send-event-to-project)
+     (cl-letf (((symbol-function 'claude-code-mcp-send-event-to-project)
                 #'test-mcp-capture-send-event-to-project))
        ,@body)))
 
@@ -50,12 +50,12 @@
   (with-mcp-message-capture
     (with-mock-project-root "/test/project"
       ;; Mock project connections
-      (let ((claude-code-emacs-mcp-project-connections (make-hash-table :test 'equal)))
-        (puthash "/test/project" t claude-code-emacs-mcp-project-connections)
+      (let ((claude-code-mcp-project-connections (make-hash-table :test 'equal)))
+        (puthash "/test/project" t claude-code-mcp-project-connections)
 
         (with-test-buffer "/test/project/file1.el" "content1"
           (with-test-buffer "/test/project/file2.el" "content2"
-            (claude-code-emacs-mcp-events-send-buffer-list-update)
+            (claude-code-mcp-events-send-buffer-list-update)
 
             ;; Should send one notification
             (should (= 1 (length test-mcp-sent-messages)))
@@ -74,12 +74,12 @@
   (with-mcp-message-capture
     (with-mock-project-root "/test/project"
       ;; Mock project connections
-      (let ((claude-code-emacs-mcp-project-connections (make-hash-table :test 'equal)))
-        (puthash "/test/project" t claude-code-emacs-mcp-project-connections)
+      (let ((claude-code-mcp-project-connections (make-hash-table :test 'equal)))
+        (puthash "/test/project" t claude-code-mcp-project-connections)
 
         (with-test-buffer "/test/project/file1.el" "content1"
           (with-test-buffer "/other/project/file2.el" "content2"
-            (claude-code-emacs-mcp-events-send-buffer-list-update)
+            (claude-code-mcp-events-send-buffer-list-update)
 
             (let* ((msg (car test-mcp-sent-messages))
                    (buffers (cdr (assoc 'buffers (plist-get msg :params)))))
@@ -93,15 +93,15 @@
   "Test buffer content change event."
   (with-mcp-message-capture
     (with-mock-project-root "/test/project"
-      (let ((claude-code-emacs-mcp-project-connections (make-hash-table :test 'equal)))
-        (puthash "/test/project" t claude-code-emacs-mcp-project-connections)
+      (let ((claude-code-mcp-project-connections (make-hash-table :test 'equal)))
+        (puthash "/test/project" t claude-code-mcp-project-connections)
 
         (with-test-buffer "/test/project/file.el" "line1\nline2\nline3"
           ;; Track a change
-          (claude-code-emacs-mcp-events-after-change 7 13 0)
+          (claude-code-mcp-events-after-change 7 13 0)
 
           ;; Trigger batch send
-          (claude-code-emacs-mcp-events-send-buffer-changes)
+          (claude-code-mcp-events-send-buffer-changes)
 
           ;; Should send one notification
           (should (= 1 (length test-mcp-sent-messages)))
@@ -122,20 +122,20 @@
   "Test that multiple changes are batched together."
   (with-mcp-message-capture
     (with-mock-project-root "/test/project"
-      (let ((claude-code-emacs-mcp-project-connections (make-hash-table :test 'equal))
-            (claude-code-emacs-mcp-events-pending-changes nil))
-        (puthash "/test/project" t claude-code-emacs-mcp-project-connections)
+      (let ((claude-code-mcp-project-connections (make-hash-table :test 'equal))
+            (claude-code-mcp-events-pending-changes nil))
+        (puthash "/test/project" t claude-code-mcp-project-connections)
 
         (with-test-buffer "/test/project/file1.el" "content"
           (with-test-buffer "/test/project/file2.el" "content"
             ;; Manually add changes to pending list
             (push (list "/test/project/file1.el" 1 1 10 "/test/project")
-                  claude-code-emacs-mcp-events-pending-changes)
+                  claude-code-mcp-events-pending-changes)
             (push (list "/test/project/file2.el" 5 6 20 "/test/project")
-                  claude-code-emacs-mcp-events-pending-changes)
+                  claude-code-mcp-events-pending-changes)
 
             ;; Trigger batch send
-            (claude-code-emacs-mcp-events-send-buffer-changes)
+            (claude-code-mcp-events-send-buffer-changes)
 
             ;; Should send one notification with both changes
             (should (= 1 (length test-mcp-sent-messages)))
@@ -153,18 +153,18 @@
   "Test that overlapping changes are merged."
   (with-mcp-message-capture
     (with-mock-project-root "/test/project"
-      (let ((claude-code-emacs-mcp-project-connections (make-hash-table :test 'equal))
-            (claude-code-emacs-mcp-events-pending-changes nil))
-        (puthash "/test/project" t claude-code-emacs-mcp-project-connections)
+      (let ((claude-code-mcp-project-connections (make-hash-table :test 'equal))
+            (claude-code-mcp-events-pending-changes nil))
+        (puthash "/test/project" t claude-code-mcp-project-connections)
 
         (with-test-buffer "/test/project/file.el" "line1\nline2\nline3\nline4\nline5\n"
           ;; Simulate after-change calls that update the same change
-          (claude-code-emacs-mcp-events-after-change 7 13 0)  ;; Line 2-3
+          (claude-code-mcp-events-after-change 7 13 0)  ;; Line 2-3
           ;; This should merge with the existing change
-          (claude-code-emacs-mcp-events-after-change 14 20 0) ;; Line 3-4
+          (claude-code-mcp-events-after-change 14 20 0) ;; Line 3-4
 
           ;; Trigger batch send
-          (claude-code-emacs-mcp-events-send-buffer-changes)
+          (claude-code-mcp-events-send-buffer-changes)
 
           ;; Should send one merged change
           (let* ((msg (car test-mcp-sent-messages))
@@ -181,8 +181,8 @@
   "Test diagnostics change event."
   (with-mcp-message-capture
     (with-mock-project-root "/test/project"
-      (let ((claude-code-emacs-mcp-project-connections (make-hash-table :test 'equal)))
-        (puthash "/test/project" t claude-code-emacs-mcp-project-connections)
+      (let ((claude-code-mcp-project-connections (make-hash-table :test 'equal)))
+        (puthash "/test/project" t claude-code-mcp-project-connections)
 
         ;; Mock LSP diagnostics
         (cl-letf (((symbol-function 'fboundp)
@@ -220,7 +220,7 @@
                    (lambda (file) (get-buffer-create file))))
 
           ;; Trigger diagnostics send
-          (claude-code-emacs-mcp-events-send-diagnostics-update)
+          (claude-code-mcp-events-send-diagnostics-update)
 
           ;; Should send one notification
           (should (= 1 (length test-mcp-sent-messages)))
@@ -240,9 +240,9 @@
 (ert-deftest test-mcp-diagnostics-batching ()
   "Test that diagnostics for multiple projects are sent separately."
   (with-mcp-message-capture
-    (let ((claude-code-emacs-mcp-project-connections (make-hash-table :test 'equal)))
-      (puthash "/project1" t claude-code-emacs-mcp-project-connections)
-      (puthash "/project2" t claude-code-emacs-mcp-project-connections)
+    (let ((claude-code-mcp-project-connections (make-hash-table :test 'equal)))
+      (puthash "/project1" t claude-code-mcp-project-connections)
+      (puthash "/project2" t claude-code-mcp-project-connections)
 
       ;; Mock LSP diagnostics for multiple files
       (cl-letf (((symbol-function 'fboundp)
@@ -279,7 +279,7 @@
                          (t nil)))))
 
         ;; Trigger batch send
-        (claude-code-emacs-mcp-events-send-diagnostics-update)
+        (claude-code-mcp-events-send-diagnostics-update)
 
         ;; Should send two notifications (one per project)
         (should (= 2 (length test-mcp-sent-messages)))
@@ -300,22 +300,22 @@
   "Test the complete event system integration."
   (with-mcp-message-capture
     (with-mock-project-root "/test/project"
-      (let ((claude-code-emacs-mcp-project-connections (make-hash-table :test 'equal))
-            (claude-code-emacs-mcp-events-pending-changes nil))
-        (puthash "/test/project" t claude-code-emacs-mcp-project-connections)
+      (let ((claude-code-mcp-project-connections (make-hash-table :test 'equal))
+            (claude-code-mcp-events-pending-changes nil))
+        (puthash "/test/project" t claude-code-mcp-project-connections)
 
         ;; Setup initial state
         (with-test-buffer "/test/project/file.el" "initial content"
           ;; Enable event tracking
-          (claude-code-emacs-mcp-events-enable)
+          (claude-code-mcp-events-enable)
 
           ;; Simulate various events
           ;; 1. Buffer list update
-          (claude-code-emacs-mcp-events-send-buffer-list-update)
+          (claude-code-mcp-events-send-buffer-list-update)
 
           ;; 2. Content change
-          (claude-code-emacs-mcp-events-after-change 1 15 0)
-          (claude-code-emacs-mcp-events-send-buffer-changes)
+          (claude-code-mcp-events-after-change 1 15 0)
+          (claude-code-mcp-events-send-buffer-changes)
 
           ;; 3. Mock diagnostics update
           (cl-letf (((symbol-function 'fboundp)
@@ -324,7 +324,7 @@
                      (lambda ()
                        (let ((diags (make-hash-table :test 'equal)))
                          diags))))
-            (claude-code-emacs-mcp-events-send-diagnostics-update))
+            (claude-code-mcp-events-send-diagnostics-update))
 
           ;; Should have sent multiple notifications
           (should (>= (length test-mcp-sent-messages) 2))
@@ -336,29 +336,29 @@
             (should (member "bufferContentModified" events)))
 
           ;; Disable events
-          (claude-code-emacs-mcp-events-disable)))))))
+          (claude-code-mcp-events-disable)))))))
 
 (ert-deftest test-mcp-event-debouncing ()
   "Test that event debouncing works correctly."
-  (let ((claude-code-emacs-mcp-events-change-delay 0.1)
-        (claude-code-emacs-mcp-events-diagnostics-delay 0.1))
+  (let ((claude-code-mcp-events-change-delay 0.1)
+        (claude-code-mcp-events-diagnostics-delay 0.1))
     (with-mcp-message-capture
       (with-mock-project-root "/test/project"
-        (let ((claude-code-emacs-mcp-project-connections (make-hash-table :test 'equal))
-              (claude-code-emacs-mcp-events-pending-changes nil))
-          (puthash "/test/project" t claude-code-emacs-mcp-project-connections)
+        (let ((claude-code-mcp-project-connections (make-hash-table :test 'equal))
+              (claude-code-mcp-events-pending-changes nil))
+          (puthash "/test/project" t claude-code-mcp-project-connections)
 
           (with-test-buffer "/test/project/file.el" "content"
             ;; Track multiple rapid changes
-            (claude-code-emacs-mcp-events-after-change 1 2 0)
-            (claude-code-emacs-mcp-events-after-change 3 4 0)
-            (claude-code-emacs-mcp-events-after-change 5 6 0)
+            (claude-code-mcp-events-after-change 1 2 0)
+            (claude-code-mcp-events-after-change 3 4 0)
+            (claude-code-mcp-events-after-change 5 6 0)
 
             ;; No messages should be sent immediately
             (should (= 0 (length test-mcp-sent-messages)))
 
             ;; Force send
-            (claude-code-emacs-mcp-events-send-buffer-changes)
+            (claude-code-mcp-events-send-buffer-changes)
 
             ;; Should batch all changes into one message
             (should (= 1 (length test-mcp-sent-messages)))
@@ -368,5 +368,5 @@
               ;; All changes should be in one notification
               (should (>= (length changes) 1)))))))))
 
-(provide 'test-claude-code-emacs-mcp-events)
-;;; test-claude-code-emacs-mcp-events.el ends here
+(provide 'test-claude-code-mcp-events)
+;;; test-claude-code-mcp-events.el ends here

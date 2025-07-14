@@ -1,4 +1,4 @@
-;;; claude-code-emacs-mcp-events.el --- MCP event handlers for Claude Code Emacs -*- lexical-binding: t; -*-
+;;; claude-code-mcp-events.el --- MCP event handlers for Claude Code Emacs -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025
 
@@ -29,8 +29,8 @@
 
 ;;; Code:
 
-(require 'claude-code-emacs-core)
-(require 'claude-code-emacs-mcp-connection)
+(require 'claude-code-core)
+(require 'claude-code-mcp-connection)
 (require 'projectile)
 (require 'lsp-mode nil t)
 (require 'lsp-protocol nil t)
@@ -43,51 +43,51 @@
 (declare-function lsp:diagnostic-severity? "lsp-protocol" (diagnostic))
 (declare-function lsp:diagnostic-message "lsp-protocol" (diagnostic))
 
-(defvar claude-code-emacs-mcp-events-buffer-change-timer nil
+(defvar claude-code-mcp-events-buffer-change-timer nil
   "Timer for debouncing buffer change notifications.")
 
-(defvar claude-code-emacs-mcp-events-buffer-list-timer nil
+(defvar claude-code-mcp-events-buffer-list-timer nil
   "Timer for debouncing buffer list update notifications.")
 
-(defvar claude-code-emacs-mcp-events-diagnostics-timer nil
+(defvar claude-code-mcp-events-diagnostics-timer nil
   "Timer for debouncing diagnostics update notifications.")
 
-(defvar claude-code-emacs-mcp-events-pending-changes nil
+(defvar claude-code-mcp-events-pending-changes nil
   "Alist of pending buffer changes waiting to be sent.")
 
-(defvar claude-code-emacs-mcp-events-enabled t
+(defvar claude-code-mcp-events-enabled t
   "Whether event notifications are enabled.")
 
-(defcustom claude-code-emacs-mcp-events-change-delay 0.5
+(defcustom claude-code-mcp-events-change-delay 0.5
   "Delay in seconds before sending buffer change notifications."
   :type 'number
-  :group 'claude-code-emacs)
+  :group 'claude-code)
 
-(defcustom claude-code-emacs-mcp-events-buffer-list-delay 1.0
+(defcustom claude-code-mcp-events-buffer-list-delay 1.0
   "Delay in seconds before sending buffer list update notifications."
   :type 'number
-  :group 'claude-code-emacs)
+  :group 'claude-code)
 
-(defcustom claude-code-emacs-mcp-events-diagnostics-delay 1.0
+(defcustom claude-code-mcp-events-diagnostics-delay 1.0
   "Delay in seconds before sending diagnostics update notifications."
   :type 'number
-  :group 'claude-code-emacs)
+  :group 'claude-code)
 
 ;;; Buffer List Update Handler
 
-(defun claude-code-emacs-mcp-events-buffer-list-updated ()
+(defun claude-code-mcp-events-buffer-list-updated ()
   "Handle buffer list update events."
-  (when claude-code-emacs-mcp-events-enabled
+  (when claude-code-mcp-events-enabled
     ;; Cancel existing timer
-    (when claude-code-emacs-mcp-events-buffer-list-timer
-      (cancel-timer claude-code-emacs-mcp-events-buffer-list-timer))
+    (when claude-code-mcp-events-buffer-list-timer
+      (cancel-timer claude-code-mcp-events-buffer-list-timer))
 
     ;; Set new timer to debounce rapid changes
-    (setq claude-code-emacs-mcp-events-buffer-list-timer
-          (run-with-timer claude-code-emacs-mcp-events-buffer-list-delay nil
-                          #'claude-code-emacs-mcp-events-send-buffer-list-update))))
+    (setq claude-code-mcp-events-buffer-list-timer
+          (run-with-timer claude-code-mcp-events-buffer-list-delay nil
+                          #'claude-code-mcp-events-send-buffer-list-update))))
 
-(defun claude-code-emacs-mcp-events-send-buffer-list-update ()
+(defun claude-code-mcp-events-send-buffer-list-update ()
   "Send buffer list update notification to all connected MCP servers."
   (condition-case err
       ;; Iterate through all project connections
@@ -109,30 +109,30 @@
 
            ;; Send notification for this project if there are buffers
            (when buffers
-             (claude-code-emacs-mcp-send-event-to-project
+             (claude-code-mcp-send-event-to-project
               project-root
               "bufferListUpdated"
               `((buffers . ,(nreverse buffers)))))))
-       claude-code-emacs-mcp-project-connections)
+       claude-code-mcp-project-connections)
     (error
      (message "Error sending buffer list update: %s" (error-message-string err)))))
 
 ;;; Buffer Content Change Handler
 
-(defun claude-code-emacs-mcp-events-after-change (beg end old-len)
+(defun claude-code-mcp-events-after-change (beg end old-len)
   "Handle buffer content change.
 BEG and END are the beginning and end of the changed region.
 OLD-LEN is the length of the text before the change."
-  (when (and claude-code-emacs-mcp-events-enabled
+  (when (and claude-code-mcp-events-enabled
              (buffer-file-name))
-    (let ((project-root (ignore-errors (claude-code-emacs-normalize-project-root (projectile-project-root)))))
+    (let ((project-root (ignore-errors (claude-code-normalize-project-root (projectile-project-root)))))
       (when (and project-root
                  (string-prefix-p project-root (buffer-file-name)))
         ;; Store change information
         (let* ((file (buffer-file-name))
                (start-line (line-number-at-pos beg))
                (end-line (line-number-at-pos end))
-               (existing (assoc file claude-code-emacs-mcp-events-pending-changes)))
+               (existing (assoc file claude-code-mcp-events-pending-changes)))
 
           (if existing
               ;; Update existing change info with expanded range
@@ -145,25 +145,25 @@ OLD-LEN is the length of the text before the change."
                               project-root)))
             ;; Add new change info with project root
             (push (list file start-line end-line old-len project-root)
-                  claude-code-emacs-mcp-events-pending-changes)))
+                  claude-code-mcp-events-pending-changes)))
 
         ;; Cancel existing timer
-        (when claude-code-emacs-mcp-events-buffer-change-timer
-          (cancel-timer claude-code-emacs-mcp-events-buffer-change-timer))
+        (when claude-code-mcp-events-buffer-change-timer
+          (cancel-timer claude-code-mcp-events-buffer-change-timer))
 
         ;; Set new timer
-        (setq claude-code-emacs-mcp-events-buffer-change-timer
-              (run-with-timer claude-code-emacs-mcp-events-change-delay nil
-                              #'claude-code-emacs-mcp-events-send-buffer-changes))))))
+        (setq claude-code-mcp-events-buffer-change-timer
+              (run-with-timer claude-code-mcp-events-change-delay nil
+                              #'claude-code-mcp-events-send-buffer-changes))))))
 
-(defun claude-code-emacs-mcp-events-send-buffer-changes ()
+(defun claude-code-mcp-events-send-buffer-changes ()
   "Send pending buffer change notifications."
   (condition-case err
-      (when claude-code-emacs-mcp-events-pending-changes
+      (when claude-code-mcp-events-pending-changes
         ;; Group changes by project
         (let ((changes-by-project (make-hash-table :test 'equal)))
           ;; Group pending changes by project root (project root is now stored in the change info)
-          (dolist (change claude-code-emacs-mcp-events-pending-changes)
+          (dolist (change claude-code-mcp-events-pending-changes)
             (let* ((project-root (nth 4 change)))  ;; Project root is now the 5th element
               (when project-root
                 (push change (gethash project-root changes-by-project)))))
@@ -184,31 +184,31 @@ OLD-LEN is the length of the text before the change."
                                   (changeLength . ,old-len))))
                             changes)))
                ;; Send all changes for this project at once
-               (claude-code-emacs-mcp-send-event-to-project
+               (claude-code-mcp-send-event-to-project
                 project-root
                 "bufferContentModified"
                 `((changes . ,formatted-changes)))))
            changes-by-project))
         ;; Clear pending changes
-        (setq claude-code-emacs-mcp-events-pending-changes nil))
+        (setq claude-code-mcp-events-pending-changes nil))
     (error
      (message "Error sending buffer changes: %s" (error-message-string err)))))
 
 ;;; Diagnostics Update Handler
 
-(defun claude-code-emacs-mcp-events-diagnostics-updated ()
+(defun claude-code-mcp-events-diagnostics-updated ()
   "Handle LSP diagnostics update events."
-  (when claude-code-emacs-mcp-events-enabled
+  (when claude-code-mcp-events-enabled
     ;; Cancel existing timer
-    (when claude-code-emacs-mcp-events-diagnostics-timer
-      (cancel-timer claude-code-emacs-mcp-events-diagnostics-timer))
+    (when claude-code-mcp-events-diagnostics-timer
+      (cancel-timer claude-code-mcp-events-diagnostics-timer))
 
     ;; Set new timer
-    (setq claude-code-emacs-mcp-events-diagnostics-timer
-          (run-with-timer claude-code-emacs-mcp-events-diagnostics-delay nil
-                          #'claude-code-emacs-mcp-events-send-diagnostics-update))))
+    (setq claude-code-mcp-events-diagnostics-timer
+          (run-with-timer claude-code-mcp-events-diagnostics-delay nil
+                          #'claude-code-mcp-events-send-diagnostics-update))))
 
-(defun claude-code-emacs-mcp-events-send-diagnostics-update ()
+(defun claude-code-mcp-events-send-diagnostics-update ()
   "Send diagnostics update notification to all relevant MCP servers."
   (condition-case err
       (when (fboundp 'lsp-diagnostics)
@@ -222,7 +222,7 @@ OLD-LEN is the length of the text before the change."
                (let ((project-root (ignore-errors
                                      (with-current-buffer (or (find-buffer-visiting file)
                                                               (find-file-noselect file))
-                                       (claude-code-emacs-normalize-project-root
+                                       (claude-code-normalize-project-root
                                         (projectile-project-root))))))
                  (when project-root
                    (let ((file-diagnostics '()))
@@ -262,7 +262,7 @@ OLD-LEN is the length of the text before the change."
                   project-files)
                  ;; Send all diagnostics for this project at once
                  (when all-diagnostics
-                   (claude-code-emacs-mcp-send-event-to-project
+                   (claude-code-mcp-send-event-to-project
                     project-root
                     "diagnosticsChanged"
                     `((files . ,(nreverse all-diagnostics)))))))
@@ -273,40 +273,40 @@ OLD-LEN is the length of the text before the change."
 ;;; Hook Management
 
 ;;;###autoload
-(defun claude-code-emacs-mcp-events-enable ()
+(defun claude-code-mcp-events-enable ()
   "Enable MCP event notifications."
   (interactive)
-  (setq claude-code-emacs-mcp-events-enabled t)
+  (setq claude-code-mcp-events-enabled t)
   ;; Add hooks
-  (add-hook 'buffer-list-update-hook #'claude-code-emacs-mcp-events-buffer-list-updated)
-  (add-hook 'after-change-functions #'claude-code-emacs-mcp-events-after-change)
+  (add-hook 'buffer-list-update-hook #'claude-code-mcp-events-buffer-list-updated)
+  (add-hook 'after-change-functions #'claude-code-mcp-events-after-change)
   (when (fboundp 'lsp-diagnostics-updated-hook)
-    (add-hook 'lsp-diagnostics-updated-hook #'claude-code-emacs-mcp-events-diagnostics-updated))
+    (add-hook 'lsp-diagnostics-updated-hook #'claude-code-mcp-events-diagnostics-updated))
   (message "Claude Code MCP event notifications enabled"))
 
 ;;;###autoload
-(defun claude-code-emacs-mcp-events-disable ()
+(defun claude-code-mcp-events-disable ()
   "Disable MCP event notifications."
   (interactive)
-  (setq claude-code-emacs-mcp-events-enabled nil)
+  (setq claude-code-mcp-events-enabled nil)
   ;; Remove hooks
-  (remove-hook 'buffer-list-update-hook #'claude-code-emacs-mcp-events-buffer-list-updated)
-  (remove-hook 'after-change-functions #'claude-code-emacs-mcp-events-after-change)
+  (remove-hook 'buffer-list-update-hook #'claude-code-mcp-events-buffer-list-updated)
+  (remove-hook 'after-change-functions #'claude-code-mcp-events-after-change)
   (when (fboundp 'lsp-diagnostics-updated-hook)
-    (remove-hook 'lsp-diagnostics-updated-hook #'claude-code-emacs-mcp-events-diagnostics-updated))
+    (remove-hook 'lsp-diagnostics-updated-hook #'claude-code-mcp-events-diagnostics-updated))
   ;; Cancel any pending timers
-  (when claude-code-emacs-mcp-events-buffer-change-timer
-    (cancel-timer claude-code-emacs-mcp-events-buffer-change-timer))
-  (when claude-code-emacs-mcp-events-buffer-list-timer
-    (cancel-timer claude-code-emacs-mcp-events-buffer-list-timer))
-  (when claude-code-emacs-mcp-events-diagnostics-timer
-    (cancel-timer claude-code-emacs-mcp-events-diagnostics-timer))
+  (when claude-code-mcp-events-buffer-change-timer
+    (cancel-timer claude-code-mcp-events-buffer-change-timer))
+  (when claude-code-mcp-events-buffer-list-timer
+    (cancel-timer claude-code-mcp-events-buffer-list-timer))
+  (when claude-code-mcp-events-diagnostics-timer
+    (cancel-timer claude-code-mcp-events-diagnostics-timer))
   (message "Claude Code MCP event notifications disabled"))
 
 ;;; Initialize
 
 ;; Don't enable by default - let users decide in their config
-;; Users can add (claude-code-emacs-mcp-events-enable) to their init file
+;; Users can add (claude-code-mcp-events-enable) to their init file
 
-(provide 'claude-code-emacs-mcp-events)
-;;; claude-code-emacs-mcp-events.el ends here
+(provide 'claude-code-mcp-events)
+;;; claude-code-mcp-events.el ends here

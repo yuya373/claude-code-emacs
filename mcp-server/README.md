@@ -1,4 +1,4 @@
-# claude-code-emacs-mcp-server
+# claude-code-mcp-server
 
 MCP (Model Context Protocol) server that enables Claude Code to interact with Emacs. This package provides a bridge between Claude Code and your Emacs editor, allowing Claude to read files, navigate code, and use LSP features directly from Emacs.
 
@@ -31,13 +31,13 @@ MCP (Model Context Protocol) server that enables Claude Code to interact with Em
 ## Installation
 
 ```bash
-npm install -g claude-code-emacs-mcp-server
+npm install -g claude-code-mcp-server
 ```
 
 Or install locally:
 
 ```bash
-npm install claude-code-emacs-mcp-server
+npm install claude-code-mcp-server
 ```
 
 ## Setup
@@ -48,7 +48,7 @@ npm install claude-code-emacs-mcp-server
    ```bash
    claude mcp add-json emacs '{
      "type": "stdio",
-     "command": "claude-code-emacs-mcp"
+     "command": "claude-code-mcp"
    }'
    ```
    
@@ -57,12 +57,12 @@ npm install claude-code-emacs-mcp-server
    claude mcp add-json emacs '{
      "type": "stdio",
      "command": "npx",
-     "args": ["claude-code-emacs-mcp-server"]
+     "args": ["claude-code-mcp-server"]
    }'
    ```
 
 2. Install and configure the Emacs package:
-   - Install `claude-code-emacs` from MELPA or GitHub
+   - Install `claude-code` from MELPA or GitHub
    - The package will automatically handle the WebSocket connection
 
 3. Start Claude Code and the MCP server will automatically start when Claude requests MCP tools
@@ -85,7 +85,7 @@ Claude Code <--(stdio/JSON-RPC)--> MCP Server <--(WebSocket:dynamic port)--> Ema
 ## Requirements
 
 - Node.js 16 or higher
-- Emacs 28.1 or higher with `claude-code-emacs` package
+- Emacs 28.1 or higher with `claude-code` package
 - Claude Code CLI
 
 ## Development
@@ -94,8 +94,8 @@ To contribute or modify:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yuya373/claude-code-emacs.git
-cd claude-code-emacs/mcp-server
+git clone https://github.com/yuya373/claude-code.git
+cd claude-code/mcp-server
 
 # Install dependencies
 npm install
@@ -113,8 +113,8 @@ npm run build
 ## Debugging
 
 The MCP server logs to a file for troubleshooting:
-- Log file: `.claude-code-emacs-mcp.log` in project root
-- View logs: `tail -f .claude-code-emacs-mcp.log`
+- Log file: `.claude-code-mcp.log` in project root
+- View logs: `tail -f .claude-code-mcp.log`
 - Logs include:
   - Server startup and connection events
   - Emacs WebSocket connection status
@@ -137,6 +137,6 @@ GPL-3.0-or-later
 
 ## Links
 
-- [GitHub Repository](https://github.com/yuya373/claude-code-emacs)
-- [Emacs Package Documentation](https://github.com/yuya373/claude-code-emacs#readme)
-- [Issue Tracker](https://github.com/yuya373/claude-code-emacs/issues)
+- [GitHub Repository](https://github.com/yuya373/claude-code)
+- [Emacs Package Documentation](https://github.com/yuya373/claude-code#readme)
+- [Issue Tracker](https://github.com/yuya373/claude-code/issues)

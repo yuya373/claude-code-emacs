@@ -1,4 +1,4 @@
-;;; claude-code-emacs-core.el --- Core functionality for Claude Code Emacs -*- lexical-binding: t; -*-
+;;; claude-code-core.el --- Core functionality for Claude Code Emacs -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025
 
@@ -38,23 +38,23 @@
 (declare-function vterm-send-string "vterm" (string &optional paste-p))
 
 ;; Forward declarations for MCP integration
-(declare-function claude-code-emacs-mcp-disconnect "claude-code-emacs-mcp-connection" (project-root))
-(declare-function claude-code-emacs-vterm-mode "claude-code-emacs-ui" ())
+(declare-function claude-code-mcp-disconnect "claude-code-mcp-connection" (project-root))
+(declare-function claude-code-vterm-mode "claude-code-ui" ())
 
 ;;; Customization
 
-(defgroup claude-code-emacs nil
+(defgroup claude-code nil
   "Run Claude Code within Emacs."
   :group 'tools
-  :prefix "claude-code-emacs-")
+  :prefix "claude-code-")
 
 
-(defcustom claude-code-emacs-executable "claude"
+(defcustom claude-code-executable "claude"
   "The executable name or path for Claude Code CLI."
   :type 'string
-  :group 'claude-code-emacs)
+  :group 'claude-code)
 
-(defconst claude-code-emacs-available-options
+(defconst claude-code-available-options
   '(("--verbose" . "Enable detailed logging")
     ("--model sonnet" . "Use Claude Sonnet model")
     ("--model opus" . "Use Claude Opus model")
@@ -65,39 +65,39 @@
 
 ;;; Buffer Management
 
-(defun claude-code-emacs-normalize-project-root (project-root)
+(defun claude-code-normalize-project-root (project-root)
   "Normalize PROJECT-ROOT by removing trailing slash."
   (directory-file-name project-root))
 
-(defun claude-code-emacs-buffer-name ()
+(defun claude-code-buffer-name ()
   "Return the buffer name for Claude Code session in current project."
-  (let ((project-root (claude-code-emacs-normalize-project-root (projectile-project-root))))
+  (let ((project-root (claude-code-normalize-project-root (projectile-project-root))))
     (format "*claude:%s*" project-root)))
 
-(defun claude-code-emacs-get-buffer ()
+(defun claude-code-get-buffer ()
   "Get the Claude Code buffer for the current project, or nil if it doesn't exist."
-  (get-buffer (claude-code-emacs-buffer-name)))
+  (get-buffer (claude-code-buffer-name)))
 
-(defun claude-code-emacs-ensure-buffer ()
+(defun claude-code-ensure-buffer ()
   "Ensure Claude Code buffer exists, error if not."
-  (or (claude-code-emacs-get-buffer)
-      (error "No Claude Code session for this project.  Use 'claude-code-emacs-run' to start one")))
+  (or (claude-code-get-buffer)
+      (error "No Claude Code session for this project.  Use 'claude-code-run' to start one")))
 
-(defun claude-code-emacs-with-vterm-buffer (body-fn)
+(defun claude-code-with-vterm-buffer (body-fn)
   "Execute BODY-FN in the Claude Code vterm buffer."
-  (let ((buf (claude-code-emacs-ensure-buffer)))
+  (let ((buf (claude-code-ensure-buffer)))
     (with-current-buffer buf
       (funcall body-fn))))
 
 ;;; Session Management
 
 ;;;###autoload
-(defun claude-code-emacs-run ()
+(defun claude-code-run ()
   "Start Claude Code session for the current project.
 With prefix argument, select from available options."
   (interactive)
-  (let* ((buffer-name (claude-code-emacs-buffer-name))
-         (project-root (claude-code-emacs-normalize-project-root (projectile-project-root)))
+  (let* ((buffer-name (claude-code-buffer-name))
+         (project-root (claude-code-normalize-project-root (projectile-project-root)))
          (default-directory project-root)
          (buf (get-buffer-create buffer-name))
          (selected-option (when current-prefix-arg
@@ -105,37 +105,37 @@ With prefix argument, select from available options."
                                                       (format "%s - %s"
                                                               (car opt)
                                                               (cdr opt)))
-                                                    claude-code-emacs-available-options))
+                                                    claude-code-available-options))
                                    (selected (completing-read "Select Claude option: " choices nil t)))
                               (when selected
                                 (car (split-string selected " - "))))))
          (extra-input (when (and selected-option
                                  (string-match-p "--resume" selected-option))
                         (read-string "Session ID: ")))
-         (vterm-shell (concat claude-code-emacs-executable
+         (vterm-shell (concat claude-code-executable
                               (when selected-option
                                 (concat " " selected-option))
                               (when extra-input
                                 (concat " " extra-input)))))
     (with-current-buffer buf
-      (unless (eq major-mode 'claude-code-emacs-vterm-mode)
-        (claude-code-emacs-vterm-mode)))
+      (unless (eq major-mode 'claude-code-vterm-mode)
+        (claude-code-vterm-mode)))
     (switch-to-buffer-other-window buffer-name)))
 
 ;;;###autoload
-(defun claude-code-emacs-switch-to-buffer ()
+(defun claude-code-switch-to-buffer ()
   "Switch to the Claude Code buffer for the current project."
   (interactive)
-  (let ((buffer-name (claude-code-emacs-buffer-name)))
+  (let ((buffer-name (claude-code-buffer-name)))
     (if (get-buffer buffer-name)
         (switch-to-buffer-other-window buffer-name)
-      (message "No Claude Code session for this project. Use 'claude-code-emacs-run' to start one."))))
+      (message "No Claude Code session for this project. Use 'claude-code-run' to start one."))))
 
 ;;;###autoload
-(defun claude-code-emacs-close ()
+(defun claude-code-close ()
   "Close the window displaying the Claude Code buffer for the current project."
   (interactive)
-  (let* ((buffer-name (claude-code-emacs-buffer-name))
+  (let* ((buffer-name (claude-code-buffer-name))
          (buffer (get-buffer buffer-name)))
     (if buffer
         (let ((window (get-buffer-window buffer)))
@@ -145,10 +145,10 @@ With prefix argument, select from available options."
       (message "No Claude Code buffer found for this project"))))
 
 ;;;###autoload
-(defun claude-code-emacs-quit ()
+(defun claude-code-quit ()
   "Quit the Claude Code session for the current project and kill the buffer."
   (interactive)
-  (let* ((buffer-name (claude-code-emacs-buffer-name))
+  (let* ((buffer-name (claude-code-buffer-name))
          (buffer (get-buffer buffer-name)))
     (if buffer
         (progn
@@ -175,10 +175,10 @@ With prefix argument, select from available options."
 
 ;;; String Sending Functions
 
-(defun claude-code-emacs-send-string (string &optional paste-p)
+(defun claude-code-send-string (string &optional paste-p)
   "Send STRING to the Claude Code session."
   (interactive "sEnter text: ")
-  (claude-code-emacs-with-vterm-buffer
+  (claude-code-with-vterm-buffer
    (lambda ()
      (vterm-send-string string paste-p)
      ;; NOTE: wait for `accept-process-output' in `vterm-send-string'
@@ -186,13 +186,13 @@ With prefix argument, select from available options."
      (vterm-send-return))))
 
 ;;;###autoload
-(defun claude-code-emacs-send-region ()
+(defun claude-code-send-region ()
   "Send selected region to Claude Code."
   (interactive)
   (if (use-region-p)
       (let ((text (buffer-substring-no-properties (region-beginning) (region-end))))
-        (claude-code-emacs-send-string text))
+        (claude-code-send-string text))
     (user-error "No region selected")))
 
-(provide 'claude-code-emacs-core)
-;;; claude-code-emacs-core.el ends here
+(provide 'claude-code-core)
+;;; claude-code-core.el ends here

@@ -39,7 +39,7 @@ function normalizeProjectRoot(root: string): string {
 
 // Create log file in project root
 const projectRoot = normalizeProjectRoot(process.cwd());
-const logFile = path.join(projectRoot, '.claude-code-emacs-mcp.log');
+const logFile = path.join(projectRoot, '.claude-code-mcp.log');
 const logStream = fs.createWriteStream(logFile, { flags: 'a' });
 
 function log(message: string) {
@@ -55,7 +55,7 @@ log(`Log file: ${logFile}`);
 const bridge = new EmacsBridge(log);
 const server = new McpServer(
   {
-    name: 'claude-code-emacs-mcp',
+    name: 'claude-code-mcp',
     version: '0.1.0',
   },
   {
@@ -330,7 +330,7 @@ function registerResources() {
 // Notify Emacs about the port
 async function notifyEmacsPort(port: number): Promise<void> {
   const projectRoot = normalizeProjectRoot(process.cwd());
-  const elisp = `(claude-code-emacs-mcp-register-port "${projectRoot}" ${port})`;
+  const elisp = `(claude-code-mcp-register-port "${projectRoot}" ${port})`;
 
   // Try emacsclient first
   try {
@@ -343,7 +343,7 @@ async function notifyEmacsPort(port: number): Promise<void> {
 
   // Also write port info to a file as fallback
   try {
-    const portFile = path.join(os.tmpdir(), `claude-code-emacs-mcp-${projectRoot.replace(/[^a-zA-Z0-9]/g, '_')}.port`);
+    const portFile = path.join(os.tmpdir(), `claude-code-mcp-${projectRoot.replace(/[^a-zA-Z0-9]/g, '_')}.port`);
     await fs.promises.writeFile(portFile, JSON.stringify({ port, projectRoot }), 'utf8');
     log(`Wrote port info to ${portFile}`);
   } catch (error) {
@@ -423,7 +423,7 @@ async function cleanup() {
   const projectRoot = normalizeProjectRoot(process.cwd());
 
   try {
-    const elisp = `(claude-code-emacs-mcp-unregister-port "${projectRoot}")`;
+    const elisp = `(claude-code-mcp-unregister-port "${projectRoot}")`;
     await execAsync(`emacsclient --eval '${elisp}'`);
     log(`Unregistered port for project ${projectRoot}`);
   } catch (error) {
@@ -432,7 +432,7 @@ async function cleanup() {
 
   // Clean up port file
   try {
-    const portFile = path.join(os.tmpdir(), `claude-code-emacs-mcp-${projectRoot.replace(/[^a-zA-Z0-9]/g, '_')}.port`);
+    const portFile = path.join(os.tmpdir(), `claude-code-mcp-${projectRoot.replace(/[^a-zA-Z0-9]/g, '_')}.port`);
     await fs.promises.unlink(portFile);
     log(`Removed port file ${portFile}`);
   } catch (error) {

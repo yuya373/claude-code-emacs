@@ -24,13 +24,13 @@ fi
 
 echo "Updating version to $VERSION..."
 
-# Update claude-code-emacs.el
-echo "Updating claude-code-emacs.el..."
+# Update claude-code.el
+echo "Updating claude-code.el..."
 # Use sed -i with OS detection for compatibility
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    sed -i '' "s/^;; Version: .*/;; Version: $VERSION/" "$PROJECT_ROOT/claude-code-emacs.el"
+    sed -i '' "s/^;; Version: .*/;; Version: $VERSION/" "$PROJECT_ROOT/claude-code.el"
 else
-    sed -i "s/^;; Version: .*/;; Version: $VERSION/" "$PROJECT_ROOT/claude-code-emacs.el"
+    sed -i "s/^;; Version: .*/;; Version: $VERSION/" "$PROJECT_ROOT/claude-code.el"
 fi
 
 # Update mcp-server/package.json
@@ -41,7 +41,7 @@ npm version "$VERSION" --no-git-tag-version
 echo "Version updated to $VERSION"
 echo ""
 echo "Files updated:"
-echo "  - claude-code-emacs.el"
+echo "  - claude-code.el"
 echo "  - mcp-server/package.json"
 echo "  - mcp-server/package-lock.json"
 

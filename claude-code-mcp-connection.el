@@ -1,4 +1,4 @@
-;;; claude-code-emacs-mcp-connection.el --- MCP WebSocket connection management -*- lexical-binding: t; -*-
+;;; claude-code-mcp-connection.el --- MCP WebSocket connection management -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025
 
@@ -34,7 +34,7 @@
 (require 'websocket nil t)
 (require 'projectile)
 (require 'json)
-(require 'claude-code-emacs-core)
+(require 'claude-code-core)
 
 ;; Declare websocket functions to avoid eager macro-expansion failures
 (declare-function websocket-open "websocket" (url &rest args))
@@ -43,45 +43,45 @@
 (declare-function websocket-openp "websocket" (websocket))
 
 ;; Forward declarations
-(declare-function claude-code-emacs-mcp-on-message "claude-code-emacs-mcp-protocol" (_websocket frame project-root))
-(declare-function claude-code-emacs-mcp-on-error "claude-code-emacs-mcp-protocol" (_websocket type error &optional _project-root))
-(declare-function claude-code-emacs-mcp-on-close "claude-code-emacs-mcp-protocol" (_websocket project-root))
+(declare-function claude-code-mcp-on-message "claude-code-mcp-protocol" (_websocket frame project-root))
+(declare-function claude-code-mcp-on-error "claude-code-mcp-protocol" (_websocket type error &optional _project-root))
+(declare-function claude-code-mcp-on-close "claude-code-mcp-protocol" (_websocket project-root))
 
 ;;; Customization
 
-(defgroup claude-code-emacs-mcp nil
+(defgroup claude-code-mcp nil
   "MCP server integration for Claude Code Emacs."
-  :group 'claude-code-emacs
-  :prefix "claude-code-emacs-mcp-")
+  :group 'claude-code
+  :prefix "claude-code-mcp-")
 
-(defcustom claude-code-emacs-mcp-host "localhost"
+(defcustom claude-code-mcp-host "localhost"
   "Host for MCP server."
   :type 'string
-  :group 'claude-code-emacs-mcp)
+  :group 'claude-code-mcp)
 
-(defcustom claude-code-emacs-mcp-max-connection-attempts 10
+(defcustom claude-code-mcp-max-connection-attempts 10
   "Maximum number of connection attempts."
   :type 'integer
-  :group 'claude-code-emacs-mcp)
+  :group 'claude-code-mcp)
 
-(defcustom claude-code-emacs-mcp-connection-retry-delay 5
+(defcustom claude-code-mcp-connection-retry-delay 5
   "Delay in seconds between connection attempts."
   :type 'number
-  :group 'claude-code-emacs-mcp)
+  :group 'claude-code-mcp)
 
-(defcustom claude-code-emacs-mcp-ping-interval 30
+(defcustom claude-code-mcp-ping-interval 30
   "Interval in seconds between WebSocket ping messages."
   :type 'integer
-  :group 'claude-code-emacs-mcp)
+  :group 'claude-code-mcp)
 
-(defcustom claude-code-emacs-mcp-ping-timeout 10
+(defcustom claude-code-mcp-ping-timeout 10
   "Timeout in seconds to wait for pong response."
   :type 'integer
-  :group 'claude-code-emacs-mcp)
+  :group 'claude-code-mcp)
 
 ;;; Variables
 
-(defvar claude-code-emacs-mcp-project-connections (make-hash-table :test 'equal)
+(defvar claude-code-mcp-project-connections (make-hash-table :test 'equal)
   "Hash table mapping project roots to connection info.
 Each value is an alist with keys:
   - websocket: The WebSocket connection
@@ -94,10 +94,10 @@ Each value is an alist with keys:
 
 ;;; Connection info management
 
-(defun claude-code-emacs-mcp-initialize-connection-info (project-root)
+(defun claude-code-mcp-initialize-connection-info (project-root)
   "Initialize and return connection info for PROJECT-ROOT.
 Creates a new connection info structure with default values."
-  (let* ((normalized-root (claude-code-emacs-normalize-project-root project-root))
+  (let* ((normalized-root (claude-code-normalize-project-root project-root))
          ;; QUESTION: '((websocket . nil)) みたいな書き方だと setcdr したときに全て変更されるのはなんで？
          (info (list (cons 'websocket nil)
                      (cons 'request-id 0)
@@ -106,93 +106,93 @@ Creates a new connection info structure with default values."
                      (cons 'ping-timer nil)
                      (cons 'ping-timeout-timer nil)
                      (cons 'last-pong-time nil))))
-    (puthash normalized-root info claude-code-emacs-mcp-project-connections)
+    (puthash normalized-root info claude-code-mcp-project-connections)
     info))
 
-(defun claude-code-emacs-mcp-get-connection-info (project-root)
+(defun claude-code-mcp-get-connection-info (project-root)
   "Get connection info for PROJECT-ROOT.
 Returns nil if no connection info exists for the project."
-  (gethash (claude-code-emacs-normalize-project-root project-root)
-           claude-code-emacs-mcp-project-connections))
+  (gethash (claude-code-normalize-project-root project-root)
+           claude-code-mcp-project-connections))
 
 
-(defun claude-code-emacs-mcp-get-websocket (project-root)
+(defun claude-code-mcp-get-websocket (project-root)
   "Get WebSocket for PROJECT-ROOT."
-  (when-let ((info (claude-code-emacs-mcp-get-connection-info project-root)))
+  (when-let ((info (claude-code-mcp-get-connection-info project-root)))
     (cdr (assoc 'websocket info))))
 
-(defun claude-code-emacs-mcp-set-websocket (websocket project-root)
+(defun claude-code-mcp-set-websocket (websocket project-root)
   "Set WEBSOCKET for PROJECT-ROOT."
-  (when-let ((info (claude-code-emacs-mcp-get-connection-info project-root)))
+  (when-let ((info (claude-code-mcp-get-connection-info project-root)))
     (setcdr (assoc 'websocket info) websocket)))
 
 ;;; Port Registration
 
-(defun claude-code-emacs-mcp-register-port (project-root port)
+(defun claude-code-mcp-register-port (project-root port)
   "Register PORT for PROJECT-ROOT."
   ;; Normalize project root by removing trailing slash
-  (let ((normalized-root (claude-code-emacs-normalize-project-root project-root)))
+  (let ((normalized-root (claude-code-normalize-project-root project-root)))
     ;; Initialize connection info for this project
-    (claude-code-emacs-mcp-initialize-connection-info normalized-root)
+    (claude-code-mcp-initialize-connection-info normalized-root)
     (message "MCP server registered on port %d for project %s" port normalized-root)
-    (claude-code-emacs-mcp-try-connect-async normalized-root port)))
+    (claude-code-mcp-try-connect-async normalized-root port)))
 
-(defun claude-code-emacs-mcp-unregister-port (project-root)
+(defun claude-code-mcp-unregister-port (project-root)
   "Unregister the MCP port for PROJECT-ROOT and disconnect.
 This function is called when the MCP server shuts down or when
 the Claude Code session ends.  It normalizes the project root
 and disconnects the WebSocket connection for that project."
-  (let* ((normalized-root (claude-code-emacs-normalize-project-root project-root)))
-    (claude-code-emacs-mcp-disconnect normalized-root)))
+  (let* ((normalized-root (claude-code-normalize-project-root project-root)))
+    (claude-code-mcp-disconnect normalized-root)))
 
 ;;; Connection Management
 
-(defun claude-code-emacs-mcp-try-connect-async (project-root port)
+(defun claude-code-mcp-try-connect-async (project-root port)
   "Try to connect to MCP server asynchronously for PROJECT-ROOT."
-  (let* ((info (claude-code-emacs-mcp-get-connection-info project-root))
+  (let* ((info (claude-code-mcp-get-connection-info project-root))
          (attempts (cdr (assoc 'connection-attempts info))))
-    (if (>= attempts claude-code-emacs-mcp-max-connection-attempts)
+    (if (>= attempts claude-code-mcp-max-connection-attempts)
         (progn
           (message "Failed to connect to MCP server after %d attempts for project %s"
-                   claude-code-emacs-mcp-max-connection-attempts project-root))
+                   claude-code-mcp-max-connection-attempts project-root))
       (setcdr (assoc 'connection-attempts info) (1+ attempts))
       (message "Attempting to connect to MCP server (attempt %d/%d) for project %s..."
                (1+ attempts)
-               claude-code-emacs-mcp-max-connection-attempts
+               claude-code-mcp-max-connection-attempts
                project-root)
-      (claude-code-emacs-mcp-connect
+      (claude-code-mcp-connect
        project-root
        port
        (lambda (connected)
          (unless connected
            ;; Connection failed, retry
-           (run-at-time claude-code-emacs-mcp-connection-retry-delay nil
-                        #'claude-code-emacs-mcp-try-connect-async project-root port)))))))
+           (run-at-time claude-code-mcp-connection-retry-delay nil
+                        #'claude-code-mcp-try-connect-async project-root port)))))))
 
-(defun claude-code-emacs-mcp-connect (project-root port &optional callback)
+(defun claude-code-mcp-connect (project-root port &optional callback)
   "Connect to MCP server WebSocket for PROJECT-ROOT.
 If CALLBACK is provided, call it with connection result."
   (condition-case err
       (progn
         (websocket-open
          (format "ws://%s:%d/?session=%s"
-                 claude-code-emacs-mcp-host
+                 claude-code-mcp-host
                  port
                  (url-hexify-string project-root))
          :on-open (lambda (websocket)
                     (message "MCP WebSocket opened for project %s" project-root)
-                    (when-let ((info (claude-code-emacs-mcp-get-connection-info project-root)))
+                    (when-let ((info (claude-code-mcp-get-connection-info project-root)))
                       (setcdr (assoc 'connection-attempts info) 0))
-                    (claude-code-emacs-mcp-set-websocket websocket project-root)
+                    (claude-code-mcp-set-websocket websocket project-root)
                     ;; Start ping timer
-                    (claude-code-emacs-mcp-start-ping-timer project-root)
+                    (claude-code-mcp-start-ping-timer project-root)
                     (when callback (funcall callback t)))
          :on-message (lambda (websocket frame)
-                       (claude-code-emacs-mcp-on-message websocket frame project-root))
+                       (claude-code-mcp-on-message websocket frame project-root))
          :on-error (lambda (websocket type error)
-                     (claude-code-emacs-mcp-on-error websocket type error project-root))
+                     (claude-code-mcp-on-error websocket type error project-root))
          :on-close (lambda (websocket)
-                     (claude-code-emacs-mcp-on-close websocket project-root)))
+                     (claude-code-mcp-on-close websocket project-root)))
         (message "Initiating MCP WebSocket connection on port %d for project %s" port project-root)
         t)
     (error
@@ -200,102 +200,102 @@ If CALLBACK is provided, call it with connection result."
      (when callback (funcall callback nil))
      nil)))
 
-(defun claude-code-emacs-mcp-disconnect (project-root)
+(defun claude-code-mcp-disconnect (project-root)
   "Disconnect from MCP server for PROJECT-ROOT."
   ;; Stop ping timers
-  (claude-code-emacs-mcp-stop-ping-timer project-root)
-  (claude-code-emacs-mcp-stop-ping-timeout project-root)
+  (claude-code-mcp-stop-ping-timer project-root)
+  (claude-code-mcp-stop-ping-timeout project-root)
   ;; Close websocket
-  (let ((websocket (claude-code-emacs-mcp-get-websocket project-root)))
+  (let ((websocket (claude-code-mcp-get-websocket project-root)))
     (when websocket
       (websocket-close websocket)
-      (claude-code-emacs-mcp-set-websocket nil project-root))
-    (when-let* ((info (claude-code-emacs-mcp-get-connection-info project-root))
+      (claude-code-mcp-set-websocket nil project-root))
+    (when-let* ((info (claude-code-mcp-get-connection-info project-root))
                 (pending-requests (cdr (assoc 'pending-requests info))))
       (clrhash pending-requests))
     (message "Disconnected from MCP server for project %s" project-root)))
 
 ;;; Ping/Pong functionality
 
-(defun claude-code-emacs-mcp-send-ping (project-root)
+(defun claude-code-mcp-send-ping (project-root)
   "Send ping message to MCP server for PROJECT-ROOT."
-  (let ((websocket (claude-code-emacs-mcp-get-websocket project-root)))
+  (let ((websocket (claude-code-mcp-get-websocket project-root)))
     (when (and websocket (websocket-openp websocket))
       (condition-case err
           (progn
             (websocket-send-text websocket "{\"type\":\"ping\"}")
             ;; Set up timeout timer
-            (claude-code-emacs-mcp-start-ping-timeout project-root))
+            (claude-code-mcp-start-ping-timeout project-root))
         (error
          (message "Error sending ping to MCP server: %s" err)
-         (claude-code-emacs-mcp-handle-connection-lost project-root))))))
+         (claude-code-mcp-handle-connection-lost project-root))))))
 
-(defun claude-code-emacs-mcp-start-ping-timer (project-root)
+(defun claude-code-mcp-start-ping-timer (project-root)
   "Start periodic ping timer for PROJECT-ROOT."
-  (claude-code-emacs-mcp-stop-ping-timer project-root)
-  (let* ((info (claude-code-emacs-mcp-get-connection-info project-root))
-         (timer (run-with-timer claude-code-emacs-mcp-ping-interval
-                                claude-code-emacs-mcp-ping-interval
-                                #'claude-code-emacs-mcp-send-ping
+  (claude-code-mcp-stop-ping-timer project-root)
+  (let* ((info (claude-code-mcp-get-connection-info project-root))
+         (timer (run-with-timer claude-code-mcp-ping-interval
+                                claude-code-mcp-ping-interval
+                                #'claude-code-mcp-send-ping
                                 project-root)))
     (setcdr (assoc 'ping-timer info) timer)))
 
-(defun claude-code-emacs-mcp-stop-ping-timer (project-root)
+(defun claude-code-mcp-stop-ping-timer (project-root)
   "Stop ping timer for PROJECT-ROOT."
-  (let* ((info (claude-code-emacs-mcp-get-connection-info project-root))
+  (let* ((info (claude-code-mcp-get-connection-info project-root))
          (timer (cdr (assoc 'ping-timer info))))
     (when (timerp timer)
       (cancel-timer timer))
     (setcdr (assoc 'ping-timer info) nil)))
 
-(defun claude-code-emacs-mcp-start-ping-timeout (project-root)
+(defun claude-code-mcp-start-ping-timeout (project-root)
   "Start ping timeout timer for PROJECT-ROOT."
-  (claude-code-emacs-mcp-stop-ping-timeout project-root)
-  (let* ((info (claude-code-emacs-mcp-get-connection-info project-root))
-         (timer (run-with-timer claude-code-emacs-mcp-ping-timeout
+  (claude-code-mcp-stop-ping-timeout project-root)
+  (let* ((info (claude-code-mcp-get-connection-info project-root))
+         (timer (run-with-timer claude-code-mcp-ping-timeout
                                 nil
-                                #'claude-code-emacs-mcp-handle-ping-timeout
+                                #'claude-code-mcp-handle-ping-timeout
                                 project-root)))
     (setcdr (assoc 'ping-timeout-timer info) timer)))
 
-(defun claude-code-emacs-mcp-stop-ping-timeout (project-root)
+(defun claude-code-mcp-stop-ping-timeout (project-root)
   "Stop ping timeout timer for PROJECT-ROOT."
-  (let* ((info (claude-code-emacs-mcp-get-connection-info project-root))
+  (let* ((info (claude-code-mcp-get-connection-info project-root))
          (timer (cdr (assoc 'ping-timeout-timer info))))
     (when (timerp timer)
       (cancel-timer timer))
     (setcdr (assoc 'ping-timeout-timer info) nil)))
 
-(defun claude-code-emacs-mcp-handle-ping-timeout (project-root)
+(defun claude-code-mcp-handle-ping-timeout (project-root)
   "Handle ping timeout for PROJECT-ROOT."
   (message "MCP WebSocket ping timeout for project %s" project-root)
-  (claude-code-emacs-mcp-handle-connection-lost project-root))
+  (claude-code-mcp-handle-connection-lost project-root))
 
-(defun claude-code-emacs-mcp-handle-pong (project-root)
+(defun claude-code-mcp-handle-pong (project-root)
   "Handle pong response for PROJECT-ROOT."
   ;; Cancel timeout timer
-  (claude-code-emacs-mcp-stop-ping-timeout project-root)
+  (claude-code-mcp-stop-ping-timeout project-root)
   ;; Update last pong time
-  (let ((info (claude-code-emacs-mcp-get-connection-info project-root)))
+  (let ((info (claude-code-mcp-get-connection-info project-root)))
     (setcdr (assoc 'last-pong-time info) (current-time))))
 
-(defun claude-code-emacs-mcp-handle-connection-lost (project-root)
+(defun claude-code-mcp-handle-connection-lost (project-root)
   "Handle lost connection for PROJECT-ROOT."
   (message "MCP WebSocket connection lost for project %s, attempting reconnect..." project-root)
   ;; Stop timers
-  (claude-code-emacs-mcp-stop-ping-timer project-root)
-  (claude-code-emacs-mcp-stop-ping-timeout project-root)
+  (claude-code-mcp-stop-ping-timer project-root)
+  (claude-code-mcp-stop-ping-timeout project-root)
   ;; Close existing connection
-  (claude-code-emacs-mcp-disconnect project-root))
+  (claude-code-mcp-disconnect project-root))
 
 ;;; Event notification functions
 
-(defun claude-code-emacs-mcp-send-event-to-project (project-root event-name params)
+(defun claude-code-mcp-send-event-to-project (project-root event-name params)
   "Send an event notification to a specific project's MCP server.
 PROJECT-ROOT is the root directory of the project.
 EVENT-NAME is the event type (e.g., \"bufferListUpdated\").
 PARAMS is an alist of event parameters."
-  (let ((websocket (claude-code-emacs-mcp-get-websocket project-root)))
+  (let ((websocket (claude-code-mcp-get-websocket project-root)))
     (when (and websocket (websocket-openp websocket))
       (condition-case err
           (let ((message (json-encode
@@ -307,5 +307,5 @@ PARAMS is an alist of event parameters."
          (message "Error sending event %s to MCP server for project %s: %s"
                   event-name project-root err))))))
 
-(provide 'claude-code-emacs-mcp-connection)
-;;; claude-code-emacs-mcp-connection.el ends here
+(provide 'claude-code-mcp-connection)
+;;; claude-code-mcp-connection.el ends here
