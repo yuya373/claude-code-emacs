@@ -292,18 +292,14 @@ Files are located in the .claude/commands directory."
 
 ;;; LSP diagnostics fix functions
 
-;; Only compile this function when lsp-mode is available
-(eval-and-compile
-  (when (require 'lsp-mode nil t)
-    (require 'lsp-protocol nil t)))
-
 ;;;###autoload
 (defun claude-code-emacs-fix-diagnostic ()
   "Select a diagnostic from `lsp-diagnostics' and send a fix prompt to Claude Code."
   (interactive)
-  (unless (and (featurep 'lsp-mode) (bound-and-true-p lsp-mode))
+  (unless (require 'lsp-mode nil t)
+    (user-error "LSP mode is not installed"))
+  (unless (bound-and-true-p lsp-mode)
     (user-error "LSP mode is not active in current buffer"))
-  (require 'lsp-mode)
   (require 'lsp-protocol)
   (let* ((diagnostics (lsp-diagnostics))
          (all-items '()))
