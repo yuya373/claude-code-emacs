@@ -35,6 +35,7 @@
 
 ;; Declare websocket functions to avoid eager macro-expansion failures
 (declare-function websocket-send-text "websocket" (websocket text))
+(declare-function websocket-frame-text "websocket" (frame))
 
 ;; Forward declarations
 (declare-function claude-code-emacs-mcp-get-connection-info "claude-code-emacs-mcp-connection" (project-root))

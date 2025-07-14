@@ -43,7 +43,7 @@ compile: install-deps
 	@echo "Compiling with actual dependencies..."
 	@$(BATCH) -l package \
 		--eval "(package-initialize)" \
-		-f batch-byte-compile $(EL_FILES)
+		-f batch-byte-compile $(ALL_EL_FILES)
 	@echo "Compiling MCP integration..."
 	@$(BATCH) -l package \
 		--eval "(package-initialize)" \
