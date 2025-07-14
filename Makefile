@@ -43,10 +43,6 @@ compile: install-deps
 	@$(BATCH) -l package \
 		--eval "(package-initialize)" \
 		-f batch-byte-compile $(ALL_EL_FILES)
-	@echo "Compiling MCP integration..."
-	@$(BATCH) -l package \
-		--eval "(package-initialize)" \
-		-f batch-byte-compile $(MCP_EL_FILES)
 
 # Compile without optional dependencies (for MELPA testing)
 compile-minimal:

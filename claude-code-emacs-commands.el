@@ -30,13 +30,17 @@
 ;;; Code:
 
 (require 'projectile)
-(require 'vterm)
 
 ;; Forward declarations
 (declare-function claude-code-emacs-send-string "claude-code-emacs-core" (string &optional paste-p))
 (declare-function claude-code-emacs-ensure-buffer "claude-code-emacs-core" ())
 (declare-function claude-code-emacs-with-vterm-buffer "claude-code-emacs-core" (body-fn))
 (declare-function claude-code-emacs-normalize-project-root "claude-code-emacs-core" (root))
+
+;; vterm function declarations (vterm is loaded by core)
+(declare-function vterm-send-escape "vterm" ())
+(declare-function vterm-send-return "vterm" ())
+(declare-function vterm-send-key "vterm" (key &optional shift))
 
 ;; LSP function declarations (optional dependency)
 (declare-function lsp-diagnostics "lsp-mode" (&optional all-workspaces))
