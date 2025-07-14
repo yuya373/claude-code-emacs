@@ -30,8 +30,6 @@
 ;;; Code:
 
 (require 'projectile)
-(require 'lsp-mode nil t)
-(require 'lsp-protocol nil t)
 (require 'vterm)
 
 ;; Forward declarations
@@ -40,7 +38,7 @@
 (declare-function claude-code-emacs-with-vterm-buffer "claude-code-emacs-core" (body-fn))
 (declare-function claude-code-emacs-normalize-project-root "claude-code-emacs-core" (root))
 
-;; LSP function declarations
+;; LSP function declarations (optional dependency)
 (declare-function lsp-diagnostics "lsp-mode" (&optional all-workspaces))
 (declare-function lsp:diagnostic-range "lsp-protocol" (diagnostic))
 (declare-function lsp:range-start "lsp-protocol" (range))
@@ -294,12 +292,19 @@ Files are located in the .claude/commands directory."
 
 ;;; LSP diagnostics fix functions
 
+;; Only compile this function when lsp-mode is available
+(eval-and-compile
+  (when (require 'lsp-mode nil t)
+    (require 'lsp-protocol nil t)))
+
 ;;;###autoload
 (defun claude-code-emacs-fix-diagnostic ()
   "Select a diagnostic from `lsp-diagnostics' and send a fix prompt to Claude Code."
   (interactive)
   (unless (and (featurep 'lsp-mode) (bound-and-true-p lsp-mode))
     (user-error "LSP mode is not active in current buffer"))
+  (require 'lsp-mode)
+  (require 'lsp-protocol)
   (let* ((diagnostics (lsp-diagnostics))
          (all-items '()))
     ;; Collect all diagnostics from all files
