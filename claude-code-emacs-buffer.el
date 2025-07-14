@@ -28,9 +28,12 @@
 ;;; Code:
 
 (require 'vterm)
-(require 'claude-code-emacs-core)
 
+;; Forward declarations to avoid circular dependency
 (defvar claude-code-emacs-executable)   ;; Defined in core
+(defvar vterm-timer-delay)              ;; From vterm
+(declare-function claude-code-emacs-with-vterm-buffer "claude-code-emacs-core" (func))
+(declare-function claude-code-emacs-ensure-buffer "claude-code-emacs-core" ())
 
 ;;; Buffer Operations
 

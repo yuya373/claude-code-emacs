@@ -35,6 +35,7 @@
 
 ;; Forward declarations
 (declare-function claude-code-emacs-prompt-mode "claude-code-emacs-ui" ())
+(declare-function claude-code-emacs-normalize-project-root "claude-code-emacs-core" (project-root))
 
 ;;;###autoload
 (defun claude-code-emacs-open-prompt-file ()
