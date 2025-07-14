@@ -79,6 +79,32 @@
 (declare-function claude-code-insert-current-file-path-to-prompt "claude-code-prompt" ())
 (declare-function claude-code-insert-current-file-path-to-session "claude-code-prompt" ())
 
+;;;;; Vterm terminal customizations
+(defcustom claude-code-vterm-buffer-multiline-output t
+  "Whether to buffer vterm output to prevent flickering on multi-line input.
+
+When non-nil, vterm output that appears to be redrawing multi-line
+input boxes will be buffered briefly and processed in a single
+batch. This prevents the flickering that can occur when Claude redraws
+its input box as it expands to multiple lines.
+
+This only affects the vterm backend."
+  :type 'boolean
+  :group 'claude-code-ui)
+
+(defcustom claude-code-vterm-multiline-delay 0.016
+  "Delay in seconds before processing buffered vterm output.
+
+This controls how long vterm waits to collect output before processing
+it when `claude-code-vterm-buffer-multiline-output' is enabled.
+The delay should be long enough to collect bursts of updates but short
+enough to not be noticeable to the user.
+
+The default value of 0.016 seconds (60FPS) provides a good balance
+between reducing flickering and maintaining responsiveness."
+  :type 'number
+  :group 'claude-code-ui)
+
 ;;; Major modes
 
 (defvar claude-code-vterm-mode-map
@@ -94,11 +120,88 @@
     map)
   "Keymap for `claude-code-vterm-mode'.")
 
+(defvar-local claude-code--vterm-multiline-buffer nil
+  "Buffer for accumulating multi-line vterm output.")
+
+(defvar-local claude-code--vterm-multiline-buffer-timer nil
+  "Timer for processing buffered multi-line vterm output.")
+
+(defun claude-code--vterm-multiline-buffer-filter (orig-fun process input)
+  "Buffer vterm output when it appears to be redrawing multi-line input.
+This prevents flickering when Claude redraws its input box as it expands
+to multiple lines. We detect this by looking for escape sequences that
+indicate cursor positioning and line clearing operations.
+
+ORIG-FUN is the original vterm--filter function.
+PROCESS is the vterm process.
+INPUT is the terminal output string."
+  (if (or (not claude-code-vterm-buffer-multiline-output)
+          (not (equal (claude-code-buffer-name)
+                      (buffer-name (process-buffer process)))))
+      ;; Feature disabled or not a Claude buffer, pass through normally
+      (funcall orig-fun process input)
+    (with-current-buffer (process-buffer process)
+      ;; Check if this looks like multi-line input box redraw
+      ;; Common patterns when redrawing multi-line input:
+      ;; - ESC[K (clear to end of line)
+      ;; - ESC[<n>;<m>H (cursor positioning)
+      ;; - ESC[<n>A/B/C/D (cursor movement)
+      ;; - Multiple of these in sequence
+      (let ((has-clear-line (string-match-p "\033\\[K" input))
+            (has-cursor-pos (string-match-p "\033\\[[0-9]+;[0-9]+H" input))
+            (has-cursor-move (string-match-p "\033\\[[0-9]*[ABCD]" input))
+            (escape-count (cl-count ?\033 input)))
+
+        ;; If we see multiple escape sequences that look like redrawing,
+        ;; or we're already buffering, add to buffer
+        (if (or (and (>= escape-count 3)
+                     (or has-clear-line has-cursor-pos has-cursor-move))
+                claude-code--vterm-multiline-buffer)
+            (progn
+              (setq claude-code--vterm-multiline-buffer (concat claude-code--vterm-multiline-buffer input))
+              ;; Debouncing `vterm--filter'
+              (when claude-code--vterm-multiline-buffer-timer
+                (cancel-timer claude-code--vterm-multiline-buffer-timer))
+              (setq claude-code--vterm-multiline-buffer-timer
+                    (run-at-time claude-code-vterm-multiline-delay nil
+                                 (lambda (buf)
+                                   (when (buffer-live-p buf)
+                                     (with-current-buffer buf
+                                       (when claude-code--vterm-multiline-buffer
+                                         (let ((inhibit-redisplay t)
+                                               (data claude-code--vterm-multiline-buffer))
+                                           ;; Clear buffer first to prevent recursion
+                                           (setq claude-code--vterm-multiline-buffer nil
+                                                 claude-code--vterm-multiline-buffer-timer nil)
+                                           ;; Process all buffered data at once
+                                           (when-let* ((proc (get-buffer-process buf)))
+                                             (when (process-live-p proc)
+                                               (funcall orig-fun proc data))))))))
+                                 (current-buffer))))
+          ;; Not multi-line redraw, process normally
+          (funcall orig-fun process input))))))
+
 (define-derived-mode claude-code-vterm-mode vterm-mode "Claude Code Session"
   "Major mode for Claude Code vterm sessions."
-  (setq-local vterm-max-scrollback 500)
-  (display-line-numbers-mode -1))
+  (setq-local vterm-max-scrollback 500
+              vterm-ignore-blink-cursor t
+              ;; disable any built-in cursor management
+              cursor-in-non-selected-windows nil
+              blink-cursor-mode nil
+              cursor-type nil
+              ;; disable hl-line-mode
+              hl-line-mode nil
+              global-hl-line-mode nil)
+  (hl-line-mode -1)
+  (display-line-numbers-mode -1)
+  (face-remap-add-relative 'nobreak-space '(:underline nil))
 
+  (when-let* ((proc (get-buffer-process (current-buffer)))
+              (orig-fun (process-filter proc)))
+    (set-process-filter
+     proc
+     (lambda (process input)
+       (claude-code--vterm-multiline-buffer-filter orig-fun process input)))))
 
 (defvar claude-code-prompt-mode-map
   (let ((map (make-sparse-keymap)))
