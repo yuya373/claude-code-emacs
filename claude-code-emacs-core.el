@@ -34,7 +34,6 @@
 ;; Forward declarations for MCP integration
 (declare-function claude-code-emacs-mcp-disconnect "claude-code-emacs-mcp-connection" (project-root))
 (declare-function claude-code-emacs-vterm-mode "claude-code-emacs-ui" ())
-(declare-function claude-code-emacs-send-string "claude-code-emacs-buffer" (string))
 
 ;;; Customization
 
@@ -167,6 +166,18 @@ With prefix argument, select from available options."
                                (kill-buffer buffer)))
                            (message "Claude Code session ended for this project")))))
       (message "No Claude Code buffer found for this project"))))
+
+;;; String Sending Functions
+
+(defun claude-code-emacs-send-string (string &optional paste-p)
+  "Send STRING to the Claude Code session."
+  (interactive "sEnter text: ")
+  (claude-code-emacs-with-vterm-buffer
+   (lambda ()
+     (vterm-send-string string paste-p)
+     ;; NOTE: wait for `accept-process-output' in `vterm-send-string'
+     (sit-for (* vterm-timer-delay 3))
+     (vterm-send-return))))
 
 ;;;###autoload
 (defun claude-code-emacs-send-region ()

@@ -66,7 +66,6 @@
 
 ;; Load all modules
 (require 'claude-code-emacs-core)
-(require 'claude-code-emacs-buffer)
 (require 'claude-code-emacs-commands)
 (require 'claude-code-emacs-ui)
 (require 'claude-code-emacs-prompt)

@@ -31,11 +31,11 @@
 
 (require 'projectile)
 (require 'markdown-mode)
-(require 'claude-code-emacs-buffer)
 
 ;; Forward declarations
 (declare-function claude-code-emacs-prompt-mode "claude-code-emacs-ui" ())
 (declare-function claude-code-emacs-normalize-project-root "claude-code-emacs-core" (project-root))
+(declare-function claude-code-emacs-send-string "claude-code-emacs-core" (string &optional paste-p))
 
 ;;;###autoload
 (defun claude-code-emacs-open-prompt-file ()

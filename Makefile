@@ -5,7 +5,6 @@ BATCH = $(EMACS) -batch -Q -L .
 
 # Files
 CORE_FILES = claude-code-emacs-core.el \
-	     claude-code-emacs-buffer.el \
 	     claude-code-emacs-commands.el \
 	     claude-code-emacs-ui.el \
 	     claude-code-emacs-prompt.el

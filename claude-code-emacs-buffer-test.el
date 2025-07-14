@@ -12,7 +12,7 @@
 ;;; Code:
 
 (require 'ert)
-(require 'claude-code-emacs-buffer)
+(require 'claude-code-emacs-core)
 (require 'cl-lib)
 
 ;;; Test utilities
