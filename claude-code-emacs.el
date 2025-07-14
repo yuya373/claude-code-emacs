@@ -64,6 +64,8 @@
 
 ;;; Code:
 
+(require 'vterm)
+
 ;; Load all modules
 (require 'claude-code-emacs-core)
 (require 'claude-code-emacs-commands)

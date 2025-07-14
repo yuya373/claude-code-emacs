@@ -28,8 +28,14 @@
 
 ;;; Code:
 
-(require 'vterm)
 (require 'projectile)
+
+;; vterm variables
+(defvar vterm-timer-delay)
+(defvar vterm-shell)
+
+(declare-function vterm-send-return "vterm" ())
+(declare-function vterm-send-string "vterm" (string &optional paste-p))
 
 ;; Forward declarations for MCP integration
 (declare-function claude-code-emacs-mcp-disconnect "claude-code-emacs-mcp-connection" (project-root))

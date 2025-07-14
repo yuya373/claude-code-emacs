@@ -29,10 +29,11 @@
 
 ;;; Code:
 
-(require 'vterm)
 (require 'transient)
 (require 'projectile)
 (require 'markdown-mode)
+
+(declare-function vterm-mode "vterm" ())
 
 ;; Forward declarations
 (declare-function claude-code-emacs-run "claude-code-emacs-core" ())
