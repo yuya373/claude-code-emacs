@@ -1,6 +1,6 @@
 {
   "name": "claude-code-mcp-server",
-  "version": "0.4.3",
+  "version": "0.5.0",
   "description": "MCP server for Claude Code Emacs integration",
   "main": "dist/index.js",
   "bin": {
