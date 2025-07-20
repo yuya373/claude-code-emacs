@@ -304,7 +304,7 @@ Returns project-wide diagnostics using specified buffer for LSP context."
       (branch . ,(when (vc-responsible-backend project-root)
                    (ignore-errors
                      (vc-working-revision project-root))))
-      (lastModified . ,(format-time-string "%Y-%m-%dT%H:%M:%S%z")))))
+      (lastModified . ,(format-time-string "%FT%T%z")))))
 
 (defun claude-code-mcp-handle-get-project-files (_params)
   "Get list of project files."
