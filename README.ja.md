@@ -1,6 +1,6 @@
 # Claude Code Emacs
 
-[![CI Tests](https://github.com/yuya373/claude-code/actions/workflows/test.yml/badge.svg)](https://github.com/yuya373/claude-code/actions/workflows/test.yml)
+[![CI Tests](https://github.com/yuya373/claude-code-emacs/actions/workflows/test.yml/badge.svg)](https://github.com/yuya373/claude-code-emacs/actions/workflows/test.yml)
 
 [Claude Code](https://docs.anthropic.com/ja/docs/claude-code) AIコーディングセッションをEmacsで直接実行。強力なMCP統合付き。
 

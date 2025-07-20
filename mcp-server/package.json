@@ -24,14 +24,14 @@
     "node": ">=16.0.0"
   },
   "author": "Yuya Minami",
-  "homepage": "https://github.com/yuya373/claude-code#readme",
+  "homepage": "https://github.com/yuya373/claude-code-emacs#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yuya373/claude-code.git",
+    "url": "git+https://github.com/yuya373/claude-code-emacs.git",
     "directory": "mcp-server"
   },
   "bugs": {
-    "url": "https://github.com/yuya373/claude-code/issues"
+    "url": "https://github.com/yuya373/claude-code-emacs/issues"
   },
   "license": "GPL-3.0-or-later",
   "dependencies": {

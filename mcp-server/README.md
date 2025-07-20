@@ -94,8 +94,8 @@ To contribute or modify:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yuya373/claude-code.git
-cd claude-code/mcp-server
+git clone https://github.com/yuya373/claude-code-emacs.git
+cd claude-code-emacs/mcp-server
 
 # Install dependencies
 npm install
@@ -137,6 +137,6 @@ GPL-3.0-or-later
 
 ## Links
 
-- [GitHub Repository](https://github.com/yuya373/claude-code)
-- [Emacs Package Documentation](https://github.com/yuya373/claude-code#readme)
-- [Issue Tracker](https://github.com/yuya373/claude-code/issues)
+- [GitHub Repository](https://github.com/yuya373/claude-code-emacs)
+- [Emacs Package Documentation](https://github.com/yuya373/claude-code-emacs#readme)
+- [Issue Tracker](https://github.com/yuya373/claude-code-emacs/issues)

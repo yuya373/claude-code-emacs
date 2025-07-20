@@ -1,6 +1,6 @@
 # Claude Code Emacs
 
-[![CI Tests](https://github.com/yuya373/claude-code/actions/workflows/test.yml/badge.svg)](https://github.com/yuya373/claude-code/actions/workflows/test.yml)
+[![CI Tests](https://github.com/yuya373/claude-code-emacs/actions/workflows/test.yml/badge.svg)](https://github.com/yuya373/claude-code-emacs/actions/workflows/test.yml)
 
 Run [Claude Code](https://docs.anthropic.com/en/docs/claude-code) AI coding sessions directly in Emacs with powerful MCP integration.
 
