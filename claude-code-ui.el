@@ -87,7 +87,7 @@
 
 When non-nil, vterm output that appears to be redrawing multi-line
 input boxes will be buffered briefly and processed in a single
-batch. This prevents the flickering that can occur when Claude redraws
+batch.  This prevents the flickering that can occur when Claude redraws
 its input box as it expands to multiple lines.
 
 This only affects the vterm backend."
@@ -103,8 +103,14 @@ The delay should be long enough to collect bursts of updates but short
 enough to not be noticeable to the user.
 
 The default value of 0.016 seconds (60FPS) provides a good balance
-between reducing flickering and maintaining responsiveness."
-  :type '(number :min * 0.001)
+between reducing flickering and maintaining responsiveness.
+
+Minimum value is 0.001 seconds to ensure proper operation."
+  :type 'number
+  :set (lambda (symbol value)
+         (if (and (numberp value) (>= value 0.001))
+             (set-default symbol value)
+           (error "Claude-code-vterm-multiline-delay must be at least 0.001 seconds")))
   :group 'claude-code-ui)
 
 ;;; Major modes
@@ -138,7 +144,7 @@ between reducing flickering and maintaining responsiveness."
 (defun claude-code--vterm-multiline-buffer-filter (orig-fun process input)
   "Buffer vterm output when it appears to be redrawing multi-line input.
 This prevents flickering when Claude redraws its input box as it expands
-to multiple lines. We detect this by looking for escape sequences that
+to multiple lines.  We detect this by looking for escape sequences that
 indicate cursor positioning and line clearing operations.
 
 ORIG-FUN is the original vterm--filter function.
