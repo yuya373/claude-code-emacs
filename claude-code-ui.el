@@ -42,6 +42,8 @@
 (declare-function claude-code-quit "claude-code-core" ())
 (declare-function claude-code-send-region "claude-code-core" ())
 (declare-function claude-code-send-string "claude-code-core" (string &optional paste-p))
+(declare-function claude-code-buffer-name "claude-code-core" ())
+(declare-function claude-code-normalize-project-root "claude-code-core" (project-root))
 
 ;; Command forward declarations
 (declare-function claude-code-send-1 "claude-code-commands" ())
@@ -102,7 +104,7 @@ enough to not be noticeable to the user.
 
 The default value of 0.016 seconds (60FPS) provides a good balance
 between reducing flickering and maintaining responsiveness."
-  :type 'number
+  :type '(number :min * 0.001)
   :group 'claude-code-ui)
 
 ;;; Major modes
@@ -125,6 +127,13 @@ between reducing flickering and maintaining responsiveness."
 
 (defvar-local claude-code--vterm-multiline-buffer-timer nil
   "Timer for processing buffered multi-line vterm output.")
+
+(defun claude-code--vterm-cleanup-multiline-timer ()
+  "Clean up multiline buffer timer."
+  (when claude-code--vterm-multiline-buffer-timer
+    (cancel-timer claude-code--vterm-multiline-buffer-timer)
+    (setq claude-code--vterm-multiline-buffer-timer nil))
+  (setq claude-code--vterm-multiline-buffer nil))
 
 (defun claude-code--vterm-multiline-buffer-filter (orig-fun process input)
   "Buffer vterm output when it appears to be redrawing multi-line input.
@@ -176,7 +185,10 @@ INPUT is the terminal output string."
                                            ;; Process all buffered data at once
                                            (when-let* ((proc (get-buffer-process buf)))
                                              (when (process-live-p proc)
-                                               (funcall orig-fun proc data))))))))
+                                               (condition-case err
+                                                   (funcall orig-fun proc data)
+                                                 (error
+                                                  (message "Error in vterm filter: %s" err))))))))))
                                  (current-buffer))))
           ;; Not multi-line redraw, process normally
           (funcall orig-fun process input))))))
@@ -195,6 +207,8 @@ INPUT is the terminal output string."
   (hl-line-mode -1)
   (display-line-numbers-mode -1)
   (face-remap-add-relative 'nobreak-space '(:underline nil))
+  ;; Clean up timer on buffer kill
+  (add-hook 'kill-buffer-hook #'claude-code--vterm-cleanup-multiline-timer nil t)
 
   (when-let* ((proc (get-buffer-process (current-buffer)))
               (orig-fun (process-filter proc)))
