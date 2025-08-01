@@ -67,8 +67,9 @@
 
 (defun claude-code-normalize-project-root (project-root)
   "Normalize PROJECT-ROOT by removing trailing slash."
-  (directory-file-name project-root))
-
+  (if project-root
+      (directory-file-name project-root)
+    (error "Current directory is not part of a project")))
 (defun claude-code-buffer-name ()
   "Return the buffer name for Claude Code session in current project."
   (let ((project-root (claude-code-normalize-project-root (projectile-project-root))))
