@@ -192,18 +192,16 @@
        (with-temp-file (expand-file-name "multi-arg.md" commands-dir)
          (insert "Command with $ARGUMENTS and $ARGUMENTS"))
 
-       ;; Mock user input
+       ;; Mock user input - now only prompts once for single argument
        (cl-letf (((symbol-function 'completing-read)
                   (lambda (&rest _) "project:multi-arg"))
                  ((symbol-function 'read-string)
-                  (let ((counter 0))
-                    (lambda (&rest _)
-                      (setq counter (1+ counter))
-                      (format "arg%d" counter)))))
+                  (lambda (&rest _) "arg1")))
 
          (claude-code-execute-custom-command)
          (should claude-code-send-string-called)
-         (should (equal "/multi-arg arg1 arg2" claude-code-send-string-arg)))))))
+         ;; Now only sends one argument even if template has multiple $ARGUMENTS
+         (should (equal "/multi-arg arg1" claude-code-send-string-arg)))))))
 
 
 ;;; Tests for unified command execution

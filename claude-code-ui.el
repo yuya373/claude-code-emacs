@@ -221,7 +221,13 @@ INPUT is the terminal output string."
     (set-process-filter
      proc
      (lambda (process input)
-       (claude-code--vterm-multiline-buffer-filter orig-fun process input)))))
+       (condition-case err
+           (claude-code--vterm-multiline-buffer-filter orig-fun process input)
+         (error
+          (message "Error in Claude Code vterm filter: %s" err)
+          ;; Pass through the input even if there's an error to avoid breaking the terminal
+          (funcall orig-fun process input)))
+       ))))
 
 (defvar claude-code-prompt-mode-map
   (let ((map (make-sparse-keymap)))

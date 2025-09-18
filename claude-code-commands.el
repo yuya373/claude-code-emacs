@@ -170,16 +170,12 @@
             pos (match-end 0)))
     count))
 
-(defun claude-code-prompt-for-arguments (command-name arg-count)
-  "Prompt user for ARG-COUNT arguments for COMMAND-NAME.
-Returns a list of arguments."
-  (let ((args '()))
-    (dotimes (i arg-count)
-      (let ((prompt (if (= arg-count 1)
-                        (format "Argument for '%s': " command-name)
-                      (format "Argument %d/%d for '%s': " (1+ i) arg-count command-name))))
-        (push (read-string prompt) args)))
-    (nreverse args)))
+(defun claude-code-prompt-for-arguments (command-name)
+  "Prompt user for arguments for COMMAND-NAME.
+Returns a list with a single argument."
+  (let* ((prompt (format "Argument for '%s': " command-name))
+         (arg (read-string prompt)))
+    (list arg)))
 
 ;;; Common command file functions
 
@@ -244,7 +240,7 @@ but sent to Claude Code as plain command names (e.g., /command-name)."
                 (if (> arg-count 0)
                     ;; Command contains $ARGUMENTS, prompt for arguments
                     (let ((args (claude-code-prompt-for-arguments
-                                 (file-name-sans-extension filename) arg-count)))
+                                 (file-name-sans-extension filename))))
                       (if (seq-some #'string-empty-p args)
                           (message "All arguments are required for this command")
                         ;; Send with appropriate prefix

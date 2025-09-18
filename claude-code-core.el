@@ -66,12 +66,15 @@
 ;;; Buffer Management
 
 (defun claude-code-normalize-project-root (project-root)
-  "Normalize PROJECT-ROOT by removing trailing slash."
-  (directory-file-name project-root))
+  "Normalize PROJECT-ROOT by removing trailing slash.
+Return nil if PROJECT-ROOT is nil."
+  (when project-root
+    (directory-file-name project-root)))
 
 (defun claude-code-buffer-name ()
-  "Return the buffer name for Claude Code session in current project."
-  (let ((project-root (claude-code-normalize-project-root (projectile-project-root))))
+  "Return the buffer name for Claude Code session in current project.
+Return nil if not in a project."
+  (when-let ((project-root (claude-code-normalize-project-root (projectile-project-root))))
     (format "*claude:%s*" project-root)))
 
 (defun claude-code-get-buffer ()
