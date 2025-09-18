@@ -150,7 +150,8 @@ indicate cursor positioning and line clearing operations.
 ORIG-FUN is the original vterm--filter function.
 PROCESS is the vterm process.
 INPUT is the terminal output string."
-  (if (or (not claude-code-vterm-buffer-multiline-output)
+  (if (or (not (stringp input))
+          (not claude-code-vterm-buffer-multiline-output)
           (not (equal (claude-code-buffer-name)
                       (buffer-name (process-buffer process)))))
       ;; Feature disabled or not a Claude buffer, pass through normally
@@ -195,7 +196,7 @@ INPUT is the terminal output string."
                                                    (funcall orig-fun proc data)
                                                  (error
                                                   (message "Error in vterm filter: %s" err))))))))))
-                                 (current-buffer))))
+                                 (process-buffer process))))
           ;; Not multi-line redraw, process normally
           (funcall orig-fun process input))))))
 
@@ -226,8 +227,7 @@ INPUT is the terminal output string."
          (error
           (message "Error in Claude Code vterm filter: %s" err)
           ;; Pass through the input even if there's an error to avoid breaking the terminal
-          (funcall orig-fun process input)))
-       ))))
+          (funcall orig-fun process input)))))))
 
 (defvar claude-code-prompt-mode-map
   (let ((map (make-sparse-keymap)))
