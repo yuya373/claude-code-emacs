@@ -363,7 +363,13 @@ The MCP server supports real-time notifications from Emacs:
 - **Timer management**: Ping timers are properly cleaned up on disconnect to prevent resource leaks
 
 ### Recent Changes
-- **Version 0.3.1**: 
+- **Version 0.7.0**:
+  - Added `claude-code-send-ctrl-t` function for toggling TODO display (Ctrl+T)
+  - Changed toggle expand from Ctrl+R to Ctrl+O to match Claude Code updates
+  - Added backward compatibility for ctrl-r (now calls ctrl-o)
+  - Updated keybindings: `C-c C-o` for expand, `C-c C-d` for TODO toggle
+  - Transient menu: `o` for expand, `t` for TODO display
+- **Version 0.3.1**:
   - Changed toggle expand key binding from `R` to `r` in transient menu for better ergonomics
   - Simplified release process by removing automated version updates
 - **Tool removal**: 
