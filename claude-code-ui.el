@@ -53,9 +53,11 @@
 (declare-function claude-code-send-push "claude-code-commands" ())
 (declare-function claude-code-send-escape "claude-code-commands" ())
 (declare-function claude-code-send-return "claude-code-commands" ())
+(declare-function claude-code-send-ctrl-o "claude-code-commands" ())
 (declare-function claude-code-send-ctrl-r "claude-code-commands" ())
 (declare-function claude-code-send-ctrl-e "claude-code-commands" ())
 (declare-function claude-code-send-shift-tab "claude-code-commands" ())
+(declare-function claude-code-send-ctrl-t "claude-code-commands" ())
 (declare-function claude-code-init "claude-code-commands" ())
 (declare-function claude-code-clear "claude-code-commands" ())
 (declare-function claude-code-help "claude-code-commands" ())
@@ -120,8 +122,9 @@ Minimum value is 0.001 seconds to ensure proper operation."
     ;; Standard Emacs key bindings
     (define-key map (kbd "C-c C-q") 'claude-code-close)
     (define-key map (kbd "C-c C-k") 'claude-code-send-escape)
-    (define-key map (kbd "C-c C-r") 'claude-code-send-ctrl-r)
+    (define-key map (kbd "C-c C-o") 'claude-code-send-ctrl-o)
     (define-key map (kbd "C-c C-e") 'claude-code-send-ctrl-e)
+    (define-key map (kbd "C-c C-d") 'claude-code-send-ctrl-t) ; d for "display TODOs"
     (define-key map (kbd "C-c RET") 'claude-code-send-return)
     (define-key map (kbd "C-c TAB") 'claude-code-send-shift-tab)
     (define-key map (kbd "C-c C-t") 'claude-code-transient)
@@ -302,8 +305,9 @@ INPUT is the terminal output string."
     ("3" "Send 3" claude-code-send-3)
     ("k" "Send Escape" claude-code-send-escape)
     ("m" "Send Return" claude-code-send-return)
-    ("r" "Toggle expand (Ctrl+R)" claude-code-send-ctrl-r)
+    ("o" "Toggle expand (Ctrl+O)" claude-code-send-ctrl-o)
     ("e" "Toggle expand more (Ctrl+E)" claude-code-send-ctrl-e)
+    ("t" "Toggle TODO display (Ctrl+T)" claude-code-send-ctrl-t)
     ("a" "Toggle auto accept (Shift+Tab)" claude-code-send-shift-tab)]
    ["Commands"
     ("/" "Slash commands" claude-code-slash-commands-transient)

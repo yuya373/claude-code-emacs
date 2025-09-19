@@ -145,11 +145,19 @@
    (lambda () (vterm-send-key (kbd "C-e")))))
 
 ;;;###autoload
-(defun claude-code-send-ctrl-r ()
-  "Send Ctrl+R to Claude Code buffer to toggle expand."
+(defun claude-code-send-ctrl-o ()
+  "Send Ctrl+O to Claude Code buffer to toggle expand."
   (interactive)
   (claude-code-with-vterm-buffer
-   (lambda () (vterm-send-key (kbd "C-r")))))
+   (lambda () (vterm-send-key (kbd "C-o")))))
+
+;; Keep old function for backward compatibility
+;;;###autoload
+(defun claude-code-send-ctrl-r ()
+  "Send Ctrl+R to Claude Code buffer to toggle expand.
+\nThis function is deprecated. Use `claude-code-send-ctrl-o' instead."
+  (interactive)
+  (claude-code-send-ctrl-o))
 
 ;;;###autoload
 (defun claude-code-send-shift-tab ()
@@ -158,6 +166,13 @@
   (claude-code-with-vterm-buffer
    (lambda ()
      (vterm-send-key "<tab>" t))))
+
+;;;###autoload
+(defun claude-code-send-ctrl-t ()
+  "Send Ctrl+T to Claude Code buffer."
+  (interactive)
+  (claude-code-with-vterm-buffer
+   (lambda () (vterm-send-key (kbd "C-t")))))
 
 ;;; Helper functions for command argument handling
 

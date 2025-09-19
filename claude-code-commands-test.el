@@ -89,9 +89,21 @@
        (claude-code-send-return)
        (should (member 'return keys-sent))
 
+       (claude-code-send-ctrl-o)
+       ;; Test Ctrl+O sending
+       (should (member '(key "\C-o" shift nil) keys-sent))
+
+       ;; Test backward compatibility (ctrl-r calls ctrl-o)
        (claude-code-send-ctrl-r)
-       ;; kbd actually returns "\C-r" (ASCII 22)
-       (should (member '(key "\C-r" shift nil) keys-sent))
+       (should (member '(key "\C-o" shift nil) keys-sent))
+
+       (claude-code-send-ctrl-e)
+       ;; Test Ctrl+E sending
+       (should (member '(key "\C-e" shift nil) keys-sent))
+
+       (claude-code-send-ctrl-t)
+       ;; Test Ctrl+T sending
+       (should (member '(key "\C-t" shift nil) keys-sent))
 
        ;; Test shift-tab sending
        (claude-code-send-shift-tab)
