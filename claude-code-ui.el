@@ -361,7 +361,7 @@ INPUT is the terminal output string."
     ("r" "Insert region and path" claude-code-insert-region-path-to-prompt)
     ("i" "Insert current file path" claude-code-insert-current-file-path-to-prompt)]
    ["To Session Buffer"
-    ("I" "Insert current file path to session" claude-code-insert-current-file-path-to-session)]])
+    ("s" "Insert current file path to session" claude-code-insert-current-file-path-to-session)]])
 
 (transient-define-prefix claude-code-prompt-transient ()
   "Claude Code prompt buffer menu."
