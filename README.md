@@ -61,6 +61,7 @@ Claude Code can directly interact with your Emacs environment:
 | `C-c RET` | Send Return key |
 | `C-c TAB` | Send Shift+Tab (toggle auto-accept) |
 | `C-c C-t` | Open transient menu |
+| `C-c '` | Edit special (compose in buffer) |
 
 #### In Prompt Buffer
 | Key | Action |
@@ -85,6 +86,20 @@ Claude Code can directly interact with your Emacs environment:
 | `/` | Slash commands menu |
 
 ## Common Workflows
+
+### Edit Special - Compose in Buffer
+Instead of typing directly in the vterm, use Edit Special to compose messages in a full Emacs buffer:
+```elisp
+M-x claude-code-edit-special
+;; or press 'C-c '' in vterm mode
+;; or press 'E' in transient menu
+```
+This opens a markdown buffer where you can:
+- Use full Emacs editing capabilities (search, multiple cursors, etc.)
+- Compose multi-line messages comfortably
+- Press `C-c C-c` to send and close, or `C-c C-k` to cancel
+
+Similar to `org-edit-special`, but for Claude Code messages.
 
 ### Project Prompts
 Each project gets a `.claude-code.prompt.md` file at the project root. When you open this file, it automatically positions at the end for quick prompt entry:

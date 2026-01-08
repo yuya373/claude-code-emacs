@@ -83,6 +83,9 @@
 (declare-function claude-code-insert-current-file-path-to-prompt "claude-code-prompt" ())
 (declare-function claude-code-insert-current-file-path-to-session "claude-code-prompt" ())
 
+;; Edit forward declarations
+(declare-function claude-code-edit-special "claude-code-edit" ())
+
 ;;;;; Vterm terminal customizations
 (defcustom claude-code-vterm-buffer-multiline-output t
   "Whether to buffer vterm output to prevent flickering on multi-line input.
@@ -128,6 +131,7 @@ Minimum value is 0.001 seconds to ensure proper operation."
     (define-key map (kbd "C-c RET") 'claude-code-send-return)
     (define-key map (kbd "C-c TAB") 'claude-code-send-shift-tab)
     (define-key map (kbd "C-c C-t") 'claude-code-transient)
+    (define-key map (kbd "C-c '") 'claude-code-edit-special)
     map)
   "Keymap for `claude-code-vterm-mode'.")
 
@@ -294,7 +298,8 @@ INPUT is the terminal output string."
     ("b" "Switch to Claude Code buffer" claude-code-switch-to-buffer)
     ("q" "Close Claude Code window" claude-code-close)
     ("Q" "Quit Claude Code session" claude-code-quit)
-    ("p" "Open Prompt File" claude-code-open-prompt-file)]
+    ("p" "Open Prompt File" claude-code-open-prompt-file)
+    ("E" "Edit Special (compose message)" claude-code-edit-special)]
    ["Actions"
     ("s" "Send menu" claude-code-send-transient)
     ("i" "Insert menu" claude-code-insert-transient)]
