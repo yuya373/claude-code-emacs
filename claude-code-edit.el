@@ -145,9 +145,7 @@ without sending anything."
                       (buffer-list))
        (error "No Claude Code session found.  Use 'claude-code-run' to start one"))))
 
-  (let* ((edit-buffer (claude-code-edit-get-or-create-buffer))
-         (existing-content (with-current-buffer edit-buffer
-                             (buffer-string))))
+  (let ((edit-buffer (claude-code-edit-get-or-create-buffer)))
     ;; Display the buffer
     (claude-code-edit-display-buffer edit-buffer)
 
@@ -157,10 +155,8 @@ without sending anything."
         (markdown-mode))
       (claude-code-edit-mode 1)
 
-      ;; If buffer is empty, add helpful hint
-      (when (string-empty-p (string-trim existing-content))
-        (insert "<!-- Compose your message to Claude Code here -->\n\n")
-        (goto-char (point-max))))))
+      ;; Position cursor at end
+      (goto-char (point-max)))))
 
 ;;;###autoload
 (defun claude-code-edit-finish ()
