@@ -7,7 +7,8 @@ BATCH = $(EMACS) -batch -Q -L .
 CORE_FILES = claude-code-core.el \
 	     claude-code-commands.el \
 	     claude-code-ui.el \
-	     claude-code-prompt.el
+	     claude-code-prompt.el \
+	     claude-code-edit.el
 
 MCP_MODULES = claude-code-mcp-connection.el \
 	      claude-code-mcp-protocol.el \
@@ -18,7 +19,8 @@ TEST_CORE_FILES = claude-code-core-test.el \
 		  claude-code-buffer-test.el \
 		  claude-code-commands-test.el \
 		  claude-code-ui-test.el \
-		  claude-code-prompt-test.el
+		  claude-code-prompt-test.el \
+		  test-claude-code-edit.el
 
 TEST_MCP_FILES = claude-code-mcp-connection-test.el \
 		 claude-code-mcp-protocol-test.el \

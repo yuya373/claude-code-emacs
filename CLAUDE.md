@@ -132,6 +132,17 @@ Each project gets its own Claude Code buffer named `*claude:<project-root>*`. Ke
 - `claude-code-close()` - Closes the window showing Claude Code buffer
 - `claude-code-quit()` - Terminates session and kills buffer
 
+### Edit Special Buffer System
+The edit special feature provides a dedicated buffer for composing messages:
+- `claude-code-edit-special()` - Opens a markdown buffer for composing
+- `claude-code-edit-finish()` - Sends content and closes buffer (C-c C-c)
+- `claude-code-edit-cancel()` - Closes without sending (C-c C-k)
+- Buffer naming: `*claude-code-edit:<project-root>*` per project
+- Keybinding: `C-c '` in vterm mode to open edit buffer
+- Allows full Emacs editing capabilities instead of typing in vterm
+- Content is sent character by character to vterm on finish
+- Similar to `org-edit-special` workflow
+
 ### String Chunking System
 Long strings are split into 50-character chunks to avoid terminal input limitations:
 - `claude-code-chunk-string()` - Core chunking function
@@ -363,6 +374,12 @@ The MCP server supports real-time notifications from Emacs:
 - **Timer management**: Ping timers are properly cleaned up on disconnect to prevent resource leaks
 
 ### Recent Changes
+- **Edit Special feature**:
+  - Added `claude-code-edit-special` for composing messages in a dedicated buffer
+  - New module: `claude-code-edit.el` with markdown editing support
+  - Keybindings: `C-c '` in vterm, `C-c C-c` to send, `C-c C-k` to cancel
+  - Accessible via transient menu (`E` key)
+  - Similar workflow to `org-edit-special`
 - **Version 0.7.0**:
   - Added `claude-code-send-ctrl-t` function for toggling TODO display (Ctrl+T)
   - Changed toggle expand from Ctrl+R to Ctrl+O to match Claude Code updates

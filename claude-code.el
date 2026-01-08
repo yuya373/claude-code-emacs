@@ -6,7 +6,7 @@
 ;; Keywords: tools, convenience
 ;; Version: 0.7.1
 ;; URL: https://github.com/yuya373/claude-code-emacs
-;; Package-Requires: ((emacs "28.1") (projectile "2.5.0") (vterm "0.0.2") (transient "0.4.0") (markdown-mode "2.5"))
+;; Package-Requires: ((emacs "28.1") (projectile "2.5.0") (vterm) (transient "0.4.0") (markdown-mode "2.5"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -71,6 +71,7 @@
 (require 'claude-code-commands)
 (require 'claude-code-ui)
 (require 'claude-code-prompt)
+(require 'claude-code-edit)
 
 ;; MCP integration (only when websocket is available)
 (require 'claude-code-mcp)
