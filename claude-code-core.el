@@ -104,7 +104,7 @@ With prefix argument, select from available options."
   (interactive)
   (let* ((buffer-name (claude-code-buffer-name))
          (project-root (claude-code-normalize-project-root (projectile-project-root)))
-         (default-directory project-root)
+         (default-directory (file-name-as-directory project-root))
          (buf (get-buffer-create buffer-name))
          (selected-option (when current-prefix-arg
                             (let* ((choices (mapcar (lambda (opt)
