@@ -171,58 +171,64 @@ INPUT is the terminal output string."
   ;; Otherwise `claude-code-buffer-name' evaluates `projectile-project-root'
   ;; against the ambient buffer and signals a `user-error' whenever that
   ;; buffer is outside a project, flooding *Messages* (see issue #17).
-  (if (or (not (stringp input))
-          (not claude-code-vterm-buffer-multiline-output)
-          (not (equal (when-let* ((proc-buffer (process-buffer process))
-                                  ((buffer-live-p proc-buffer)))
-                        (with-current-buffer proc-buffer
-                          (ignore-errors (claude-code-buffer-name))))
-                      (buffer-name (process-buffer process)))))
-      ;; Feature disabled or not a Claude buffer, pass through normally
-      (funcall orig-fun process input)
-    (with-current-buffer (process-buffer process)
-      ;; Check if this looks like multi-line input box redraw
-      ;; Common patterns when redrawing multi-line input:
-      ;; - ESC[K (clear to end of line)
-      ;; - ESC[<n>;<m>H (cursor positioning)
-      ;; - ESC[<n>A/B/C/D (cursor movement)
-      ;; - Multiple of these in sequence
-      (let ((has-clear-line (string-match-p "\033\\[K" input))
-            (has-cursor-pos (string-match-p "\033\\[[0-9]+;[0-9]+H" input))
-            (has-cursor-move (string-match-p "\033\\[[0-9]*[ABCD]" input))
-            (escape-count (cl-count ?\033 input)))
+  (let ((claude-buffer-name
+         (when-let* ((proc-buffer (process-buffer process))
+                     ((buffer-live-p proc-buffer)))
+           (with-current-buffer proc-buffer
+             (ignore-errors (claude-code-buffer-name))))))
+    (if (or (not (stringp input))
+            (not claude-code-vterm-buffer-multiline-output)
+            ;; Nil when the process buffer is dead or outside a project;
+            ;; requiring non-nil keeps a dead buffer (whose `buffer-name'
+            ;; is also nil) from matching the `equal' below.
+            (not claude-buffer-name)
+            (not (equal claude-buffer-name
+                        (buffer-name (process-buffer process)))))
+        ;; Feature disabled or not a Claude buffer, pass through normally
+        (funcall orig-fun process input)
+      (with-current-buffer (process-buffer process)
+	;; Check if this looks like multi-line input box redraw
+	;; Common patterns when redrawing multi-line input:
+	;; - ESC[K (clear to end of line)
+	;; - ESC[<n>;<m>H (cursor positioning)
+	;; - ESC[<n>A/B/C/D (cursor movement)
+	;; - Multiple of these in sequence
+	(let ((has-clear-line (string-match-p "\033\\[K" input))
+              (has-cursor-pos (string-match-p "\033\\[[0-9]+;[0-9]+H" input))
+              (has-cursor-move (string-match-p "\033\\[[0-9]*[ABCD]" input))
+              (escape-count (cl-count ?\033 input)))
 
-        ;; If we see multiple escape sequences that look like redrawing,
-        ;; or we're already buffering, add to buffer
-        (if (or (and (>= escape-count 3)
-                     (or has-clear-line has-cursor-pos has-cursor-move))
-                claude-code--vterm-multiline-buffer)
-            (progn
-              (setq claude-code--vterm-multiline-buffer (concat claude-code--vterm-multiline-buffer input))
-              ;; Debouncing `vterm--filter'
-              (when claude-code--vterm-multiline-buffer-timer
-                (cancel-timer claude-code--vterm-multiline-buffer-timer))
-              (setq claude-code--vterm-multiline-buffer-timer
-                    (run-at-time claude-code-vterm-multiline-delay nil
-                                 (lambda (buf)
-                                   (when (buffer-live-p buf)
-                                     (with-current-buffer buf
-                                       (when claude-code--vterm-multiline-buffer
-                                         (let ((inhibit-redisplay t)
-                                               (data claude-code--vterm-multiline-buffer))
-                                           ;; Clear buffer first to prevent recursion
-                                           (setq claude-code--vterm-multiline-buffer nil
-                                                 claude-code--vterm-multiline-buffer-timer nil)
-                                           ;; Process all buffered data at once
-                                           (when-let* ((proc (get-buffer-process buf)))
-                                             (when (process-live-p proc)
-                                               (condition-case err
-                                                   (funcall orig-fun proc data)
-                                                 (error
-                                                  (message "Error in vterm filter: %s" err))))))))))
-                                 (process-buffer process))))
-          ;; Not multi-line redraw, process normally
-          (funcall orig-fun process input))))))
+          ;; If we see multiple escape sequences that look like redrawing,
+          ;; or we're already buffering, add to buffer
+          (if (or (and (>= escape-count 3)
+                       (or has-clear-line has-cursor-pos has-cursor-move))
+                  claude-code--vterm-multiline-buffer)
+              (progn
+		(setq claude-code--vterm-multiline-buffer (concat claude-code--vterm-multiline-buffer input))
+		;; Debouncing `vterm--filter'
+		(when claude-code--vterm-multiline-buffer-timer
+                  (cancel-timer claude-code--vterm-multiline-buffer-timer))
+		(setq claude-code--vterm-multiline-buffer-timer
+                      (run-at-time claude-code-vterm-multiline-delay nil
+                                   (lambda (buf)
+                                     (when (buffer-live-p buf)
+                                       (with-current-buffer buf
+					 (when claude-code--vterm-multiline-buffer
+                                           (let ((inhibit-redisplay t)
+						 (data claude-code--vterm-multiline-buffer))
+                                             ;; Clear buffer first to prevent recursion
+                                             (setq claude-code--vterm-multiline-buffer nil
+                                                   claude-code--vterm-multiline-buffer-timer nil)
+                                             ;; Process all buffered data at once
+                                             (when-let* ((proc (get-buffer-process buf)))
+                                               (when (process-live-p proc)
+						 (condition-case err
+                                                     (funcall orig-fun proc data)
+                                                   (error
+                                                    (message "Error in vterm filter: %s" err))))))))))
+                                   (process-buffer process))))
+            ;; Not multi-line redraw, process normally
+            (funcall orig-fun process input)))))))
 
 (define-derived-mode claude-code-vterm-mode vterm-mode "Claude Code Session"
   "Major mode for Claude Code vterm sessions."
