@@ -83,8 +83,10 @@ See `display-buffer' for the format of this value."
     (dolist (buffer (buffer-list))
       (let ((file-path (buffer-file-name buffer))
             (buffer-name (buffer-name buffer)))
+        ;; Compare against the slash-terminated root so a sibling
+        ;; project like "<root>2/..." does not match.
         (when (and file-path
-                   (string-prefix-p project-root file-path)
+                   (string-prefix-p (file-name-as-directory project-root) file-path)
                    (or include-hidden
                        (not (string-prefix-p " " buffer-name))))
           (push `((path . ,file-path)

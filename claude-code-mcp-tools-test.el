@@ -43,6 +43,29 @@
                   (should (assoc 'modified buffer-info))))))
         (kill-buffer test-buffer)))))
 
+(ert-deftest test-mcp-handle-getOpenBuffers-excludes-sibling-prefix-project ()
+  "Buffers of a sibling project sharing a name prefix are excluded.
+The project root is compared without a trailing slash, so a plain
+`string-prefix-p' would also match \"/test/project2/...\" against the
+root \"/test/project\".  The boundary must be a full directory."
+  (cl-letf (((symbol-function 'projectile-project-root)
+             (lambda () "/test/project/")))
+    (let ((inside-buffer (generate-new-buffer "inside.el"))
+          (sibling-buffer (generate-new-buffer "sibling.el")))
+      (unwind-protect
+          (progn
+            (with-current-buffer inside-buffer
+              (setq buffer-file-name "/test/project/inside.el"))
+            (with-current-buffer sibling-buffer
+              (setq buffer-file-name "/test/project2/sibling.el"))
+            (let* ((result (claude-code-mcp-handle-getOpenBuffers '((includeHidden . nil))))
+                   (paths (mapcar (lambda (b) (cdr (assoc 'path b)))
+                                  (cdr (assoc 'buffers result)))))
+              (should (member "/test/project/inside.el" paths))
+              (should-not (member "/test/project2/sibling.el" paths))))
+        (kill-buffer inside-buffer)
+        (kill-buffer sibling-buffer)))))
+
 (ert-deftest test-mcp-handle-getCurrentSelection ()
   "Test getCurrentSelection handler."
   (with-temp-buffer
