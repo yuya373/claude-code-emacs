@@ -29,6 +29,8 @@ import * as path from 'path';
 import * as os from 'os';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { randomUUID } from 'crypto';
+import { buildRegisterElisp, buildUnregisterElisp, portFileName } from './registration.js';
 
 const execAsync = promisify(exec);
 
@@ -37,6 +39,11 @@ function normalizeProjectRoot(root: string): string {
   return root.replace(/\/$/, '');
 }
 
+// Unique ID for this server process. Multiple Claude Code sessions in
+// the same project each run their own MCP server; Emacs keys its
+// connections by this ID so the sessions never interfere.
+const instanceId = randomUUID();
+
 // Create log file in project root
 const projectRoot = normalizeProjectRoot(process.cwd());
 const logFile = path.join(projectRoot, '.claude-code-mcp.log');
@@ -44,7 +51,7 @@ const logStream = fs.createWriteStream(logFile, { flags: 'a' });
 
 function log(message: string) {
   const timestamp = new Date().toISOString();
-  logStream.write(`[${timestamp}] ${message}\n`);
+  logStream.write(`[${timestamp}] [${instanceId}] ${message}\n`);
 }
 
 log(`Starting MCP server for project: ${projectRoot}...`);
@@ -330,7 +337,7 @@ function registerResources() {
 // Notify Emacs about the port
 async function notifyEmacsPort(port: number): Promise<void> {
   const projectRoot = normalizeProjectRoot(process.cwd());
-  const elisp = `(claude-code-mcp-register-port "${projectRoot}" ${port})`;
+  const elisp = buildRegisterElisp(projectRoot, port, instanceId);
 
   // Try emacsclient first
   try {
@@ -343,8 +350,8 @@ async function notifyEmacsPort(port: number): Promise<void> {
 
   // Also write port info to a file as fallback
   try {
-    const portFile = path.join(os.tmpdir(), `claude-code-mcp-${projectRoot.replace(/[^a-zA-Z0-9]/g, '_')}.port`);
-    await fs.promises.writeFile(portFile, JSON.stringify({ port, projectRoot }), 'utf8');
+    const portFile = path.join(os.tmpdir(), portFileName(projectRoot, instanceId));
+    await fs.promises.writeFile(portFile, JSON.stringify({ port, projectRoot, instanceId }), 'utf8');
     log(`Wrote port info to ${portFile}`);
   } catch (error) {
     log(`Failed to write port file: ${error}`);
@@ -423,16 +430,18 @@ async function cleanup() {
   const projectRoot = normalizeProjectRoot(process.cwd());
 
   try {
-    const elisp = `(claude-code-mcp-unregister-port "${projectRoot}")`;
+    // Unregister only this instance; other agents' connections in the
+    // same project must stay alive.
+    const elisp = buildUnregisterElisp(instanceId);
     await execAsync(`emacsclient --eval '${elisp}'`);
-    log(`Unregistered port for project ${projectRoot}`);
+    log(`Unregistered instance ${instanceId} for project ${projectRoot}`);
   } catch (error) {
     log(`Failed to unregister port: ${error}`);
   }
 
   // Clean up port file
   try {
-    const portFile = path.join(os.tmpdir(), `claude-code-mcp-${projectRoot.replace(/[^a-zA-Z0-9]/g, '_')}.port`);
+    const portFile = path.join(os.tmpdir(), portFileName(projectRoot, instanceId));
     await fs.promises.unlink(portFile);
     log(`Removed port file ${portFile}`);
   } catch (error) {

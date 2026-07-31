@@ -60,8 +60,9 @@ export class EmacsBridge extends EventEmitter {
           try {
             const url = new URL(req.url || '', `http://${req.headers.host}`);
             const clientSessionId = decodeURIComponent(url.searchParams.get('session') || 'default');
+            const clientInstanceId = decodeURIComponent(url.searchParams.get('instance') || 'unknown');
 
-            this.log(`Emacs connected for session: ${clientSessionId}`);
+            this.log(`Emacs connected for session: ${clientSessionId} (instance: ${clientInstanceId})`);
             this.clients.set(clientSessionId, ws);
 
             ws.on('message', (data) => {

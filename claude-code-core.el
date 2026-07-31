@@ -38,7 +38,7 @@
 (declare-function vterm-send-string "vterm" (string &optional paste-p))
 
 ;; Forward declarations for MCP integration
-(declare-function claude-code-mcp-disconnect "claude-code-mcp-connection" (project-root))
+(declare-function claude-code-mcp-disconnect "claude-code-mcp-connection" (instance-id))
 (declare-function claude-code-vterm-mode "claude-code-ui" ())
 
 ;;; Customization

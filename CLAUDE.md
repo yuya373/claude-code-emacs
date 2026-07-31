@@ -199,15 +199,16 @@ The MCP server provides a bridge between Claude Code and Emacs:
 - stdio interface for Claude Code MCP protocol
 - Implements tools: getOpenBuffers, getCurrentSelection, getDiagnostics, getDefinition, findReferences, describeSymbol, diff tools (openDiffFile, openRevisionDiff, openCurrentChanges, openDiffContent), sendNotification
 - Implements resources: buffer content, project info
-- Per-project WebSocket connections for session isolation
-- Real-time event notifications from Emacs to Claude Code
+- Per-server-instance WebSocket connections: each MCP server process generates a unique instance ID, so multiple Claude Code sessions (agents) in the same project hold independent connections
+- Real-time event notifications from Emacs to Claude Code (broadcast to every instance of the project)
 
 ### How MCP Connection Works
 1. Claude Code automatically starts the MCP server when you begin a session (no need to type `/mcp`)
-2. MCP server starts and creates a WebSocket server on a dynamic port
-3. MCP server calls `claude-code-mcp-register-port` via emacsclient
-4. Emacs receives the port and establishes WebSocket connection
+2. MCP server generates a unique instance ID and creates a WebSocket server on a dynamic port
+3. MCP server calls `claude-code-mcp-register-port` (project root, port, instance ID) via emacsclient
+4. Emacs stores the connection keyed by instance ID and establishes the WebSocket connection
 5. Connection is now ready for bidirectional communication
+6. On shutdown the server calls `claude-code-mcp-unregister-port` with its instance ID, so only its own connection is removed — other agents in the same project stay connected
 
 **Important**: Claude Code must be configured with the MCP server (see Setup section) for the features to work.
 

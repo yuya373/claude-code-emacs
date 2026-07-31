@@ -224,7 +224,7 @@ See [docs/MCP-SETUP.md](docs/MCP-SETUP.md) for detailed MCP configuration.
 ## Architecture
 
 - **Modular design** - Separate modules for buffer management, commands, UI, MCP
-- **Per-project WebSocket** - Each project maintains its own MCP connection
+- **Per-session WebSocket** - Each Claude Code session (agent) maintains its own MCP connection, so multiple agents can run in the same project simultaneously
 - **Automatic reconnection** - MCP connection health monitoring with ping/pong
 - **Event batching** - Efficient real-time notifications with debouncing
 

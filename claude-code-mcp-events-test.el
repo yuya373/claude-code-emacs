@@ -25,6 +25,13 @@
                 #'test-mcp-capture-send-event-to-project))
        ,@body)))
 
+(defun test-mcp-add-connection (instance-id project-root)
+  "Register a mock connection for INSTANCE-ID on PROJECT-ROOT."
+  (puthash instance-id
+           (list (cons 'project-root project-root)
+                 (cons 'websocket nil))
+           claude-code-mcp-connections))
+
 (defmacro with-test-buffer (name content &rest body)
   "Create a test buffer with NAME and CONTENT, execute BODY."
   (declare (indent 2))
@@ -50,8 +57,8 @@
   (with-mcp-message-capture
     (with-mock-project-root "/test/project"
       ;; Mock project connections
-      (let ((claude-code-mcp-project-connections (make-hash-table :test 'equal)))
-        (puthash "/test/project" t claude-code-mcp-project-connections)
+      (let ((claude-code-mcp-connections (make-hash-table :test 'equal)))
+        (test-mcp-add-connection "inst-1" "/test/project")
 
         (with-test-buffer "/test/project/file1.el" "content1"
           (with-test-buffer "/test/project/file2.el" "content2"
@@ -74,8 +81,8 @@
   (with-mcp-message-capture
     (with-mock-project-root "/test/project"
       ;; Mock project connections
-      (let ((claude-code-mcp-project-connections (make-hash-table :test 'equal)))
-        (puthash "/test/project" t claude-code-mcp-project-connections)
+      (let ((claude-code-mcp-connections (make-hash-table :test 'equal)))
+        (test-mcp-add-connection "inst-1" "/test/project")
 
         (with-test-buffer "/test/project/file1.el" "content1"
           (with-test-buffer "/other/project/file2.el" "content2"
@@ -95,8 +102,8 @@ The connection key is the root without a trailing slash, so a plain
 root \"/test/project\".  The boundary must be a full directory."
   (with-mcp-message-capture
     (with-mock-project-root "/test/project"
-      (let ((claude-code-mcp-project-connections (make-hash-table :test 'equal)))
-        (puthash "/test/project" t claude-code-mcp-project-connections)
+      (let ((claude-code-mcp-connections (make-hash-table :test 'equal)))
+        (test-mcp-add-connection "inst-1" "/test/project")
 
         (with-test-buffer "/test/project/file1.el" "content1"
           (with-test-buffer "/test/project2/file2.el" "content2"
@@ -113,8 +120,8 @@ root \"/test/project\".  The boundary must be a full directory."
   "Test buffer content change event."
   (with-mcp-message-capture
     (with-mock-project-root "/test/project"
-      (let ((claude-code-mcp-project-connections (make-hash-table :test 'equal)))
-        (puthash "/test/project" t claude-code-mcp-project-connections)
+      (let ((claude-code-mcp-connections (make-hash-table :test 'equal)))
+        (test-mcp-add-connection "inst-1" "/test/project")
 
         (with-test-buffer "/test/project/file.el" "line1\nline2\nline3"
           ;; Track a change
@@ -142,9 +149,9 @@ root \"/test/project\".  The boundary must be a full directory."
   "Test that multiple changes are batched together."
   (with-mcp-message-capture
     (with-mock-project-root "/test/project"
-      (let ((claude-code-mcp-project-connections (make-hash-table :test 'equal))
+      (let ((claude-code-mcp-connections (make-hash-table :test 'equal))
             (claude-code-mcp-events-pending-changes nil))
-        (puthash "/test/project" t claude-code-mcp-project-connections)
+        (test-mcp-add-connection "inst-1" "/test/project")
 
         (with-test-buffer "/test/project/file1.el" "content"
           (with-test-buffer "/test/project/file2.el" "content"
@@ -173,9 +180,9 @@ root \"/test/project\".  The boundary must be a full directory."
   "Test that overlapping changes are merged."
   (with-mcp-message-capture
     (with-mock-project-root "/test/project"
-      (let ((claude-code-mcp-project-connections (make-hash-table :test 'equal))
+      (let ((claude-code-mcp-connections (make-hash-table :test 'equal))
             (claude-code-mcp-events-pending-changes nil))
-        (puthash "/test/project" t claude-code-mcp-project-connections)
+        (test-mcp-add-connection "inst-1" "/test/project")
 
         (with-test-buffer "/test/project/file.el" "line1\nline2\nline3\nline4\nline5\n"
           ;; Simulate after-change calls that update the same change
@@ -201,8 +208,8 @@ root \"/test/project\".  The boundary must be a full directory."
   "Test diagnostics change event."
   (with-mcp-message-capture
     (with-mock-project-root "/test/project"
-      (let ((claude-code-mcp-project-connections (make-hash-table :test 'equal)))
-        (puthash "/test/project" t claude-code-mcp-project-connections)
+      (let ((claude-code-mcp-connections (make-hash-table :test 'equal)))
+        (test-mcp-add-connection "inst-1" "/test/project")
 
         ;; Mock LSP diagnostics.  `lsp-diagnostics' returns a hash table
         ;; of file -> list of diagnostic objects, which is what
@@ -253,9 +260,9 @@ root \"/test/project\".  The boundary must be a full directory."
 (ert-deftest test-mcp-diagnostics-batching ()
   "Test that diagnostics for multiple projects are sent separately."
   (with-mcp-message-capture
-    (let ((claude-code-mcp-project-connections (make-hash-table :test 'equal)))
-      (puthash "/project1" t claude-code-mcp-project-connections)
-      (puthash "/project2" t claude-code-mcp-project-connections)
+    (let ((claude-code-mcp-connections (make-hash-table :test 'equal)))
+      (test-mcp-add-connection "inst-p1" "/project1")
+      (test-mcp-add-connection "inst-p2" "/project2")
 
       ;; Mock LSP diagnostics for multiple files.  `lsp-diagnostics'
       ;; returns a hash table of file -> list of diagnostic objects.
@@ -316,9 +323,9 @@ root \"/test/project\".  The boundary must be a full directory."
   "Test the complete event system integration."
   (with-mcp-message-capture
     (with-mock-project-root "/test/project"
-      (let ((claude-code-mcp-project-connections (make-hash-table :test 'equal))
+      (let ((claude-code-mcp-connections (make-hash-table :test 'equal))
             (claude-code-mcp-events-pending-changes nil))
-        (puthash "/test/project" t claude-code-mcp-project-connections)
+        (test-mcp-add-connection "inst-1" "/test/project")
 
         ;; Setup initial state
         (with-test-buffer "/test/project/file.el" "initial content"
@@ -360,9 +367,9 @@ root \"/test/project\".  The boundary must be a full directory."
         (claude-code-mcp-events-diagnostics-delay 0.1))
     (with-mcp-message-capture
       (with-mock-project-root "/test/project"
-        (let ((claude-code-mcp-project-connections (make-hash-table :test 'equal))
+        (let ((claude-code-mcp-connections (make-hash-table :test 'equal))
               (claude-code-mcp-events-pending-changes nil))
-          (puthash "/test/project" t claude-code-mcp-project-connections)
+          (test-mcp-add-connection "inst-1" "/test/project")
 
           (with-test-buffer "/test/project/file.el" "content"
             ;; Track multiple rapid changes
@@ -383,6 +390,25 @@ root \"/test/project\".  The boundary must be a full directory."
                    (changes (cdr (assoc 'changes (plist-get msg :params)))))
               ;; All changes should be in one notification
               (should (>= (length changes) 1)))))))))
+
+(ert-deftest test-mcp-buffer-list-single-event-per-project ()
+  "Multiple instances of the same project produce one event per project.
+The per-instance fan-out happens inside
+`claude-code-mcp-send-event-to-project', so the events layer must not
+duplicate events when a project has several connected instances."
+  (with-mcp-message-capture
+    (with-mock-project-root "/test/project"
+      (let ((claude-code-mcp-connections (make-hash-table :test 'equal)))
+        (test-mcp-add-connection "inst-1" "/test/project")
+        (test-mcp-add-connection "inst-2" "/test/project")
+
+        (with-test-buffer "/test/project/file1.el" "content1"
+          (claude-code-mcp-events-send-buffer-list-update)
+
+          ;; Exactly one notification for the project, not one per instance
+          (should (= 1 (length test-mcp-sent-messages)))
+          (should (equal (plist-get (car test-mcp-sent-messages) :project)
+                         "/test/project")))))))
 
 (provide 'test-claude-code-mcp-events)
 ;;; test-claude-code-mcp-events.el ends here
