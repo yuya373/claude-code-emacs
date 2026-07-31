@@ -88,6 +88,26 @@
               (let ((file-paths (mapcar (lambda (b) (cdr (assoc 'path b))) buffers)))
                 (should (equal "/test/project/file1.el" (car file-paths)))))))))))
 
+(ert-deftest test-mcp-buffer-list-excludes-sibling-prefix-project ()
+  "Buffers of a sibling project sharing a name prefix are excluded.
+The connection key is the root without a trailing slash, so a plain
+`string-prefix-p' would also match \"/test/project2/...\" against the
+root \"/test/project\".  The boundary must be a full directory."
+  (with-mcp-message-capture
+    (with-mock-project-root "/test/project"
+      (let ((claude-code-mcp-project-connections (make-hash-table :test 'equal)))
+        (puthash "/test/project" t claude-code-mcp-project-connections)
+
+        (with-test-buffer "/test/project/file1.el" "content1"
+          (with-test-buffer "/test/project2/file2.el" "content2"
+            (claude-code-mcp-events-send-buffer-list-update)
+
+            (let* ((msg (car test-mcp-sent-messages))
+                   (file-paths (mapcar (lambda (b) (cdr (assoc 'path b)))
+                                       (cdr (assoc 'buffers (plist-get msg :params))))))
+              (should (member "/test/project/file1.el" file-paths))
+              (should-not (member "/test/project2/file2.el" file-paths)))))))))
+
 ;; Buffer content change tests
 (ert-deftest test-mcp-content-change-event ()
   "Test buffer content change event."

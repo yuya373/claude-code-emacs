@@ -98,8 +98,10 @@
            (dolist (buffer (buffer-list))
              (let ((file-path (buffer-file-name buffer))
                    (buffer-name (buffer-name buffer)))
+               ;; Compare against the slash-terminated root so a sibling
+               ;; project like "<root>2/..." does not match.
                (when (and file-path
-                          (string-prefix-p project-root file-path)
+                          (string-prefix-p (file-name-as-directory project-root) file-path)
                           (not (string-prefix-p " " buffer-name)))
                  (push `((path . ,file-path)
                          (name . ,buffer-name)
@@ -127,7 +129,8 @@ OLD-LEN is the length of the text before the change."
              (buffer-file-name))
     (let ((project-root (ignore-errors (claude-code-normalize-project-root (projectile-project-root)))))
       (when (and project-root
-                 (string-prefix-p project-root (buffer-file-name)))
+                 (string-prefix-p (file-name-as-directory project-root)
+                                  (buffer-file-name)))
         ;; Store change information
         (let* ((file (buffer-file-name))
                (start-line (line-number-at-pos beg))
