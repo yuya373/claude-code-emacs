@@ -65,12 +65,17 @@
            (created-buffer-name nil)
            (vterm-shell-value nil)
            (vterm-mode-called nil)
+           (captured-default-directory nil)
            (test-buffer (generate-new-buffer "*test-buffer*")))
       (unwind-protect
           (cl-letf* (((symbol-function 'get-buffer-create)
                       (lambda (name)
                         (setq buffer-created t)
                         (setq created-buffer-name name)
+                        ;; A real `get-buffer-create' gives the new buffer the
+                        ;; current `default-directory'; capture it here to
+                        ;; verify what the Claude buffer would inherit.
+                        (setq captured-default-directory default-directory)
                         ;; Simulate vterm buffer
                         (with-current-buffer test-buffer
                           (setq-local major-mode 'vterm-mode)
@@ -94,7 +99,12 @@
             (should buffer-created)
             (should buffer-switched)
             (should (string-match-p "\\*claude:" created-buffer-name))
-            (should vterm-mode-called))
+            (should vterm-mode-called)
+            ;; `default-directory' must keep its trailing slash so commands run
+            ;; from the Claude buffer (find-file, compile, ...) resolve paths
+            ;; against the project root correctly.
+            (should captured-default-directory)
+            (should (directory-name-p captured-default-directory)))
         (kill-buffer test-buffer)))))
 
 (ert-deftest test-claude-code-run-with-options ()
