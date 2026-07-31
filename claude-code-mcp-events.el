@@ -131,7 +131,12 @@ OLD-LEN is the length of the text before the change."
         ;; Store change information
         (let* ((file (buffer-file-name))
                (start-line (line-number-at-pos beg))
-               (end-line (line-number-at-pos end))
+               ;; END is the position after the changed text, so when the
+               ;; change ends exactly at a line boundary, END sits on the
+               ;; next (untouched) line.  Report the line of the last
+               ;; changed character instead; `max' keeps pure deletions
+               ;; (BEG = END) on the line of BEG.
+               (end-line (line-number-at-pos (max beg (1- end))))
                (existing (assoc file claude-code-mcp-events-pending-changes)))
 
           (if existing

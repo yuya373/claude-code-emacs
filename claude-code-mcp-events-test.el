@@ -86,7 +86,7 @@
               ;; Should only include buffer from the target project
               (should (= 1 (length buffers)))
               (let ((file-paths (mapcar (lambda (b) (cdr (assoc 'path b))) buffers)))
-                (should (equal "/test/project/file1.el" (car file-paths))))))))))
+                (should (equal "/test/project/file1.el" (car file-paths)))))))))))
 
 ;; Buffer content change tests
 (ert-deftest test-mcp-content-change-event ()
@@ -147,7 +147,7 @@
               ;; Verify both changes are included
               (let ((files (mapcar (lambda (c) (cdr (assoc 'file c))) changes)))
                 (should (member "/test/project/file1.el" files))
-                (should (member "/test/project/file2.el" files)))))))))))
+                (should (member "/test/project/file2.el" files))))))))))
 
 (ert-deftest test-mcp-content-change-merge ()
   "Test that overlapping changes are merged."
@@ -174,7 +174,7 @@
             (let ((change (car changes)))
               ;; Should merge to cover lines 2-4
               (should (= (cdr (assoc 'startLine change)) 2))
-              (should (= (cdr (assoc 'endLine change)) 4)))))))
+              (should (= (cdr (assoc 'endLine change)) 4)))))))))
 
 ;; Diagnostics change tests
 (ert-deftest test-mcp-diagnostics-event ()
@@ -184,36 +184,29 @@
       (let ((claude-code-mcp-project-connections (make-hash-table :test 'equal)))
         (puthash "/test/project" t claude-code-mcp-project-connections)
 
-        ;; Mock LSP diagnostics
-        (cl-letf (((symbol-function 'fboundp)
-                   (lambda (sym)
-                     (or (eq sym 'lsp-diagnostics)
-                         (eq sym 'lsp:diagnostic-message)
-                         (eq sym 'lsp:position-character)
-                         (eq sym 'lsp:range-start)
-                         (eq sym 'lsp:diagnostic-range)
-                         (eq sym 'lsp:diagnostic-severity))))
-                  ((symbol-function 'lsp-diagnostics)
+        ;; Mock LSP diagnostics.  `lsp-diagnostics' returns a hash table
+        ;; of file -> list of diagnostic objects, which is what
+        ;; `claude-code-mcp-events-send-diagnostics-update' consumes.
+        (cl-letf (((symbol-function 'lsp-diagnostics)
                    (lambda ()
                      (let ((diags (make-hash-table :test 'equal)))
                        (puthash "/test/project/file.el"
-                                (let ((line-diags (make-hash-table :test 'equal)))
-                                  (puthash 1 (list (list :message "Test error"
-                                                         :severity 1
-                                                         :range (list :start (list :line 0 :character 0)
-                                                                      :end (list :line 0 :character 5))))
-                                           line-diags)
-                                  line-diags)
+                                (list (list :message "Test error"
+                                            :severity 1
+                                            :range (list :start (list :line 0 :character 0)
+                                                         :end (list :line 0 :character 5))))
                                 diags)
                        diags)))
                   ((symbol-function 'lsp:diagnostic-message)
                    (lambda (diag) (plist-get diag :message)))
-                  ((symbol-function 'lsp:diagnostic-severity)
+                  ((symbol-function 'lsp:diagnostic-severity?)
                    (lambda (diag) (plist-get diag :severity)))
                   ((symbol-function 'lsp:diagnostic-range)
                    (lambda (diag) (plist-get diag :range)))
                   ((symbol-function 'lsp:range-start)
                    (lambda (range) (plist-get range :start)))
+                  ((symbol-function 'lsp:position-line)
+                   (lambda (pos) (plist-get pos :line)))
                   ((symbol-function 'lsp:position-character)
                    (lambda (pos) (plist-get pos :character)))
                   ((symbol-function 'find-buffer-visiting)
@@ -244,29 +237,32 @@
       (puthash "/project1" t claude-code-mcp-project-connections)
       (puthash "/project2" t claude-code-mcp-project-connections)
 
-      ;; Mock LSP diagnostics for multiple files
-      (cl-letf (((symbol-function 'fboundp)
-                 (lambda (sym)
-                   (or (eq sym 'lsp-diagnostics)
-                       (eq sym 'lsp:diagnostic-message))))
-                ((symbol-function 'lsp-diagnostics)
+      ;; Mock LSP diagnostics for multiple files.  `lsp-diagnostics'
+      ;; returns a hash table of file -> list of diagnostic objects.
+      (cl-letf (((symbol-function 'lsp-diagnostics)
                  (lambda ()
                    (let ((diags (make-hash-table :test 'equal)))
                      (puthash "/project1/file.el"
-                              (let ((line-diags (make-hash-table :test 'equal)))
-                                (puthash 1 (list (list :message "Error in project1"))
-                                         line-diags)
-                                line-diags)
+                              (list (list :message "Error in project1"
+                                          :range (list :start (list :line 0 :character 0))))
                               diags)
                      (puthash "/project2/file.el"
-                              (let ((line-diags (make-hash-table :test 'equal)))
-                                (puthash 1 (list (list :message "Error in project2"))
-                                         line-diags)
-                                line-diags)
+                              (list (list :message "Error in project2"
+                                          :range (list :start (list :line 0 :character 0))))
                               diags)
                      diags)))
                 ((symbol-function 'lsp:diagnostic-message)
                  (lambda (diag) (plist-get diag :message)))
+                ((symbol-function 'lsp:diagnostic-severity?)
+                 (lambda (diag) (plist-get diag :severity)))
+                ((symbol-function 'lsp:diagnostic-range)
+                 (lambda (diag) (plist-get diag :range)))
+                ((symbol-function 'lsp:range-start)
+                 (lambda (range) (plist-get range :start)))
+                ((symbol-function 'lsp:position-line)
+                 (lambda (pos) (plist-get pos :line)))
+                ((symbol-function 'lsp:position-character)
+                 (lambda (pos) (plist-get pos :character)))
                 ((symbol-function 'find-buffer-visiting)
                  (lambda (file)
                    (with-current-buffer (get-buffer-create file)
@@ -289,7 +285,7 @@
                                   (plist-get msg :project))
                                 test-mcp-sent-messages)))
           (should (member "/project1" projects))
-          (should (member "/project2" projects))))))
+          (should (member "/project2" projects)))))
     ;; Cleanup test buffers
     (dolist (buf '("/project1/file.el" "/project2/file.el"))
       (when (get-buffer buf)
@@ -336,7 +332,7 @@
             (should (member "bufferContentModified" events)))
 
           ;; Disable events
-          (claude-code-mcp-events-disable)))))))
+          (claude-code-mcp-events-disable))))))
 
 (ert-deftest test-mcp-event-debouncing ()
   "Test that event debouncing works correctly."
