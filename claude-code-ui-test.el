@@ -266,6 +266,27 @@ the name relative to the process buffer instead."
       (kill-buffer proc-buffer)
       (kill-buffer ambient-buffer))))
 
+(ert-deftest test-claude-code--vterm-multiline-buffer-filter-dead-process-buffer ()
+  "Test filter passes input through when the process buffer is dead.
+When the process buffer has been killed, both the resolved Claude buffer
+name and `buffer-name' of the dead buffer are nil, so a naive `equal'
+comparison matches and the filter enters the buffering branch, where
+`with-current-buffer' on the dead buffer signals once per output chunk.
+The filter must instead pass the input through to ORIG-FUN untouched."
+  (let ((orig-fun-called nil)
+        (proc-buffer (get-buffer-create "*claude:/project*"))
+        (test-process 'mock-process))
+    (kill-buffer proc-buffer)
+    (let ((claude-code-vterm-buffer-multiline-output t))
+      (cl-letf (((symbol-function 'process-buffer) (lambda (_) proc-buffer)))
+        (claude-code--vterm-multiline-buffer-filter
+         (lambda (_proc _input)
+           (setq orig-fun-called t))
+         test-process
+         "simple text")
+        ;; The filter must not have signaled and must have passed through.
+        (should orig-fun-called)))))
+
 ;;; Tests for transient menus
 
 (ert-deftest test-claude-code-transient-defined ()
