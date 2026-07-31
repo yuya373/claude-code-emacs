@@ -164,9 +164,19 @@ indicate cursor positioning and line clearing operations.
 ORIG-FUN is the original vterm--filter function.
 PROCESS is the vterm process.
 INPUT is the terminal output string."
+  ;; NOTE: A process filter runs with whatever buffer happened to be
+  ;; current when output arrived, not the process's own buffer.  We must
+  ;; therefore resolve the expected Claude buffer name relative to the
+  ;; process buffer, whose `default-directory' is the project root.
+  ;; Otherwise `claude-code-buffer-name' evaluates `projectile-project-root'
+  ;; against the ambient buffer and signals a `user-error' whenever that
+  ;; buffer is outside a project, flooding *Messages* (see issue #17).
   (if (or (not (stringp input))
           (not claude-code-vterm-buffer-multiline-output)
-          (not (equal (claude-code-buffer-name)
+          (not (equal (when-let* ((proc-buffer (process-buffer process))
+                                  ((buffer-live-p proc-buffer)))
+                        (with-current-buffer proc-buffer
+                          (ignore-errors (claude-code-buffer-name))))
                       (buffer-name (process-buffer process)))))
       ;; Feature disabled or not a Claude buffer, pass through normally
       (funcall orig-fun process input)

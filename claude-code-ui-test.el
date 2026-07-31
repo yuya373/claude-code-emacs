@@ -231,6 +231,41 @@ cursor to be shown there."
           (should (string-match "Error in vterm filter:" error-message))
           (should (string-match "Test error" error-message)))))))
 
+(ert-deftest test-claude-code--vterm-multiline-buffer-filter-ambient-buffer-not-in-project ()
+  "Test filter resolves the buffer name against the process buffer.
+Regression test for issue #17: a process filter runs with whatever buffer
+happened to be current when output arrived.  When that ambient buffer is
+outside a projectile project, resolving `claude-code-buffer-name' against
+it signals a `user-error', flooding *Messages*.  The filter must resolve
+the name relative to the process buffer instead."
+  (let ((orig-fun-called nil)
+        (proc-buffer (get-buffer-create "*claude:/project*"))
+        (ambient-buffer (get-buffer-create "*not-a-project*"))
+        (test-process 'mock-process))
+    (unwind-protect
+        (let ((claude-code-vterm-buffer-multiline-output t))
+          (cl-letf (((symbol-function 'process-buffer) (lambda (_) proc-buffer))
+                    ;; Simulate projectile: only the process buffer's
+                    ;; default-directory resolves to a project; the ambient
+                    ;; buffer signals via `claude-code-normalize-project-root'.
+                    ((symbol-function 'claude-code-buffer-name)
+                     (lambda ()
+                       (if (eq (current-buffer) proc-buffer)
+                           "*claude:/project*"
+                         (user-error "Current directory is not part of a project")))))
+            ;; Run the filter from the ambient (non-project) buffer.
+            (with-current-buffer ambient-buffer
+              (claude-code--vterm-multiline-buffer-filter
+               (lambda (_proc _input)
+                 (setq orig-fun-called t))
+               test-process
+               "simple text"))
+            ;; The filter must not have signaled, and should have passed
+            ;; the input through since this is the Claude process buffer.
+            (should orig-fun-called)))
+      (kill-buffer proc-buffer)
+      (kill-buffer ambient-buffer))))
+
 ;;; Tests for transient menus
 
 (ert-deftest test-claude-code-transient-defined ()
