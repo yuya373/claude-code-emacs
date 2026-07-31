@@ -14,6 +14,13 @@
 (require 'package)
 (package-initialize)
 
+;; `package-initialize' prepends installed package directories to
+;; `load-path', so an elpa-installed claude-code would shadow this
+;; checkout and the suite would silently run against stale code.
+;; Re-prepend the checkout so it always wins.
+(let ((here (file-name-directory load-file-name)))
+  (setq load-path (cons here (delete here load-path))))
+
 ;; Load all modules
 (require 'claude-code)
 
