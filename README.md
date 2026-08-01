@@ -72,20 +72,24 @@ A minor mode for operating the Claude Code agents view.
 Press `C-c C-a` in a Claude Code session to send `Left` (which opens the
 agents view) and enable this mode.
 
-The agents view accepts free text input (e.g. composing a message to
-an agent), so this mode intercepts almost nothing: typing, `RET`, the
-arrows, and the TUI's own control keys (`C-r` rename, `C-s` switch
-view, `C-t` pin, `ESC` quit) all pass through to the terminal as in a
-plain vterm. The mode only adds a mode-line indicator and a few
-helper commands:
+The mode stays deliberately minimal so its keymap is free for user
+extensions. Everything not listed below passes through to the
+terminal: typing reaches the agents view's text input, and the TUI's
+own control keys (`C-r` rename, `C-s` switch view, `C-t` pin, arrows,
+`RET`, `ESC`) work as in a plain vterm.
 
 | Key | Action |
 |-----|--------|
-| `C-c C-r` | Rename agent via minibuffer (sends Ctrl+R, then the name with Return) |
-| `C-c C-x` | Stop agent (asks for confirmation, then sends Ctrl+X — the raw `C-x` prefix cannot reach the terminal) |
-| `M-1` | Open agent via Alt+1 and exit the mode (`M-1` cannot pass through vterm) |
-| `C-c ?` | Show command menu (transient) |
-| `C-c C-a` | Turn the mode off (no key is sent to Claude Code) |
+| `C-n` / `C-p` | Select next / previous agent |
+| `C-c C-a` | Command menu (transient) with every operation |
+
+The transient menu bundles all agents view operations: select
+(`n`/`p`), rename via minibuffer (`r`), pin to top (`t`), stop with
+confirmation (`k`), switch view (`v`), open (`RET`, `1`) and quit
+(`q`). Opening or quitting from the menu also turns the mode off.
+
+Every operation is also available as a plain command, so you can bind
+your own keys in `claude-code-vterm-agent-mode-map`.
 
 #### In Scroll Mode (`claude-code-vterm-scroll-mode`)
 

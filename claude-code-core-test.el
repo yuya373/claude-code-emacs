@@ -69,7 +69,7 @@
            (test-buffer (generate-new-buffer "*test-buffer*")))
       (unwind-protect
           (cl-letf* (((symbol-function 'get-buffer-create)
-                      (lambda (name)
+                      (lambda (name &rest _)
                         (setq buffer-created t)
                         (setq created-buffer-name name)
                         ;; A real `get-buffer-create' gives the new buffer the
@@ -81,7 +81,7 @@
                           (setq-local major-mode 'vterm-mode)
                           (current-buffer))))
                      ((symbol-function 'switch-to-buffer-other-window)
-                      (lambda (name)
+                      (lambda (name &rest _)
                         (setq buffer-switched t)))
                      ((symbol-function 'claude-code-vterm-mode)
                       (lambda ()
@@ -117,14 +117,14 @@
            (test-buffer (generate-new-buffer "*test-buffer*")))
       (unwind-protect
           (cl-letf* (((symbol-function 'get-buffer-create)
-                      (lambda (name)
+                      (lambda (name &rest _)
                         (setq buffer-created t)
                         ;; Simulate vterm buffer
                         (with-current-buffer test-buffer
                           (setq-local major-mode 'vterm-mode)
                           (current-buffer))))
                      ((symbol-function 'switch-to-buffer-other-window)
-                      (lambda (name)
+                      (lambda (name &rest _)
                         (setq buffer-switched t)))
                      ((symbol-function 'claude-code-vterm-mode)
                       (lambda ()
@@ -158,14 +158,14 @@
            (test-buffer (generate-new-buffer "*test-buffer*")))
       (unwind-protect
           (cl-letf* (((symbol-function 'get-buffer-create)
-                      (lambda (name)
+                      (lambda (name &rest _)
                         (setq buffer-created t)
                         ;; Simulate vterm buffer
                         (with-current-buffer test-buffer
                           (setq-local major-mode 'vterm-mode)
                           (current-buffer))))
                      ((symbol-function 'switch-to-buffer-other-window)
-                      (lambda (name) nil))
+                      (lambda (name &rest _) nil))
                      ((symbol-function 'claude-code-vterm-mode)
                       (lambda ()
                         (setq vterm-mode-called t)

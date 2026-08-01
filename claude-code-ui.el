@@ -196,13 +196,13 @@ INPUT is the terminal output string."
         ;; Feature disabled or not a Claude buffer, pass through normally
         (funcall orig-fun process input)
       (with-current-buffer (process-buffer process)
-	;; Check if this looks like multi-line input box redraw
-	;; Common patterns when redrawing multi-line input:
-	;; - ESC[K (clear to end of line)
-	;; - ESC[<n>;<m>H (cursor positioning)
-	;; - ESC[<n>A/B/C/D (cursor movement)
-	;; - Multiple of these in sequence
-	(let ((has-clear-line (string-match-p "\033\\[K" input))
+        ;; Check if this looks like multi-line input box redraw
+        ;; Common patterns when redrawing multi-line input:
+        ;; - ESC[K (clear to end of line)
+        ;; - ESC[<n>;<m>H (cursor positioning)
+        ;; - ESC[<n>A/B/C/D (cursor movement)
+        ;; - Multiple of these in sequence
+        (let ((has-clear-line (string-match-p "\033\\[K" input))
               (has-cursor-pos (string-match-p "\033\\[[0-9]+;[0-9]+H" input))
               (has-cursor-move (string-match-p "\033\\[[0-9]*[ABCD]" input))
               (escape-count (cl-count ?\033 input)))
@@ -213,25 +213,25 @@ INPUT is the terminal output string."
                        (or has-clear-line has-cursor-pos has-cursor-move))
                   claude-code--vterm-multiline-buffer)
               (progn
-		(setq claude-code--vterm-multiline-buffer (concat claude-code--vterm-multiline-buffer input))
-		;; Debouncing `vterm--filter'
-		(when claude-code--vterm-multiline-buffer-timer
+                (setq claude-code--vterm-multiline-buffer (concat claude-code--vterm-multiline-buffer input))
+                ;; Debouncing `vterm--filter'
+                (when claude-code--vterm-multiline-buffer-timer
                   (cancel-timer claude-code--vterm-multiline-buffer-timer))
-		(setq claude-code--vterm-multiline-buffer-timer
+                (setq claude-code--vterm-multiline-buffer-timer
                       (run-at-time claude-code-vterm-multiline-delay nil
                                    (lambda (buf)
                                      (when (buffer-live-p buf)
                                        (with-current-buffer buf
-					 (when claude-code--vterm-multiline-buffer
+                                         (when claude-code--vterm-multiline-buffer
                                            (let ((inhibit-redisplay t)
-						 (data claude-code--vterm-multiline-buffer))
+                                                 (data claude-code--vterm-multiline-buffer))
                                              ;; Clear buffer first to prevent recursion
                                              (setq claude-code--vterm-multiline-buffer nil
                                                    claude-code--vterm-multiline-buffer-timer nil)
                                              ;; Process all buffered data at once
                                              (when-let* ((proc (get-buffer-process buf)))
                                                (when (process-live-p proc)
-						 (condition-case err
+                                                 (condition-case err
                                                      (funcall orig-fun proc data)
                                                    (error
                                                     (message "Error in vterm filter: %s" err))))))))))
@@ -433,20 +433,17 @@ so the lighter is visually prominent.")
 
 (defvar claude-code-vterm-agent-mode-map
   (let ((map (make-sparse-keymap)))
-    ;; The agents view accepts free text input (e.g. composing a message
-    ;; to an agent), so this mode must not intercept self-inserting
-    ;; keys, RET, the arrows, or the TUI's own control keys (C-r, C-s,
-    ;; C-t, ESC) -- vterm already passes them all through.  Mode
-    ;; commands therefore live on the C-c prefix, plus M-1, which vterm
-    ;; cannot pass through (it runs `digit-argument').
-    (define-key map (kbd "C-c C-r") 'claude-code-agent-view-rename)
-    (define-key map (kbd "C-c C-x") 'claude-code-vterm-agent-mode-stop)
-    ;; Toggle the mode back off; keys pass through either way, so no
-    ;; key is sent to the CLI
-    (define-key map (kbd "C-c C-a") 'claude-code-vterm-agent-mode)
-    ;; Help menu (C-c + punctuation is minor mode territory)
-    (define-key map (kbd "C-c ?") 'claude-code-agent-view-transient)
-    (define-key map (kbd "M-1") 'claude-code-vterm-agent-mode-open-alt)
+    ;; Deliberately minimal: agent selection on C-n/C-p plus the
+    ;; transient menu bundling every agents view operation, leaving the
+    ;; map free for user extensions.  Everything else -- typing, RET,
+    ;; arrows, the TUI's own control keys -- passes through to the
+    ;; terminal, where the agents view handles it natively.
+    (define-key map (kbd "C-n") 'claude-code-send-down)
+    (define-key map (kbd "C-p") 'claude-code-send-up)
+    ;; Command menu on the same key that opens the agents view from the
+    ;; session buffer: C-c C-a enters the view, C-c C-a again shows the
+    ;; menu
+    (define-key map (kbd "C-c C-a") 'claude-code-agent-view-transient)
     map)
   "Keymap for `claude-code-vterm-agent-mode'.")
 
@@ -454,12 +451,13 @@ so the lighter is visually prominent.")
 (define-minor-mode claude-code-vterm-agent-mode
   "Minor mode for operating the Claude Code agents view.
 
-The agents view accepts free text input (e.g. composing a message to
-an agent), so this mode intercepts no self-inserting keys: typing,
-RET, the arrows, and the TUI's own control keys (C-r, C-s, C-t, ESC)
-all pass through to the terminal as usual.  The mode only adds a
-mode-line indicator and a few commands on the C-c prefix.  Press
-\\`C-c ?' for a menu of the available commands.
+When enabled in a `claude-code-vterm-mode' buffer, this mode binds
+\\`C-n'/\\`C-p' for agent selection and \\`C-c C-a' for a transient menu
+bundling every agents view operation (rename, pin, stop, switch view,
+open, quit).  Everything else passes through to the terminal: typing
+reaches the agents view's text input, and the TUI's own control keys
+(C-r, C-s, C-t, RET, ESC) work as in a plain vterm.  Opening or
+quitting the agents view from the menu also turns this mode off.
 Use `claude-code-vterm-agent-view' to open the agents view and enable
 this mode in one step.
 
@@ -663,7 +661,7 @@ Sends Escape to Claude Code."
 
 (transient-define-prefix claude-code-agent-view-transient ()
   "Claude Code agents view menu.
-Shown with \\`?' in `claude-code-vterm-agent-mode'."
+Shown with \\`C-c C-a' in `claude-code-vterm-agent-mode'."
   ["Claude Code Agents"
    ["Select"
     ("n" "Next agent" claude-code-send-down :transient t)

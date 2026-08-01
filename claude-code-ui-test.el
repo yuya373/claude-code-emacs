@@ -101,31 +101,20 @@
 ;;; Tests for agent view minor mode
 
 (ert-deftest test-claude-code-vterm-agent-mode-keymap ()
-  "Test that agent view minor mode binds only C-c commands plus M-1.
-The agents view accepts free text input (e.g. composing a message to an
-agent), so every self-inserting key, RET, the arrows, and the TUI's own
-control keys must pass through to the terminal untouched."
+  "Test the default agent view minor mode bindings.
+The map stays deliberately minimal -- selection keys plus the transient
+menu bundling every operation -- and is meant to be extended by users,
+so nothing beyond these defaults is asserted."
   (let ((map claude-code-vterm-agent-mode-map))
-    ;; Mode commands live on the C-c prefix
-    (should (eq (lookup-key map (kbd "C-c C-r"))
-                'claude-code-agent-view-rename))
-    (should (eq (lookup-key map (kbd "C-c C-x"))
-                'claude-code-vterm-agent-mode-stop))
+    ;; Agent selection
+    (should (eq (lookup-key map (kbd "C-n"))
+                'claude-code-send-down))
+    (should (eq (lookup-key map (kbd "C-p"))
+                'claude-code-send-up))
+    ;; C-c C-a shows the command menu: the same key that opens the
+    ;; agents view from the session buffer
     (should (eq (lookup-key map (kbd "C-c C-a"))
-                'claude-code-vterm-agent-mode))
-    ;; C-c ? shows the command menu (C-c + punctuation is the
-    ;; conventional minor mode territory)
-    (should (eq (lookup-key map (kbd "C-c ?"))
-                'claude-code-agent-view-transient))
-    ;; M-1 cannot pass through vterm (it runs digit-argument), so the
-    ;; TUI's Alt+1 open shortcut needs an explicit binding
-    (should (eq (lookup-key map (kbd "M-1"))
-                'claude-code-vterm-agent-mode-open-alt))
-    ;; Everything else must pass through to the terminal
-    (dolist (key '("n" "p" "q" "?" "1" "r" "t" "k" "v"
-                   "RET" "<return>" "<up>" "<down>" "<escape>"
-                   "C-s" "C-r" "C-t"))
-      (should-not (lookup-key map (kbd key))))))
+                'claude-code-agent-view-transient))))
 
 (ert-deftest test-claude-code-agent-view-transient-defined ()
   "Test that the agent view transient menu is defined."
