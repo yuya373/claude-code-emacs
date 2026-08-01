@@ -209,6 +209,7 @@ The MCP server provides a bridge between Claude Code and Emacs:
 4. Emacs stores the connection keyed by instance ID and establishes the WebSocket connection
 5. Connection is now ready for bidirectional communication
 6. On shutdown the server calls `claude-code-mcp-unregister-port` with its instance ID, so only its own connection is removed — other agents in the same project stay connected
+7. If the connection drops without a server shutdown (e.g. Emacs restarts — background sessions and agents hosted by the claude daemon outlive Emacs), the server re-registers via emacsclient with exponential backoff (5s up to 60s, giving up after 120 attempts ≈ 2 hours) until Emacs connects back (see `mcp-server/src/reconnect.ts`). A normal WebSocket closure (code 1000, i.e. Emacs deliberately disconnected) is not retried. A server-side heartbeat (30s ping/pong) detects half-open sockets left by an Emacs that died without closing the connection
 
 **Important**: Claude Code must be configured with the MCP server (see Setup section) for the features to work.
 

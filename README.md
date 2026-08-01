@@ -41,6 +41,7 @@ Claude Code can directly interact with your Emacs environment:
 - **LSP integration** - Get diagnostics, find definitions/references, describe symbols
 - **Diff tools** - Compare files, view git changes, apply patches
 - **Real-time events** - Buffer changes and diagnostics sent to Claude Code automatically
+- **Automatic reconnection** - If Emacs restarts, running sessions (including background agents) re-register themselves and reconnect automatically
 
 ### ⌨️ Key Bindings
 

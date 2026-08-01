@@ -31,6 +31,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { randomUUID } from 'crypto';
 import { buildRegisterElisp, buildUnregisterElisp, portFileName } from './registration.js';
+import { ReconnectManager } from './reconnect.js';
 
 const execAsync = promisify(exec);
 
@@ -334,21 +335,35 @@ function registerResources() {
 }
 
 
-// Notify Emacs about the port
-async function notifyEmacsPort(port: number): Promise<void> {
+// Set during cleanup so late events and in-flight registrations cannot
+// resurrect the connection while the process is shutting down.
+let shuttingDown = false;
+const shutdownController = new AbortController();
+
+// Register this instance with Emacs via emacsclient. Throws on failure
+// so retry callers can observe and log it; aborted on shutdown so an
+// in-flight registration cannot land after cleanup's unregister.
+async function registerWithEmacs(port: number): Promise<void> {
   const projectRoot = normalizeProjectRoot(process.cwd());
   const elisp = buildRegisterElisp(projectRoot, port, instanceId);
+  await execAsync(`emacsclient --eval '${elisp}'`, { signal: shutdownController.signal });
+  log(`Notified Emacs about port ${port} for project ${projectRoot}`);
+}
+
+// Notify Emacs about the port at startup
+async function notifyEmacsPort(port: number): Promise<void> {
+  const projectRoot = normalizeProjectRoot(process.cwd());
 
   // Try emacsclient first
   try {
-    await execAsync(`emacsclient --eval '${elisp}'`);
-    log(`Notified Emacs about port ${port} for project ${projectRoot}`);
+    await registerWithEmacs(port);
   } catch (error) {
     log(`Failed to notify Emacs via emacsclient: ${error}`);
     // Continue even if notification fails - Emacs might not be running in server mode
   }
 
-  // Also write port info to a file as fallback
+  // Also write port info to a file as fallback. Written once here, not
+  // on re-register retries: the content never changes for this process.
   try {
     const portFile = path.join(os.tmpdir(), portFileName(projectRoot, instanceId));
     await fs.promises.writeFile(portFile, JSON.stringify({ port, projectRoot, instanceId }), 'utf8');
@@ -358,6 +373,11 @@ async function notifyEmacsPort(port: number): Promise<void> {
   }
 }
 
+// Retries the Emacs registration after a disconnect (e.g. an Emacs
+// restart, which this server outlives when hosted by the claude
+// daemon). Wired up in main() once the bridge port is known.
+let reconnectManager: ReconnectManager | undefined;
+
 // Start server
 async function main() {
   // Use project root as session ID
@@ -366,8 +386,42 @@ async function main() {
   // Start Emacs bridge with port 0 for automatic assignment
   const port = await bridge.start(0, sessionId);
 
+  reconnectManager = new ReconnectManager({
+    // Only the emacsclient registration is retried; failures propagate
+    // so the manager can log them
+    register: () => registerWithEmacs(port),
+    isConnected: () => bridge.isConnected(),
+    log
+  });
+  bridge.on('connect', () => {
+    reconnectManager?.stop();
+  });
+  bridge.on('disconnect', (_clientSessionId: string, code?: number) => {
+    // bridge.stop() during cleanup fires close events too; those must
+    // not re-arm the retries the shutdown just cancelled
+    if (shuttingDown) {
+      return;
+    }
+    // A normal closure (code 1000) is Emacs deliberately closing this
+    // connection (e.g. a manual disconnect); forcing it back open would
+    // override the user's intent
+    if (code === 1000) {
+      log('Emacs closed the connection normally; not re-registering');
+      return;
+    }
+    if (!bridge.isConnected()) {
+      log('Emacs connection lost; starting re-register retries');
+      reconnectManager?.start();
+    }
+  });
+
   // Notify Emacs about the assigned port
   await notifyEmacsPort(port);
+
+  // Emacs might not be running (yet); keep retrying until it connects
+  if (!bridge.isConnected()) {
+    reconnectManager.start();
+  }
 
   // Register tools and resources
   registerTools();
@@ -428,6 +482,13 @@ process.on('unhandledRejection', (reason, promise) => {
 
 async function cleanup() {
   const projectRoot = normalizeProjectRoot(process.cwd());
+
+  // Shutting down for real: no more re-register attempts. The flag
+  // keeps bridge.stop()'s close events from re-arming the retries and
+  // the abort kills any in-flight registration emacsclient.
+  shuttingDown = true;
+  shutdownController.abort();
+  reconnectManager?.stop();
 
   try {
     // Unregister only this instance; other agents' connections in the
