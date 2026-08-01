@@ -145,6 +145,71 @@
        (claude-code-send-ctrl-end)
        (should (member '(key "<end>" shift nil meta nil ctrl t) keys-sent))))))
 
+(ert-deftest test-claude-code-agent-view-key-sending-commands ()
+  "Test key sending commands for the agents view."
+  (with-claude-mock-buffer
+   (let ((keys-sent nil))
+     (cl-letf (((symbol-function 'vterm-send-key)
+                ;; vterm-send-key signature: (KEY &optional SHIFT META CTRL ...)
+                (lambda (key &optional shift meta ctrl &rest _)
+                  (push (list 'key key 'shift shift 'meta meta 'ctrl ctrl)
+                        keys-sent))))
+
+       ;; Left arrow (enter agents view)
+       (claude-code-send-left)
+       (should (member '(key "<left>" shift nil meta nil ctrl nil) keys-sent))
+
+       ;; Up/Down arrows (agent selection)
+       (claude-code-send-up)
+       (should (member '(key "<up>" shift nil meta nil ctrl nil) keys-sent))
+
+       (claude-code-send-down)
+       (should (member '(key "<down>" shift nil meta nil ctrl nil) keys-sent))
+
+       ;; Ctrl+X (stop agent)
+       (claude-code-send-ctrl-x)
+       (should (member '(key "\C-x" shift nil meta nil ctrl nil) keys-sent))
+
+       ;; Ctrl+S (switch view)
+       (claude-code-send-ctrl-s)
+       (should (member '(key "\C-s" shift nil meta nil ctrl nil) keys-sent))
+
+       ;; Alt+1 (open agent)
+       (claude-code-send-meta-1)
+       (should (member '(key "1" shift nil meta t ctrl nil) keys-sent))))))
+
+(ert-deftest test-claude-code-agent-view-rename ()
+  "Test that rename sends Ctrl+R then the new name with Return."
+  (with-claude-mock-buffer
+   (let ((keys-sent nil)
+         (strings-sent nil))
+     (cl-letf (((symbol-function 'vterm-send-key)
+                (lambda (key &rest _) (push key keys-sent)))
+               ((symbol-function 'claude-code-send-string)
+                (lambda (str &optional _paste-p) (push str strings-sent)))
+               ((symbol-function 'sit-for) (lambda (&rest _) t)))
+
+       (claude-code-agent-view-rename "new-agent-name")
+       ;; Ctrl+R opens the rename input in the agents view
+       (should (member "\C-r" keys-sent))
+       ;; The new name is sent via claude-code-send-string (with Return)
+       (should (member "new-agent-name" strings-sent))))))
+
+(ert-deftest test-claude-code-agent-view-rename-empty-name ()
+  "Test that rename rejects an empty name without sending anything."
+  (with-claude-mock-buffer
+   (let ((keys-sent nil)
+         (strings-sent nil))
+     (cl-letf (((symbol-function 'vterm-send-key)
+                (lambda (key &rest _) (push key keys-sent)))
+               ((symbol-function 'claude-code-send-string)
+                (lambda (str &optional _paste-p) (push str strings-sent))))
+
+       (should-error (claude-code-agent-view-rename "") :type 'user-error)
+       ;; Neither Ctrl+R nor the name may reach the CLI
+       (should-not keys-sent)
+       (should-not strings-sent)))))
+
 ;;; Tests for custom project command functions
 
 (ert-deftest test-claude-code-custom-commands-directory ()

@@ -176,14 +176,20 @@ With prefix argument, select from available options."
 
 ;;; String Sending Functions
 
+(defun claude-code--wait-for-vterm ()
+  "Wait for vterm to process output from the preceding send.
+`vterm-timer-delay' can be customized to nil (meaning update
+immediately), so fall back to vterm's default delay in that case."
+  ;; NOTE: wait for `accept-process-output' in vterm's send functions
+  (sit-for (* (or vterm-timer-delay 0.1) 3)))
+
 (defun claude-code-send-string (string &optional paste-p)
   "Send STRING to the Claude Code session."
   (interactive "sEnter text: ")
   (claude-code-with-vterm-buffer
    (lambda ()
      (vterm-send-string string paste-p)
-     ;; NOTE: wait for `accept-process-output' in `vterm-send-string'
-     (sit-for (* vterm-timer-delay 3))
+     (claude-code--wait-for-vterm)
      (vterm-send-return))))
 
 ;;;###autoload

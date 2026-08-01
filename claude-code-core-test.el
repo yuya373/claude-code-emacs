@@ -194,5 +194,22 @@
   (should (equal "/foo/bar/baz" (claude-code-normalize-project-root "/foo/bar/baz/")))
   (should-error (claude-code-normalize-project-root nil) :type 'error))
 
+(ert-deftest test-claude-code--wait-for-vterm ()
+  "Test the vterm wait helper, including a nil `vterm-timer-delay'."
+  (let ((waited nil))
+    (cl-letf (((symbol-function 'sit-for)
+               (lambda (seconds &rest _) (setq waited seconds) t)))
+      ;; Custom delay: waits three times the configured delay
+      (let ((vterm-timer-delay 0.1))
+        (claude-code--wait-for-vterm)
+        (should (= waited (* 0.1 3))))
+      ;; nil delay (vterm's "update immediately"): must not signal,
+      ;; and still waits some positive amount
+      (let ((vterm-timer-delay nil))
+        (setq waited nil)
+        (claude-code--wait-for-vterm)
+        (should (numberp waited))
+        (should (> waited 0))))))
+
 (provide 'test-claude-code-core)
 ;;; test-claude-code-core.el ends here

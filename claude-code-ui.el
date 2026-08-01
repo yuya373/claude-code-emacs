@@ -46,6 +46,7 @@
 (declare-function claude-code-send-string "claude-code-core" (string &optional paste-p))
 (declare-function claude-code-buffer-name "claude-code-core" ())
 (declare-function claude-code-normalize-project-root "claude-code-core" (project-root))
+(declare-function claude-code-with-vterm-buffer "claude-code-core" (body-fn))
 
 ;; Command forward declarations
 (declare-function claude-code-send-1 "claude-code-commands" ())
@@ -66,6 +67,13 @@
 (declare-function claude-code-send-line-up "claude-code-commands" ())
 (declare-function claude-code-send-line-down "claude-code-commands" ())
 (declare-function claude-code-send-ctrl-end "claude-code-commands" ())
+(declare-function claude-code-send-left "claude-code-commands" ())
+(declare-function claude-code-send-up "claude-code-commands" ())
+(declare-function claude-code-send-down "claude-code-commands" ())
+(declare-function claude-code-send-ctrl-x "claude-code-commands" ())
+(declare-function claude-code-send-ctrl-s "claude-code-commands" ())
+(declare-function claude-code-send-meta-1 "claude-code-commands" ())
+(declare-function claude-code-agent-view-rename "claude-code-commands" (name))
 (declare-function claude-code-init "claude-code-commands" ())
 (declare-function claude-code-clear "claude-code-commands" ())
 (declare-function claude-code-help "claude-code-commands" ())
@@ -139,6 +147,7 @@ Minimum value is 0.001 seconds to ensure proper operation."
     (define-key map (kbd "C-c TAB") 'claude-code-send-shift-tab)
     (define-key map (kbd "C-c C-t") 'claude-code-transient)
     (define-key map (kbd "C-c C-s") 'claude-code-vterm-scroll-mode) ; s for scroll
+    (define-key map (kbd "C-c C-a") 'claude-code-vterm-agent-view) ; a for agents
     map)
   "Keymap for `claude-code-vterm-mode'.")
 
@@ -267,6 +276,23 @@ INPUT is the terminal output string."
           ;; Pass through the input even if there's an error to avoid breaking the terminal
           (funcall orig-fun process input)))))))
 
+;;;; Shared helpers for vterm minor modes (scroll mode, agent view mode)
+
+(defun claude-code--vterm-minor-mode-enable (highlight face cookie-sym)
+  "Remap the mode line with FACE when HIGHLIGHT is non-nil.
+Stores the remap cookie in the buffer-local variable named COOKIE-SYM so
+`claude-code--vterm-minor-mode-disable' can undo the remap later."
+  (when highlight
+    (set cookie-sym (face-remap-add-relative 'mode-line face)))
+  (force-mode-line-update))
+
+(defun claude-code--vterm-minor-mode-disable (cookie-sym)
+  "Undo the mode-line face remap stored in the buffer-local COOKIE-SYM."
+  (when (symbol-value cookie-sym)
+    (face-remap-remove-relative (symbol-value cookie-sym))
+    (set cookie-sym nil))
+  (force-mode-line-update))
+
 ;;;; Scroll minor mode (for Claude Code fullscreen mode)
 
 (defface claude-code-vterm-scroll-mode-lighter-face
@@ -350,17 +376,157 @@ Keybindings:
     (user-error "claude-code-vterm-scroll-mode is only available in vterm buffers"))
    ;; Enabling: remap the mode-line face for prominent visual feedback
    (claude-code-vterm-scroll-mode
-    (when claude-code-vterm-scroll-mode-highlight-modeline
-      (setq claude-code--vterm-scroll-mode-face-cookie
-            (face-remap-add-relative 'mode-line
-                                     'claude-code-vterm-scroll-mode-line-face)))
-    (force-mode-line-update))
+    (claude-code--vterm-minor-mode-enable
+     claude-code-vterm-scroll-mode-highlight-modeline
+     'claude-code-vterm-scroll-mode-line-face
+     'claude-code--vterm-scroll-mode-face-cookie))
    ;; Disabling: undo the mode-line face remap
    (t
-    (when claude-code--vterm-scroll-mode-face-cookie
-      (face-remap-remove-relative claude-code--vterm-scroll-mode-face-cookie)
-      (setq claude-code--vterm-scroll-mode-face-cookie nil))
-    (force-mode-line-update))))
+    (claude-code--vterm-minor-mode-disable
+     'claude-code--vterm-scroll-mode-face-cookie))))
+
+;;;; Agent view minor mode (for Claude Code agents view)
+
+(defface claude-code-vterm-agent-mode-lighter-face
+  '((((class color) (background dark))
+     :background "DeepSkyBlue4" :foreground "white" :weight bold)
+    (((class color) (background light))
+     :background "DeepSkyBlue" :foreground "black" :weight bold)
+    (t :inverse-video t :weight bold))
+  "Face for the lighter shown in the mode line while agent view mode is active."
+  :group 'claude-code-ui)
+
+(defface claude-code-vterm-agent-mode-line-face
+  '((((class color) (background dark))
+     :background "DeepSkyBlue4" :foreground "white" :weight bold)
+    (((class color) (background light))
+     :background "DeepSkyBlue" :foreground "black" :weight bold)
+    (t :inverse-video t :weight bold))
+  "Face used to remap the mode line while agent view mode is active.
+
+When `claude-code-vterm-agent-mode-highlight-modeline' is non-nil
+the entire mode line of the Claude Code buffer takes on this face
+while the mode is active."
+  :group 'claude-code-ui)
+
+(defcustom claude-code-vterm-agent-mode-highlight-modeline t
+  "Whether to remap the mode line face while agent view mode is active.
+
+When non-nil, the entire mode line of the Claude Code buffer is
+highlighted using `claude-code-vterm-agent-mode-line-face' so the
+active agent view mode is visually obvious."
+  :type 'boolean
+  :group 'claude-code-ui)
+
+(defvar-local claude-code--vterm-agent-mode-face-cookie nil
+  "Cookie returned by `face-remap-add-relative' for the mode line.
+
+Used to undo the mode-line face remap when agent view mode is disabled.")
+
+(defvar claude-code-vterm-agent-mode-lighter
+  (propertize " 🤖AGENTS "
+              'face 'claude-code-vterm-agent-mode-lighter-face)
+  "Lighter shown in the mode line while agent view mode is active.
+
+A propertized string with `claude-code-vterm-agent-mode-lighter-face'
+so the lighter is visually prominent.")
+
+(defvar claude-code-vterm-agent-mode-map
+  (let ((map (make-sparse-keymap)))
+    ;; The agents view accepts free text input (e.g. composing a message
+    ;; to an agent), so this mode must not intercept self-inserting
+    ;; keys, RET, the arrows, or the TUI's own control keys (C-r, C-s,
+    ;; C-t, ESC) -- vterm already passes them all through.  Mode
+    ;; commands therefore live on the C-c prefix, plus M-1, which vterm
+    ;; cannot pass through (it runs `digit-argument').
+    (define-key map (kbd "C-c C-r") 'claude-code-agent-view-rename)
+    (define-key map (kbd "C-c C-x") 'claude-code-vterm-agent-mode-stop)
+    ;; Toggle the mode back off; keys pass through either way, so no
+    ;; key is sent to the CLI
+    (define-key map (kbd "C-c C-a") 'claude-code-vterm-agent-mode)
+    ;; Help menu (C-c + punctuation is minor mode territory)
+    (define-key map (kbd "C-c ?") 'claude-code-agent-view-transient)
+    (define-key map (kbd "M-1") 'claude-code-vterm-agent-mode-open-alt)
+    map)
+  "Keymap for `claude-code-vterm-agent-mode'.")
+
+;;;###autoload
+(define-minor-mode claude-code-vterm-agent-mode
+  "Minor mode for operating the Claude Code agents view.
+
+The agents view accepts free text input (e.g. composing a message to
+an agent), so this mode intercepts no self-inserting keys: typing,
+RET, the arrows, and the TUI's own control keys (C-r, C-s, C-t, ESC)
+all pass through to the terminal as usual.  The mode only adds a
+mode-line indicator and a few commands on the C-c prefix.  Press
+\\`C-c ?' for a menu of the available commands.
+Use `claude-code-vterm-agent-view' to open the agents view and enable
+this mode in one step.
+
+Keybindings:
+\\{claude-code-vterm-agent-mode-map}"
+  :init-value nil
+  :lighter claude-code-vterm-agent-mode-lighter
+  :keymap claude-code-vterm-agent-mode-map
+  (cond
+   ;; Refuse to enable outside Claude Code session buffers: every key
+   ;; command in this mode acts on the project's Claude buffer, so
+   ;; enabling it in any other vterm buffer would silently redirect that
+   ;; terminal's keys away from it.
+   ((and claude-code-vterm-agent-mode
+         (not (derived-mode-p 'claude-code-vterm-mode)))
+    (claude-code-vterm-agent-mode -1)
+    (user-error "claude-code-vterm-agent-mode is only available in Claude Code session buffers"))
+   ;; Enabling: remap the mode-line face for prominent visual feedback
+   (claude-code-vterm-agent-mode
+    (claude-code--vterm-minor-mode-enable
+     claude-code-vterm-agent-mode-highlight-modeline
+     'claude-code-vterm-agent-mode-line-face
+     'claude-code--vterm-agent-mode-face-cookie))
+   ;; Disabling: undo the mode-line face remap
+   (t
+    (claude-code--vterm-minor-mode-disable
+     'claude-code--vterm-agent-mode-face-cookie))))
+
+;;;###autoload
+(defun claude-code-vterm-agent-view ()
+  "Open the Claude Code agents view and enable `claude-code-vterm-agent-mode'.
+The mode is enabled in the project's Claude Code buffer, so this signals
+an error when no session is running instead of leaving the current
+buffer stuck in the mode.  Sends Left arrow to Claude Code to switch to
+the agents view."
+  (interactive)
+  (claude-code-with-vterm-buffer
+   (lambda () (claude-code-vterm-agent-mode 1)))
+  (claude-code-send-left))
+
+(defun claude-code-vterm-agent-mode-stop ()
+  "Stop the selected agent after asking for confirmation.
+Sends Ctrl+X to Claude Code; stopping kills the agent's in-progress
+work, so the confirmation guards against accidental \\`C-x' presses."
+  (interactive)
+  (when (y-or-n-p "Stop the selected agent? ")
+    (claude-code-send-ctrl-x)))
+
+(defun claude-code-vterm-agent-mode-open ()
+  "Open the selected agent and exit `claude-code-vterm-agent-mode'.
+Sends Return to Claude Code."
+  (interactive)
+  (claude-code-send-return)
+  (claude-code-vterm-agent-mode -1))
+
+(defun claude-code-vterm-agent-mode-open-alt ()
+  "Open the selected agent via Alt+1 and exit `claude-code-vterm-agent-mode'."
+  (interactive)
+  (claude-code-send-meta-1)
+  (claude-code-vterm-agent-mode -1))
+
+(defun claude-code-vterm-agent-mode-quit ()
+  "Quit the agents view and exit `claude-code-vterm-agent-mode'.
+Sends Escape to Claude Code."
+  (interactive)
+  (claude-code-send-escape)
+  (claude-code-vterm-agent-mode -1))
 
 (defvar claude-code-prompt-mode-map
   (let ((map (make-sparse-keymap)))
@@ -494,6 +660,23 @@ Keybindings:
     ("i" "Insert current file path" claude-code-insert-current-file-path-to-prompt)]
    ["To Session Buffer"
     ("s" "Insert current file path to session" claude-code-insert-current-file-path-to-session)]])
+
+(transient-define-prefix claude-code-agent-view-transient ()
+  "Claude Code agents view menu.
+Shown with \\`?' in `claude-code-vterm-agent-mode'."
+  ["Claude Code Agents"
+   ["Select"
+    ("n" "Next agent" claude-code-send-down :transient t)
+    ("p" "Previous agent" claude-code-send-up :transient t)]
+   ["Actions"
+    ("r" "Rename agent" claude-code-agent-view-rename)
+    ("t" "Pin to top" claude-code-send-ctrl-t)
+    ("k" "Stop agent" claude-code-vterm-agent-mode-stop)
+    ("v" "Switch view" claude-code-send-ctrl-s)]
+   ["Open / Quit"
+    ("RET" "Open selected agent" claude-code-vterm-agent-mode-open)
+    ("1" "Open (Alt+1)" claude-code-vterm-agent-mode-open-alt)
+    ("q" "Quit agents view" claude-code-vterm-agent-mode-quit)]])
 
 (transient-define-prefix claude-code-prompt-transient ()
   "Claude Code prompt buffer menu."

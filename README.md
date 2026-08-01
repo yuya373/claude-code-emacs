@@ -63,6 +63,28 @@ Claude Code can directly interact with your Emacs environment:
 | `C-c TAB` | Send Shift+Tab (toggle auto-accept) |
 | `C-c C-t` | Open transient menu |
 | `C-c C-s` | Toggle scroll mode (for fullscreen mode) |
+| `C-c C-a` | Open agents view and enable agent view mode |
+
+#### In Agent View Mode (`claude-code-vterm-agent-mode`)
+
+A minor mode for operating the Claude Code agents view.
+Press `C-c C-a` in a Claude Code session to send `Left` (which opens the
+agents view) and enable this mode.
+
+The agents view accepts free text input (e.g. composing a message to
+an agent), so this mode intercepts almost nothing: typing, `RET`, the
+arrows, and the TUI's own control keys (`C-r` rename, `C-s` switch
+view, `C-t` pin, `ESC` quit) all pass through to the terminal as in a
+plain vterm. The mode only adds a mode-line indicator and a few
+helper commands:
+
+| Key | Action |
+|-----|--------|
+| `C-c C-r` | Rename agent via minibuffer (sends Ctrl+R, then the name with Return) |
+| `C-c C-x` | Stop agent (asks for confirmation, then sends Ctrl+X — the raw `C-x` prefix cannot reach the terminal) |
+| `M-1` | Open agent via Alt+1 and exit the mode (`M-1` cannot pass through vterm) |
+| `C-c ?` | Show command menu (transient) |
+| `C-c C-a` | Turn the mode off (no key is sent to Claude Code) |
 
 #### In Scroll Mode (`claude-code-vterm-scroll-mode`)
 

@@ -36,6 +36,7 @@
 (declare-function claude-code-ensure-buffer "claude-code-core" ())
 (declare-function claude-code-with-vterm-buffer "claude-code-core" (body-fn))
 (declare-function claude-code-normalize-project-root "claude-code-core" (root))
+(declare-function claude-code--wait-for-vterm "claude-code-core" ())
 
 ;; vterm function declarations (vterm is loaded by core)
 (declare-function vterm-send-escape "vterm" ())
@@ -223,6 +224,70 @@
    (lambda ()
      ;; vterm-send-key: KEY &optional SHIFT META CTRL
      (vterm-send-key "<end>" nil nil t))))
+
+;;; Agent view key sending functions (for Claude Code agents view)
+
+;;;###autoload
+(defun claude-code-send-left ()
+  "Send Left arrow to Claude Code buffer to open the agents view."
+  (interactive)
+  (claude-code-with-vterm-buffer
+   (lambda ()
+     (vterm-send-key "<left>"))))
+
+;;;###autoload
+(defun claude-code-send-up ()
+  "Send Up arrow to Claude Code buffer to select the previous agent."
+  (interactive)
+  (claude-code-with-vterm-buffer
+   (lambda ()
+     (vterm-send-key "<up>"))))
+
+;;;###autoload
+(defun claude-code-send-down ()
+  "Send Down arrow to Claude Code buffer to select the next agent."
+  (interactive)
+  (claude-code-with-vterm-buffer
+   (lambda ()
+     (vterm-send-key "<down>"))))
+
+;;;###autoload
+(defun claude-code-send-ctrl-x ()
+  "Send Ctrl+X to Claude Code buffer to stop the selected agent."
+  (interactive)
+  (claude-code-with-vterm-buffer
+   (lambda () (vterm-send-key (kbd "C-x")))))
+
+;;;###autoload
+(defun claude-code-send-ctrl-s ()
+  "Send Ctrl+S to Claude Code buffer to switch the agents view."
+  (interactive)
+  (claude-code-with-vterm-buffer
+   (lambda () (vterm-send-key (kbd "C-s")))))
+
+;;;###autoload
+(defun claude-code-send-meta-1 ()
+  "Send Alt+1 to Claude Code buffer to open the selected agent."
+  (interactive)
+  (claude-code-with-vterm-buffer
+   (lambda ()
+     ;; vterm-send-key: KEY &optional SHIFT META CTRL
+     (vterm-send-key "1" nil t))))
+
+;;;###autoload
+(defun claude-code-agent-view-rename (name)
+  "Rename the selected agent in the agents view to NAME.
+Sends Ctrl+R to open the rename input in the agents view, then sends
+NAME followed by Return via `claude-code-send-string'."
+  (interactive "sRename agent to: ")
+  (when (string-empty-p name)
+    (user-error "Agent name must not be empty"))
+  (claude-code-with-vterm-buffer
+   (lambda ()
+     (vterm-send-key (kbd "C-r"))
+     ;; NOTE: wait for the rename input to appear before sending the name
+     (claude-code--wait-for-vterm)))
+  (claude-code-send-string name))
 
 ;;; Helper functions for command argument handling
 
