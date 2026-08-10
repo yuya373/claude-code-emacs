@@ -277,8 +277,9 @@
 ;;;###autoload
 (defun claude-code-agent-view-rename (name)
   "Rename the selected agent in the agents view to NAME.
-Sends Ctrl+R to open the rename input in the agents view, then sends
-NAME followed by Return via `claude-code-send-string'."
+Sends Ctrl+R to open the rename input in the agents view, clears the
+pre-filled current name with Ctrl+A / Ctrl+K, then sends NAME followed
+by Return via `claude-code-send-string'."
   (interactive "sRename agent to: ")
   (when (string-empty-p name)
     (user-error "Agent name must not be empty"))
@@ -286,6 +287,11 @@ NAME followed by Return via `claude-code-send-string'."
    (lambda ()
      (vterm-send-key (kbd "C-r"))
      ;; NOTE: wait for the rename input to appear before sending the name
+     (claude-code--wait-for-vterm)
+     ;; NOTE: the rename input is pre-filled with the current name;
+     ;; clear it so NAME replaces it instead of being appended
+     (vterm-send-key (kbd "C-a"))
+     (vterm-send-key (kbd "C-k"))
      (claude-code--wait-for-vterm)))
   (claude-code-send-string name))
 

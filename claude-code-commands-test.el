@@ -179,7 +179,7 @@
        (should (member '(key "1" shift nil meta t ctrl nil) keys-sent))))))
 
 (ert-deftest test-claude-code-agent-view-rename ()
-  "Test that rename sends Ctrl+R then the new name with Return."
+  "Test that rename clears the pre-filled name before sending the new one."
   (with-claude-mock-buffer
    (let ((keys-sent nil)
          (strings-sent nil))
@@ -190,8 +190,9 @@
                ((symbol-function 'sit-for) (lambda (&rest _) t)))
 
        (claude-code-agent-view-rename "new-agent-name")
-       ;; Ctrl+R opens the rename input in the agents view
-       (should (member "\C-r" keys-sent))
+       ;; Ctrl+R opens the rename input pre-filled with the current name,
+       ;; so Ctrl+A / Ctrl+K must clear it before the new name is sent
+       (should (equal '("\C-r" "\C-a" "\C-k") (reverse keys-sent)))
        ;; The new name is sent via claude-code-send-string (with Return)
        (should (member "new-agent-name" strings-sent))))))
 
