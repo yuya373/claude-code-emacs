@@ -665,11 +665,13 @@ Shown with \\`C-c C-a' in `claude-code-vterm-agent-mode'."
   ["Claude Code Agents"
    ["Select"
     ("n" "Next agent" claude-code-send-down :transient t)
-    ("p" "Previous agent" claude-code-send-up :transient t)]
+    ("p" "Previous agent" claude-code-send-up :transient t)
+    ("j" "Next agent" claude-code-send-down :transient t)
+    ("k" "Previous agent" claude-code-send-up :transient t)]
    ["Actions"
     ("r" "Rename agent" claude-code-agent-view-rename)
     ("t" "Pin to top" claude-code-send-ctrl-t)
-    ("k" "Stop agent" claude-code-vterm-agent-mode-stop)
+    ("K" "Stop agent" claude-code-vterm-agent-mode-stop)
     ("v" "Switch view" claude-code-send-ctrl-s)]
    ["Open / Quit"
     ("RET" "Open selected agent" claude-code-vterm-agent-mode-open)
