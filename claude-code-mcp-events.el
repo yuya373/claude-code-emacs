@@ -88,34 +88,44 @@
                           #'claude-code-mcp-events-send-buffer-list-update))))
 
 (defun claude-code-mcp-events-send-buffer-list-update ()
-  "Send buffer list update notification to all connected MCP servers."
+  "Send buffer list update notification to all connected MCP servers.
+Connections are keyed by server instance, so distinct project roots are
+collected first; the per-instance fan-out happens inside
+`claude-code-mcp-send-event-to-project'."
   (condition-case err
-      ;; Iterate through all project connections
-      (maphash
-       (lambda (project-root _info)
-         ;; Collect buffers for this project
-         (let ((buffers '()))
-           (dolist (buffer (buffer-list))
-             (let ((file-path (buffer-file-name buffer))
-                   (buffer-name (buffer-name buffer)))
-               ;; Compare against the slash-terminated root so a sibling
-               ;; project like "<root>2/..." does not match.
-               (when (and file-path
-                          (string-prefix-p (file-name-as-directory project-root) file-path)
-                          (not (string-prefix-p " " buffer-name)))
-                 (push `((path . ,file-path)
-                         (name . ,buffer-name)
-                         (active . ,(eq buffer (current-buffer)))
-                         (modified . ,(buffer-modified-p buffer)))
-                       buffers))))
+      (let ((project-roots '()))
+        ;; Collect distinct project roots across all instance connections
+        (maphash
+         (lambda (_instance-id info)
+           (let ((project-root (cdr (assoc 'project-root info))))
+             (when (and project-root
+                        (not (member project-root project-roots)))
+               (push project-root project-roots))))
+         claude-code-mcp-connections)
 
-           ;; Send notification for this project if there are buffers
-           (when buffers
-             (claude-code-mcp-send-event-to-project
-              project-root
-              "bufferListUpdated"
-              `((buffers . ,(nreverse buffers)))))))
-       claude-code-mcp-project-connections)
+        (dolist (project-root project-roots)
+          ;; Collect buffers for this project
+          (let ((buffers '()))
+            (dolist (buffer (buffer-list))
+              (let ((file-path (buffer-file-name buffer))
+                    (buffer-name (buffer-name buffer)))
+                ;; Compare against the slash-terminated root so a sibling
+                ;; project like "<root>2/..." does not match.
+                (when (and file-path
+                           (string-prefix-p (file-name-as-directory project-root) file-path)
+                           (not (string-prefix-p " " buffer-name)))
+                  (push `((path . ,file-path)
+                          (name . ,buffer-name)
+                          (active . ,(eq buffer (current-buffer)))
+                          (modified . ,(buffer-modified-p buffer)))
+                        buffers))))
+
+            ;; Send notification for this project if there are buffers
+            (when buffers
+              (claude-code-mcp-send-event-to-project
+               project-root
+               "bufferListUpdated"
+               `((buffers . ,(nreverse buffers))))))))
     (error
      (message "Error sending buffer list update: %s" (error-message-string err)))))
 

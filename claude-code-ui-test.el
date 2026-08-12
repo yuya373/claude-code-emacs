@@ -98,6 +98,165 @@
     (should entry)
     (should (eq (cadr entry) 'claude-code-vterm-scroll-mode-lighter))))
 
+;;; Tests for agent view minor mode
+
+(ert-deftest test-claude-code-vterm-agent-mode-keymap ()
+  "Test the default agent view minor mode bindings.
+The map stays deliberately minimal -- selection keys plus the transient
+menu bundling every operation -- and is meant to be extended by users,
+so nothing beyond these defaults is asserted."
+  (let ((map claude-code-vterm-agent-mode-map))
+    ;; Agent selection
+    (should (eq (lookup-key map (kbd "C-n"))
+                'claude-code-send-down))
+    (should (eq (lookup-key map (kbd "C-p"))
+                'claude-code-send-up))
+    ;; C-c C-a shows the command menu: the same key that opens the
+    ;; agents view from the session buffer
+    (should (eq (lookup-key map (kbd "C-c C-a"))
+                'claude-code-agent-view-transient))))
+
+(ert-deftest test-claude-code-agent-view-transient-defined ()
+  "Test that the agent view transient menu is defined."
+  (should (fboundp 'claude-code-agent-view-transient)))
+
+(ert-deftest test-claude-code-vterm-mode-agent-view-binding ()
+  "Test that vterm mode keymap binds C-c C-a to enter the agent view."
+  (should (eq (lookup-key claude-code-vterm-mode-map (kbd "C-c C-a"))
+              'claude-code-vterm-agent-view)))
+
+(ert-deftest test-claude-code-vterm-agent-view-enters-mode ()
+  "Test that entering the agent view enables the mode in the Claude buffer
+and sends Left."
+  (skip-unless (fboundp 'vterm-mode))
+  (with-temp-buffer
+    (claude-code-vterm-mode)
+    (let ((keys-sent nil)
+          (buf (current-buffer)))
+      (cl-letf (((symbol-function 'claude-code-ensure-buffer)
+                 (lambda () buf))
+                ((symbol-function 'claude-code-send-left)
+                 (lambda () (push 'left keys-sent))))
+        (claude-code-vterm-agent-view)
+        (should (member 'left keys-sent))
+        (should claude-code-vterm-agent-mode)
+        (claude-code-vterm-agent-mode -1)))))
+
+(ert-deftest test-claude-code-vterm-agent-view-no-session ()
+  "Test that entering the agent view without a session signals an error
+and does not leave the current buffer stuck in the mode."
+  (skip-unless (fboundp 'vterm-mode))
+  (with-temp-buffer
+    (claude-code-vterm-mode)
+    (cl-letf (((symbol-function 'claude-code-ensure-buffer)
+               (lambda () (error "No Claude Code session for this project"))))
+      (should-error (claude-code-vterm-agent-view))
+      (should-not claude-code-vterm-agent-mode))))
+
+(ert-deftest test-claude-code-vterm-agent-view-non-vterm-buffer ()
+  "Test that the agent view refuses to enable in non-vterm buffers."
+  (with-temp-buffer
+    (should-error (claude-code-vterm-agent-mode 1) :type 'user-error)
+    (should-not claude-code-vterm-agent-mode)))
+
+(ert-deftest test-claude-code-vterm-agent-mode-plain-vterm-buffer ()
+  "Test that agent mode refuses to enable in a non-Claude vterm buffer.
+All agent mode commands act on the project's Claude Code buffer, so
+enabling the mode in a plain vterm shell would silently redirect that
+terminal's keys away from it."
+  (skip-unless (fboundp 'vterm-mode))
+  (with-temp-buffer
+    (vterm-mode)
+    (should-error (claude-code-vterm-agent-mode 1) :type 'user-error)
+    (should-not claude-code-vterm-agent-mode)))
+
+(ert-deftest test-claude-code-vterm-agent-mode-stop-confirms ()
+  "Test that stopping an agent asks for confirmation first."
+  (let ((keys-sent nil))
+    (cl-letf (((symbol-function 'claude-code-send-ctrl-x)
+               (lambda () (push 'ctrl-x keys-sent))))
+      ;; Confirmed: Ctrl+X is sent
+      (cl-letf (((symbol-function 'y-or-n-p) (lambda (_) t)))
+        (claude-code-vterm-agent-mode-stop)
+        (should (member 'ctrl-x keys-sent)))
+      ;; Declined: nothing is sent
+      (setq keys-sent nil)
+      (cl-letf (((symbol-function 'y-or-n-p) (lambda (_) nil)))
+        (claude-code-vterm-agent-mode-stop)
+        (should-not keys-sent)))))
+
+(ert-deftest test-claude-code-vterm-agent-mode-open-exits-mode ()
+  "Test that RET sends Return and exits the agent view mode."
+  (skip-unless (fboundp 'vterm-mode))
+  (with-temp-buffer
+    (claude-code-vterm-mode)
+    (claude-code-vterm-agent-mode 1)
+    (let ((keys-sent nil))
+      (cl-letf (((symbol-function 'claude-code-send-return)
+                 (lambda () (push 'return keys-sent))))
+        (claude-code-vterm-agent-mode-open)
+        (should (member 'return keys-sent))
+        (should-not claude-code-vterm-agent-mode)))))
+
+(ert-deftest test-claude-code-vterm-agent-mode-open-alt-exits-mode ()
+  "Test that M-1 sends Alt+1 and exits the agent view mode."
+  (skip-unless (fboundp 'vterm-mode))
+  (with-temp-buffer
+    (claude-code-vterm-mode)
+    (claude-code-vterm-agent-mode 1)
+    (let ((keys-sent nil))
+      (cl-letf (((symbol-function 'claude-code-send-meta-1)
+                 (lambda () (push 'meta-1 keys-sent))))
+        (claude-code-vterm-agent-mode-open-alt)
+        (should (member 'meta-1 keys-sent))
+        (should-not claude-code-vterm-agent-mode)))))
+
+(ert-deftest test-claude-code-vterm-agent-mode-quit-exits-mode ()
+  "Test that ESC sends Escape and exits the agent view mode."
+  (skip-unless (fboundp 'vterm-mode))
+  (with-temp-buffer
+    (claude-code-vterm-mode)
+    (claude-code-vterm-agent-mode 1)
+    (let ((keys-sent nil))
+      (cl-letf (((symbol-function 'claude-code-send-escape)
+                 (lambda () (push 'escape keys-sent))))
+        (claude-code-vterm-agent-mode-quit)
+        (should (member 'escape keys-sent))
+        (should-not claude-code-vterm-agent-mode)))))
+
+(ert-deftest test-claude-code-vterm-agent-mode-remaps-modeline ()
+  "Test that enabling agent view mode remaps the mode-line face."
+  (skip-unless (fboundp 'vterm-mode))
+  (with-temp-buffer
+    (claude-code-vterm-mode)
+    (let ((claude-code-vterm-agent-mode-highlight-modeline t))
+      (should-not claude-code--vterm-agent-mode-face-cookie)
+      (claude-code-vterm-agent-mode 1)
+      ;; A face-remap cookie should be set when agent view mode is enabled
+      (should claude-code--vterm-agent-mode-face-cookie)
+      ;; Disabling should clear the cookie
+      (claude-code-vterm-agent-mode -1)
+      (should-not claude-code--vterm-agent-mode-face-cookie))))
+
+(ert-deftest test-claude-code-vterm-agent-mode-respects-highlight-option ()
+  "Test that the mode-line is not remapped when the highlight option is nil."
+  (skip-unless (fboundp 'vterm-mode))
+  (with-temp-buffer
+    (claude-code-vterm-mode)
+    (let ((claude-code-vterm-agent-mode-highlight-modeline nil))
+      (claude-code-vterm-agent-mode 1)
+      ;; No cookie should be set when highlighting is disabled
+      (should-not claude-code--vterm-agent-mode-face-cookie)
+      (claude-code-vterm-agent-mode -1))))
+
+(ert-deftest test-claude-code-vterm-agent-mode-lighter-propertized ()
+  "Test that the agent mode lighter is a propertized string with the lighter face."
+  (should (boundp 'claude-code-vterm-agent-mode-lighter))
+  (should (stringp claude-code-vterm-agent-mode-lighter))
+  ;; The lighter string should carry the lighter face in its properties
+  (should (eq (get-text-property 0 'face claude-code-vterm-agent-mode-lighter)
+              'claude-code-vterm-agent-mode-lighter-face)))
+
 (ert-deftest test-claude-code-vterm-mode-copy-mode-cursor-visibility ()
   "Test that cursor becomes visible when entering vterm-copy-mode.
 By default, `cursor-type' is set to nil in `claude-code-vterm-mode' to

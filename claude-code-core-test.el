@@ -69,7 +69,7 @@
            (test-buffer (generate-new-buffer "*test-buffer*")))
       (unwind-protect
           (cl-letf* (((symbol-function 'get-buffer-create)
-                      (lambda (name)
+                      (lambda (name &rest _)
                         (setq buffer-created t)
                         (setq created-buffer-name name)
                         ;; A real `get-buffer-create' gives the new buffer the
@@ -81,7 +81,7 @@
                           (setq-local major-mode 'vterm-mode)
                           (current-buffer))))
                      ((symbol-function 'switch-to-buffer-other-window)
-                      (lambda (name)
+                      (lambda (name &rest _)
                         (setq buffer-switched t)))
                      ((symbol-function 'claude-code-vterm-mode)
                       (lambda ()
@@ -117,14 +117,14 @@
            (test-buffer (generate-new-buffer "*test-buffer*")))
       (unwind-protect
           (cl-letf* (((symbol-function 'get-buffer-create)
-                      (lambda (name)
+                      (lambda (name &rest _)
                         (setq buffer-created t)
                         ;; Simulate vterm buffer
                         (with-current-buffer test-buffer
                           (setq-local major-mode 'vterm-mode)
                           (current-buffer))))
                      ((symbol-function 'switch-to-buffer-other-window)
-                      (lambda (name)
+                      (lambda (name &rest _)
                         (setq buffer-switched t)))
                      ((symbol-function 'claude-code-vterm-mode)
                       (lambda ()
@@ -158,14 +158,14 @@
            (test-buffer (generate-new-buffer "*test-buffer*")))
       (unwind-protect
           (cl-letf* (((symbol-function 'get-buffer-create)
-                      (lambda (name)
+                      (lambda (name &rest _)
                         (setq buffer-created t)
                         ;; Simulate vterm buffer
                         (with-current-buffer test-buffer
                           (setq-local major-mode 'vterm-mode)
                           (current-buffer))))
                      ((symbol-function 'switch-to-buffer-other-window)
-                      (lambda (name) nil))
+                      (lambda (name &rest _) nil))
                      ((symbol-function 'claude-code-vterm-mode)
                       (lambda ()
                         (setq vterm-mode-called t)
@@ -193,6 +193,23 @@
 (ert-deftest test-claude-code-normalize-project-root ()
   (should (equal "/foo/bar/baz" (claude-code-normalize-project-root "/foo/bar/baz/")))
   (should-error (claude-code-normalize-project-root nil) :type 'error))
+
+(ert-deftest test-claude-code--wait-for-vterm ()
+  "Test the vterm wait helper, including a nil `vterm-timer-delay'."
+  (let ((waited nil))
+    (cl-letf (((symbol-function 'sit-for)
+               (lambda (seconds &rest _) (setq waited seconds) t)))
+      ;; Custom delay: waits three times the configured delay
+      (let ((vterm-timer-delay 0.1))
+        (claude-code--wait-for-vterm)
+        (should (= waited (* 0.1 3))))
+      ;; nil delay (vterm's "update immediately"): must not signal,
+      ;; and still waits some positive amount
+      (let ((vterm-timer-delay nil))
+        (setq waited nil)
+        (claude-code--wait-for-vterm)
+        (should (numberp waited))
+        (should (> waited 0))))))
 
 (provide 'test-claude-code-core)
 ;;; test-claude-code-core.el ends here

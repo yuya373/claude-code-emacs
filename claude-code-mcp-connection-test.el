@@ -2,7 +2,9 @@
 
 ;;; Commentary:
 
-;; Tests for the MCP server connection management
+;; Tests for the MCP server connection management.
+;; Connections are keyed by server instance ID so that multiple Claude
+;; Code sessions (agents) in the same project can coexist.
 
 ;;; Code:
 
@@ -12,13 +14,20 @@
 
 ;;; Test utilities
 
+(defvar claude-code-mcp-test-sent-messages nil
+  "List of (WEBSOCKET . TEXT) sent during a test.")
+
+(defvar claude-code-mcp-test-closed-sockets nil
+  "List of mock websockets closed during a test.")
+
 (defmacro claude-code-mcp-test-with-connection (&rest body)
   "Execute BODY with MCP connection mocked."
-  `(let ((claude-code-mcp-project-connections (make-hash-table :test 'equal)))
-     ;; Register default port for test project
+  `(let ((claude-code-mcp-connections (make-hash-table :test 'equal))
+         (claude-code-mcp-test-sent-messages nil)
+         (claude-code-mcp-test-closed-sockets nil))
      (cl-letf* (((symbol-function 'websocket-open)
                  (lambda (url &rest args)
-                   (let ((ws (cons 'mock-websocket nil))
+                   (let ((ws (list 'mock-websocket url))
                          (on-open (plist-get args :on-open)))
                      ;; Call on-open callback immediately
                      (when on-open
@@ -26,197 +35,180 @@
                      ws)))
                 ((symbol-function 'websocket-openp)
                  (lambda (ws)
-                   (and ws (consp ws) (eq (car ws) 'mock-websocket))))
+                   (and ws (consp ws)
+                        (eq (car ws) 'mock-websocket)
+                        (not (memq ws claude-code-mcp-test-closed-sockets)))))
                 ((symbol-function 'websocket-send-text)
                  (lambda (ws text)
-                   (when (consp ws)
-                     (setf (get ws 'sent-data) text))))
+                   (push (cons ws text) claude-code-mcp-test-sent-messages)))
                 ((symbol-function 'websocket-close)
                  (lambda (ws)
-                   (when (consp ws)
-                     (setcar ws 'closed-websocket))))
-                ((symbol-function 'sleep-for) (lambda (seconds) nil))
-                ((symbol-function 'run-at-time) (lambda (&rest args) nil)))
+                   (push ws claude-code-mcp-test-closed-sockets)))
+                ((symbol-function 'sleep-for) (lambda (_seconds) nil))
+                ((symbol-function 'run-at-time) (lambda (&rest _args) nil)))
        ,@body)))
 
-;;; Connection tests
+(defun claude-code-mcp-test-messages-for (ws)
+  "Return list of texts sent to WS during the test."
+  (mapcar #'cdr
+          (cl-remove-if-not (lambda (entry) (eq (car entry) ws))
+                            claude-code-mcp-test-sent-messages)))
 
-(ert-deftest test-mcp-connect ()
-  "Test connecting to MCP server."
-  :tags '(:mcp :network)
-  (skip-unless (not (getenv "CI")))  ; Skip in CI due to mock environment issues
+;;; Connection info tests
+
+(ert-deftest test-mcp-initialize-connection-info ()
+  "Test that connection info is keyed by instance ID."
   (claude-code-mcp-test-with-connection
-   (let ((project-root (projectile-project-root)))
-     ;; Initialize connection info first
-     (claude-code-mcp-initialize-connection-info project-root)
-     (claude-code-mcp-connect project-root 8766)
-     (let ((ws (claude-code-mcp-get-websocket project-root)))
-       (should ws)
-       (should (websocket-openp ws))))))
+   ;; Should return nil when no connection info exists
+   (should-not (claude-code-mcp-get-connection-info "inst-a"))
 
-(ert-deftest test-mcp-disconnect ()
-  "Test disconnecting from MCP server."
+   (claude-code-mcp-initialize-connection-info "inst-a" "/tmp/proj/" 1111)
+
+   (let ((info (claude-code-mcp-get-connection-info "inst-a")))
+     (should info)
+     ;; Project root is normalized (no trailing slash)
+     (should (equal (cdr (assoc 'project-root info)) "/tmp/proj"))
+     (should (equal (cdr (assoc 'port info)) 1111))
+     ;; Check all expected fields exist
+     (should (assoc 'websocket info))
+     (should (assoc 'request-id info))
+     (should (assoc 'pending-requests info))
+     (should (assoc 'connection-attempts info))
+     (should (assoc 'ping-timer info))
+     (should (assoc 'ping-timeout-timer info))
+     (should (assoc 'last-pong-time info)))))
+
+(ert-deftest test-mcp-register-port-creates-instance-entry ()
+  "Test that registering a port creates an instance-keyed connection."
   (claude-code-mcp-test-with-connection
-   (let ((project-root (projectile-project-root)))
-     ;; Initialize connection info first
-     (claude-code-mcp-initialize-connection-info project-root)
-     (claude-code-mcp-connect project-root 8766)
-     (claude-code-mcp-disconnect project-root)
-     (should-not (claude-code-mcp-get-websocket project-root)))))
+   (claude-code-mcp-register-port "/tmp/proj/" 1111 "inst-a")
+   (let ((info (claude-code-mcp-get-connection-info "inst-a")))
+     (should info)
+     (should (equal (cdr (assoc 'project-root info)) "/tmp/proj"))
+     (should (equal (cdr (assoc 'port info)) 1111))
+     ;; Mock websocket-open connects immediately
+     (should (websocket-openp (claude-code-mcp-get-websocket "inst-a"))))))
 
-(ert-deftest test-mcp-ping-pong ()
-  "Test ping/pong functionality."
-  :tags '(:mcp :ping)
+(ert-deftest test-mcp-multiple-instances-same-project ()
+  "Two instances for the same project must coexist.
+Registering a second instance must not touch the first instance's
+connection."
   (claude-code-mcp-test-with-connection
-   (let ((project-root (projectile-project-root))
-         (ping-sent nil))
-     (cl-letf (((symbol-function 'websocket-send-text)
-                (lambda (ws text)
-                  (when (string-match "ping" text)
-                    (setq ping-sent t)))))
-       ;; Initialize connection info first
-       (claude-code-mcp-initialize-connection-info project-root)
-       
-       ;; Connect
-       (claude-code-mcp-connect project-root 8766)
+   (claude-code-mcp-register-port "/tmp/proj" 1111 "inst-a")
+   (let ((ws-a (claude-code-mcp-get-websocket "inst-a")))
+     (claude-code-mcp-register-port "/tmp/proj" 2222 "inst-b")
+     (let ((ws-b (claude-code-mcp-get-websocket "inst-b")))
+       ;; Both connections exist and are distinct
+       (should ws-a)
+       (should ws-b)
+       (should-not (eq ws-a ws-b))
+       ;; First instance is still connected and its websocket unchanged
+       (should (eq ws-a (claude-code-mcp-get-websocket "inst-a")))
+       (should (websocket-openp ws-a))
+       (should (websocket-openp ws-b))))))
 
-       ;; Test ping timer was created
-       (let ((info (claude-code-mcp-get-connection-info project-root)))
-         (should info)
-         (should (assoc 'ping-timer info)))
-
-       ;; Send ping manually
-       (claude-code-mcp-send-ping project-root)
-       (should ping-sent)))))
-
-(ert-deftest test-mcp-pong-handling ()
-  "Test pong message handling."
-  :tags '(:mcp :ping)
+(ert-deftest test-mcp-register-same-instance-id-replaces ()
+  "Re-registering the same instance ID replaces its connection."
   (claude-code-mcp-test-with-connection
-   (let ((project-root (projectile-project-root))
-         (timeout-cancelled nil))
-     (cl-letf (((symbol-function 'cancel-timer)
-                (lambda (timer)
-                  (setq timeout-cancelled t)))
-               ((symbol-function 'timerp)
-                (lambda (timer) t)))
-       ;; Initialize connection info first
-       (claude-code-mcp-initialize-connection-info project-root)
-       
-       ;; Connect
-       (claude-code-mcp-connect project-root 8766)
+   (claude-code-mcp-register-port "/tmp/proj" 1111 "inst-a")
+   (let ((old-ws (claude-code-mcp-get-websocket "inst-a")))
+     (claude-code-mcp-register-port "/tmp/proj" 3333 "inst-a")
+     (let ((new-ws (claude-code-mcp-get-websocket "inst-a")))
+       ;; Old socket was closed, new one is live
+       (should (memq old-ws claude-code-mcp-test-closed-sockets))
+       (should (websocket-openp new-ws))
+       (should (equal (cdr (assoc 'port (claude-code-mcp-get-connection-info "inst-a")))
+                      3333))))))
 
-       ;; Start ping timeout (mock)
-       (let ((info (claude-code-mcp-get-connection-info project-root)))
-         (should info)
-         (setcdr (assoc 'ping-timeout-timer info) 'mock-timer))
-
-       ;; Handle pong
-       (claude-code-mcp-handle-pong project-root)
-
-       ;; Verify timeout was cancelled
-       (should timeout-cancelled)
-
-       ;; Verify last-pong-time was updated
-       (let ((info (claude-code-mcp-get-connection-info project-root)))
-         (should (cdr (assoc 'last-pong-time info))))))))
-
-(ert-deftest test-mcp-get-connection-info ()
-  "Test getting connection info for project."
+(ert-deftest test-mcp-unregister-removes-only-own-instance ()
+  "Unregistering one instance must not affect other instances."
   (claude-code-mcp-test-with-connection
-   (let* ((project-root (projectile-project-root)))
-     ;; Should return nil when no connection info exists
-     (should-not (claude-code-mcp-get-connection-info project-root))
-     
-     ;; Initialize connection info
-     (claude-code-mcp-initialize-connection-info project-root)
-     
-     ;; Now it should return the info
-     (let ((info (claude-code-mcp-get-connection-info project-root)))
-       ;; Check all expected fields exist
-       (should (assoc 'websocket info))
-       (should (assoc 'request-id info))
-       (should (assoc 'pending-requests info))
-       (should (assoc 'connection-attempts info))
-       (should (assoc 'ping-timer info))
-       (should (assoc 'ping-timeout-timer info))
-       (should (assoc 'last-pong-time info))))))
+   (claude-code-mcp-register-port "/tmp/proj" 1111 "inst-a")
+   (claude-code-mcp-register-port "/tmp/proj" 2222 "inst-b")
+   (let ((ws-a (claude-code-mcp-get-websocket "inst-a"))
+         (ws-b (claude-code-mcp-get-websocket "inst-b")))
+     (claude-code-mcp-unregister-port "inst-a")
+     ;; inst-a is fully removed
+     (should-not (claude-code-mcp-get-connection-info "inst-a"))
+     (should (memq ws-a claude-code-mcp-test-closed-sockets))
+     ;; inst-b survives untouched
+     (should (claude-code-mcp-get-connection-info "inst-b"))
+     (should (websocket-openp ws-b)))))
 
-(ert-deftest test-mcp-register-port ()
-  "Test port registration for project."
+(ert-deftest test-mcp-disconnect-removes-instance ()
+  "Disconnect cleans up and removes the instance entry."
   (claude-code-mcp-test-with-connection
-   (let* ((project-root (projectile-project-root))
-          (test-port 9999)
-          (connect-called nil))
-     (cl-letf (((symbol-function 'claude-code-normalize-project-root)
-                (lambda (root) (directory-file-name root)))
-               ((symbol-function 'claude-code-mcp-try-connect-async)
-                (lambda (root port)
-                  (setq connect-called (list root port)))))
-       ;; Register port
-       (claude-code-mcp-register-port project-root test-port)
-       ;; Check that try-connect-async was called with correct args
-       (should connect-called)
-       (should (equal (car connect-called) (directory-file-name project-root)))
-       (should (equal (cadr connect-called) test-port))))))
+   (claude-code-mcp-register-port "/tmp/proj" 1111 "inst-a")
+   (let ((ws (claude-code-mcp-get-websocket "inst-a")))
+     (claude-code-mcp-disconnect "inst-a")
+     (should (memq ws claude-code-mcp-test-closed-sockets))
+     (should-not (claude-code-mcp-get-connection-info "inst-a")))))
 
-(ert-deftest test-mcp-handle-connection-lost ()
-  "Test handling lost connection."
+(ert-deftest test-mcp-connection-lost-removes-only-instance ()
+  "Connection loss on one instance must not affect other instances."
   (claude-code-mcp-test-with-connection
-   (let ((project-root (projectile-project-root))
-         (disconnect-called nil))
-     ;; Initialize connection info first
-     (claude-code-mcp-initialize-connection-info project-root)
-     
-     ;; Connect
-     (claude-code-mcp-connect project-root 8766)
+   (claude-code-mcp-register-port "/tmp/proj" 1111 "inst-a")
+   (claude-code-mcp-register-port "/tmp/proj" 2222 "inst-b")
+   (claude-code-mcp-handle-connection-lost "inst-a")
+   (should-not (claude-code-mcp-get-connection-info "inst-a"))
+   (should (claude-code-mcp-get-connection-info "inst-b"))
+   (should (websocket-openp (claude-code-mcp-get-websocket "inst-b")))))
 
-     ;; Mock disconnect
-     (cl-letf (((symbol-function 'claude-code-mcp-disconnect)
-                (lambda (root)
-                  (setq disconnect-called t))))
-       ;; Handle connection lost
-       (claude-code-mcp-handle-connection-lost project-root)
-       ;; Should have called disconnect
-       (should disconnect-called)))))
+;;; Event broadcast tests
 
-(ert-deftest test-mcp-get-connection-info-pure-getter ()
-  "Test that get-connection-info is a pure getter that returns nil when no info exists."
-  (let ((claude-code-mcp-project-connections (make-hash-table :test 'equal))
-        (project-root "/tmp/test-pure-getter/"))
-    ;; Should return nil when no connection info exists
-    (should-not (claude-code-mcp-get-connection-info project-root))
-    
-    ;; Should still return nil on repeated calls
-    (should-not (claude-code-mcp-get-connection-info project-root))
-    (should-not (claude-code-mcp-get-connection-info project-root))))
+(ert-deftest test-mcp-send-event-broadcasts-to-all-project-instances ()
+  "Events for a project are sent to every instance of that project only."
+  (claude-code-mcp-test-with-connection
+   (claude-code-mcp-register-port "/tmp/proj" 1111 "inst-a")
+   (claude-code-mcp-register-port "/tmp/proj" 2222 "inst-b")
+   (claude-code-mcp-register-port "/tmp/other" 3333 "inst-c")
+   ;; Reset messages sent during connection setup
+   (setq claude-code-mcp-test-sent-messages nil)
 
-(ert-deftest test-mcp-websocket-setter ()
-  "Test websocket setter operations without getter."
-  (let ((claude-code-mcp-project-connections (make-hash-table :test 'equal))
-        (project-root "/tmp/test-ws-setter/"))
-    ;; Initialize first
-    (claude-code-mcp-initialize-connection-info project-root)
-    
-    ;; Set a websocket and verify via connection info
-    (let ((ws '(test-websocket)))
-      (claude-code-mcp-set-websocket ws project-root)
-      (let ((info (claude-code-mcp-get-connection-info project-root)))
-        (should (equal ws (cdr (assoc 'websocket info))))))
-    
-    ;; Set to nil and verify
-    (claude-code-mcp-set-websocket nil project-root)
-    (let ((info (claude-code-mcp-get-connection-info project-root)))
-      (should (null (cdr (assoc 'websocket info)))))))
+   (claude-code-mcp-send-event-to-project "/tmp/proj" "testEvent" '((foo . "bar")))
+
+   (let ((msgs-a (claude-code-mcp-test-messages-for (claude-code-mcp-get-websocket "inst-a")))
+         (msgs-b (claude-code-mcp-test-messages-for (claude-code-mcp-get-websocket "inst-b")))
+         (msgs-c (claude-code-mcp-test-messages-for (claude-code-mcp-get-websocket "inst-c"))))
+     ;; Both instances of /tmp/proj receive the event
+     (should (= 1 (length msgs-a)))
+     (should (= 1 (length msgs-b)))
+     (should (string-match-p "emacs/testEvent" (car msgs-a)))
+     (should (string-match-p "emacs/testEvent" (car msgs-b)))
+     ;; The other project receives nothing
+     (should (= 0 (length msgs-c))))))
+
+(ert-deftest test-mcp-send-event-accepts-trailing-slash-root ()
+  "Event root is normalized before matching instances."
+  (claude-code-mcp-test-with-connection
+   (claude-code-mcp-register-port "/tmp/proj" 1111 "inst-a")
+   (setq claude-code-mcp-test-sent-messages nil)
+   (claude-code-mcp-send-event-to-project "/tmp/proj/" "testEvent" '((foo . "bar")))
+   (should (= 1 (length claude-code-mcp-test-sent-messages)))))
+
+;;; Ping/pong tests
+
+(ert-deftest test-mcp-ping-sent-to-own-instance-socket ()
+  "Ping goes to the instance's own websocket."
+  (claude-code-mcp-test-with-connection
+   (claude-code-mcp-register-port "/tmp/proj" 1111 "inst-a")
+   (claude-code-mcp-register-port "/tmp/proj" 2222 "inst-b")
+   (setq claude-code-mcp-test-sent-messages nil)
+   (cl-letf (((symbol-function 'run-with-timer) (lambda (&rest _args) nil)))
+     (claude-code-mcp-send-ping "inst-a"))
+   (let ((msgs-a (claude-code-mcp-test-messages-for (claude-code-mcp-get-websocket "inst-a")))
+         (msgs-b (claude-code-mcp-test-messages-for (claude-code-mcp-get-websocket "inst-b"))))
+     (should (= 1 (length msgs-a)))
+     (should (string-match-p "ping" (car msgs-a)))
+     (should (= 0 (length msgs-b))))))
 
 (ert-deftest test-mcp-ping-timer-management ()
-  "Test ping timer start and stop."
+  "Test ping timer start and stop per instance."
   (claude-code-mcp-test-with-connection
-   (let ((project-root (projectile-project-root))
-         (timer-created nil)
+   (let ((timer-created nil)
          (timer-cancelled nil))
      (cl-letf (((symbol-function 'run-with-timer)
-                (lambda (&rest args)
+                (lambda (&rest _args)
                   (setq timer-created t)
                   'mock-timer))
                ((symbol-function 'cancel-timer)
@@ -225,63 +217,19 @@
                     (setq timer-cancelled t))))
                ((symbol-function 'timerp)
                 (lambda (timer) (eq timer 'mock-timer))))
-       ;; Initialize connection info first
-       (claude-code-mcp-initialize-connection-info project-root)
-       
-       ;; Start timer
-       (claude-code-mcp-start-ping-timer project-root)
+       (claude-code-mcp-initialize-connection-info "inst-a" "/tmp/proj" 1111)
+       (claude-code-mcp-start-ping-timer "inst-a")
        (should timer-created)
-       ;; Stop timer
-       (claude-code-mcp-stop-ping-timer project-root)
+       (claude-code-mcp-stop-ping-timer "inst-a")
        (should timer-cancelled)))))
 
-(ert-deftest test-mcp-try-connect-async ()
-  "Test asynchronous connection attempts."
-  (claude-code-mcp-test-with-connection
-   (let ((project-root (projectile-project-root))
-         (test-port 8888)
-         (connect-called nil)
-         (retry-scheduled nil))
-     ;; Initialize connection info first
-     (claude-code-mcp-initialize-connection-info project-root)
-     
-     ;; Test successful connection
-     (cl-letf (((symbol-function 'claude-code-mcp-connect)
-                (lambda (root port callback)
-                  (setq connect-called (list root port))
-                  (when callback (funcall callback t))))
-               ((symbol-function 'run-at-time)
-                (lambda (&rest args)
-                  (setq retry-scheduled args)
-                  'mock-timer)))
-       (claude-code-mcp-try-connect-async project-root test-port)
-       (should connect-called)
-       (should-not retry-scheduled))
-     
-     ;; Test failed connection with retry
-     (setq connect-called nil)
-     (setq retry-scheduled nil)
-     (cl-letf (((symbol-function 'claude-code-mcp-connect)
-                (lambda (root port callback)
-                  (setq connect-called (list root port))
-                  (when callback (funcall callback nil))))
-               ((symbol-function 'run-at-time)
-                (lambda (delay &rest args)
-                  (setq retry-scheduled (cons delay args))
-                  'mock-timer)))
-       (claude-code-mcp-try-connect-async project-root test-port)
-       (should connect-called)
-       (should retry-scheduled)
-       (should (= (car retry-scheduled) claude-code-mcp-connection-retry-delay))))))
-
 (ert-deftest test-mcp-ping-timeout-management ()
-  "Test ping timeout timer management."
+  "Test ping timeout timer management per instance."
   (claude-code-mcp-test-with-connection
-   (let ((project-root (projectile-project-root))
-         (timeout-timer-created nil)
+   (let ((timeout-timer-created nil)
          (timeout-timer-cancelled nil))
      (cl-letf (((symbol-function 'run-with-timer)
-                (lambda (delay &rest args)
+                (lambda (delay &rest _args)
                   (when (= delay claude-code-mcp-ping-timeout)
                     (setq timeout-timer-created t))
                   'mock-timeout-timer))
@@ -291,39 +239,96 @@
                     (setq timeout-timer-cancelled t))))
                ((symbol-function 'timerp)
                 (lambda (timer) (eq timer 'mock-timeout-timer))))
-       ;; Initialize connection info first
-       (claude-code-mcp-initialize-connection-info project-root)
-       
-       ;; Start timeout timer
-       (claude-code-mcp-start-ping-timeout project-root)
+       (claude-code-mcp-initialize-connection-info "inst-a" "/tmp/proj" 1111)
+       (claude-code-mcp-start-ping-timeout "inst-a")
        (should timeout-timer-created)
-       ;; Stop timeout timer
-       (claude-code-mcp-stop-ping-timeout project-root)
+       (claude-code-mcp-stop-ping-timeout "inst-a")
        (should timeout-timer-cancelled)))))
 
-(ert-deftest test-mcp-handle-ping-timeout ()
-  "Test handling ping timeout."
+(ert-deftest test-mcp-handle-pong-per-instance ()
+  "Pong cancels the timeout of its own instance only."
   (claude-code-mcp-test-with-connection
-   (let ((project-root (projectile-project-root))
-         (connection-lost-called nil))
-     (cl-letf (((symbol-function 'claude-code-mcp-handle-connection-lost)
-                (lambda (root)
-                  (setq connection-lost-called root))))
-       (claude-code-mcp-handle-ping-timeout project-root)
-       (should (equal connection-lost-called project-root))))))
+   (let ((cancelled nil))
+     (cl-letf (((symbol-function 'cancel-timer)
+                (lambda (timer) (push timer cancelled)))
+               ((symbol-function 'timerp)
+                (lambda (timer) (memq timer '(timer-a timer-b)))))
+       (claude-code-mcp-initialize-connection-info "inst-a" "/tmp/proj" 1111)
+       (claude-code-mcp-initialize-connection-info "inst-b" "/tmp/proj" 2222)
+       (setcdr (assoc 'ping-timeout-timer (claude-code-mcp-get-connection-info "inst-a"))
+               'timer-a)
+       (setcdr (assoc 'ping-timeout-timer (claude-code-mcp-get-connection-info "inst-b"))
+               'timer-b)
 
-(ert-deftest test-mcp-unregister-port ()
-  "Test port unregistration."
+       (claude-code-mcp-handle-pong "inst-a")
+
+       ;; Only inst-a's timer was cancelled
+       (should (equal cancelled '(timer-a)))
+       ;; inst-a's last-pong-time was updated, inst-b's was not
+       (should (cdr (assoc 'last-pong-time (claude-code-mcp-get-connection-info "inst-a"))))
+       (should-not (cdr (assoc 'last-pong-time (claude-code-mcp-get-connection-info "inst-b"))))
+       ;; inst-b's timeout timer is still set
+       (should (eq (cdr (assoc 'ping-timeout-timer (claude-code-mcp-get-connection-info "inst-b")))
+                   'timer-b))))))
+
+(ert-deftest test-mcp-handle-ping-timeout ()
+  "Ping timeout triggers connection-lost handling for the instance."
   (claude-code-mcp-test-with-connection
-   (let ((project-root (projectile-project-root))
-         (disconnect-called nil))
-     (cl-letf (((symbol-function 'claude-code-normalize-project-root)
-                (lambda (root) (directory-file-name root)))
-               ((symbol-function 'claude-code-mcp-disconnect)
-                (lambda (root)
-                  (setq disconnect-called root))))
-       (claude-code-mcp-unregister-port project-root)
-       (should (equal disconnect-called (directory-file-name project-root)))))))
+   (let ((connection-lost-called nil))
+     (cl-letf (((symbol-function 'claude-code-mcp-handle-connection-lost)
+                (lambda (instance-id)
+                  (setq connection-lost-called instance-id))))
+       (claude-code-mcp-handle-ping-timeout "inst-a")
+       (should (equal connection-lost-called "inst-a"))))))
+
+;;; Retry tests
+
+(ert-deftest test-mcp-try-connect-async ()
+  "Test asynchronous connection attempts with retry."
+  (claude-code-mcp-test-with-connection
+   (let ((connect-called nil)
+         (retry-scheduled nil))
+     (claude-code-mcp-initialize-connection-info "inst-a" "/tmp/proj" 8888)
+
+     ;; Successful connection schedules no retry
+     (cl-letf (((symbol-function 'claude-code-mcp-connect)
+                (lambda (instance-id &optional callback)
+                  (setq connect-called instance-id)
+                  (when callback (funcall callback t))))
+               ((symbol-function 'run-at-time)
+                (lambda (&rest args)
+                  (setq retry-scheduled args)
+                  'mock-timer)))
+       (claude-code-mcp-try-connect-async "inst-a")
+       (should (equal connect-called "inst-a"))
+       (should-not retry-scheduled))
+
+     ;; Failed connection schedules a retry
+     (setq connect-called nil)
+     (setq retry-scheduled nil)
+     (cl-letf (((symbol-function 'claude-code-mcp-connect)
+                (lambda (instance-id &optional callback)
+                  (setq connect-called instance-id)
+                  (when callback (funcall callback nil))))
+               ((symbol-function 'run-at-time)
+                (lambda (delay &rest args)
+                  (setq retry-scheduled (cons delay args))
+                  'mock-timer)))
+       (claude-code-mcp-try-connect-async "inst-a")
+       (should (equal connect-called "inst-a"))
+       (should retry-scheduled)
+       (should (= (car retry-scheduled) claude-code-mcp-connection-retry-delay))))))
+
+(ert-deftest test-mcp-try-connect-async-aborts-after-unregister ()
+  "Retry attempts stop once the instance has been unregistered."
+  (claude-code-mcp-test-with-connection
+   (let ((connect-called nil))
+     (cl-letf (((symbol-function 'claude-code-mcp-connect)
+                (lambda (instance-id &optional _callback)
+                  (setq connect-called instance-id))))
+       ;; No connection info registered for this instance
+       (claude-code-mcp-try-connect-async "inst-gone")
+       (should-not connect-called)))))
 
 (provide 'test-claude-code-mcp-connection)
 ;;; test-claude-code-mcp-connection.el ends here

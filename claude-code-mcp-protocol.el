@@ -26,6 +26,10 @@
 ;; - Request/response handling
 ;; - Error handling
 ;; - WebSocket event handlers
+;;
+;; All messages are routed per server instance ID so that multiple
+;; Claude Code sessions in the same project never receive each other's
+;; responses.
 
 ;;; Code:
 
@@ -38,10 +42,10 @@
 (declare-function websocket-frame-text "websocket" (frame))
 
 ;; Forward declarations
-(declare-function claude-code-mcp-get-connection-info "claude-code-mcp-connection" (project-root))
-(declare-function claude-code-mcp-get-websocket "claude-code-mcp-connection" (project-root))
-(declare-function claude-code-mcp-set-websocket "claude-code-mcp-connection" (websocket project-root))
-(declare-function claude-code-mcp-handle-pong "claude-code-mcp-connection" (project-root))
+(declare-function claude-code-mcp-get-connection-info "claude-code-mcp-connection" (instance-id))
+(declare-function claude-code-mcp-get-websocket "claude-code-mcp-connection" (instance-id))
+(declare-function claude-code-mcp-disconnect "claude-code-mcp-connection" (instance-id))
+(declare-function claude-code-mcp-handle-pong "claude-code-mcp-connection" (instance-id))
 
 ;; Tool handler forward declarations
 (declare-function claude-code-mcp-handle-getOpenBuffers "claude-code-mcp-tools" (params))
@@ -61,9 +65,11 @@
 
 ;;; JSON-RPC Communication
 
-(defun claude-code-mcp-send-response (id result error project-root)
-  "Send response for request ID with RESULT or ERROR for PROJECT-ROOT."
-  (let ((websocket (claude-code-mcp-get-websocket project-root))
+(defun claude-code-mcp-send-response (id result error instance-id)
+  "Send response for request ID with RESULT or ERROR to INSTANCE-ID.
+The response goes to the websocket of the instance the request came
+from, never to another instance of the same project."
+  (let ((websocket (claude-code-mcp-get-websocket instance-id))
         (response (if error
                       `((jsonrpc . "2.0")
                         (id . ,id)
@@ -76,8 +82,8 @@
 
 ;;; Message Handling
 
-(defun claude-code-mcp-handle-message (message project-root)
-  "Handle incoming JSON-RPC MESSAGE for PROJECT-ROOT."
+(defun claude-code-mcp-handle-message (message instance-id)
+  "Handle incoming JSON-RPC MESSAGE from INSTANCE-ID."
   (condition-case err
       (let* ((json-object-type 'alist)
              (json-array-type 'list)
@@ -85,16 +91,16 @@
         (cond
          ;; Handle ping/pong messages
          ((equal (cdr (assoc 'type msg)) "pong")
-          (claude-code-mcp-handle-pong project-root))
+          (claude-code-mcp-handle-pong instance-id))
 
          ;; Request from server (check method first)
          ((assoc 'method msg)
-          (claude-code-mcp-handle-request msg project-root))
+          (claude-code-mcp-handle-request msg instance-id))
 
          ;; Response to our request
          ((assoc 'id msg)
           (when-let* ((id (cdr (assoc 'id msg)))
-                      (info (claude-code-mcp-get-connection-info project-root))
+                      (info (claude-code-mcp-get-connection-info instance-id))
                       (pending-requests (cdr (assoc 'pending-requests info)))
                       (callback (gethash id pending-requests)))
             (remhash id pending-requests)
@@ -108,8 +114,8 @@
     (error
      (message "Error handling MCP message: %s" err))))
 
-(defun claude-code-mcp-handle-request (request project-root)
-  "Handle incoming REQUEST from MCP server for PROJECT-ROOT."
+(defun claude-code-mcp-handle-request (request instance-id)
+  "Handle incoming REQUEST from MCP server INSTANCE-ID."
   (let* ((id (cdr (assoc 'id request)))
          (method (cdr (assoc 'method request)))
          (params (cdr (assoc 'params request)))
@@ -121,34 +127,39 @@
     (if (fboundp handler)
         (condition-case err
             (let ((result (funcall handler params)))
-              (claude-code-mcp-send-response id result nil project-root))
+              (claude-code-mcp-send-response id result nil instance-id))
           (error
            (message "Error in handler %s: %s" handler err)
            (claude-code-mcp-send-response id nil
-                                                `((code . -32603)
-                                                  (message . ,(error-message-string err)))
-                                                project-root)))
+                                          `((code . -32603)
+                                            (message . ,(error-message-string err)))
+                                          instance-id)))
       (claude-code-mcp-send-response id nil
-                                           `((code . -32601)
-                                             (message . ,(format "Method not found: %s" method)))
-                                           project-root))))
+                                     `((code . -32601)
+                                       (message . ,(format "Method not found: %s" method)))
+                                     instance-id))))
 
 ;;; WebSocket Event Handlers
 
-(defun claude-code-mcp-on-message (_websocket frame project-root)
-  "Handle incoming WebSocket message for PROJECT-ROOT."
+(defun claude-code-mcp-on-message (_websocket frame instance-id)
+  "Handle incoming WebSocket message from INSTANCE-ID."
   (let ((payload (websocket-frame-text frame)))
     (when payload
-      (claude-code-mcp-handle-message payload project-root))))
+      (claude-code-mcp-handle-message payload instance-id))))
 
-(defun claude-code-mcp-on-error (_websocket type error &optional _project-root)
+(defun claude-code-mcp-on-error (_websocket type error &optional _instance-id)
   "Handle WebSocket error."
   (message "MCP WebSocket error (%s): %s" type error))
 
-(defun claude-code-mcp-on-close (_websocket project-root)
-  "Handle WebSocket close for PROJECT-ROOT."
-  (claude-code-mcp-set-websocket nil project-root)
-  (message "MCP WebSocket connection closed for project %s" project-root))
+(defun claude-code-mcp-on-close (websocket instance-id)
+  "Handle WebSocket close of WEBSOCKET for INSTANCE-ID.
+Cleans up the instance only when the closed socket is its current
+connection.  A stale socket (replaced by a reconnect) closing late
+must not tear down the live connection."
+  (when-let ((info (claude-code-mcp-get-connection-info instance-id)))
+    (when (eq websocket (cdr (assoc 'websocket info)))
+      (message "MCP WebSocket connection closed for instance %s" instance-id)
+      (claude-code-mcp-disconnect instance-id))))
 
 (provide 'claude-code-mcp-protocol)
 ;;; claude-code-mcp-protocol.el ends here

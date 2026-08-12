@@ -41,6 +41,7 @@ Claude Code can directly interact with your Emacs environment:
 - **LSP integration** - Get diagnostics, find definitions/references, describe symbols
 - **Diff tools** - Compare files, view git changes, apply patches
 - **Real-time events** - Buffer changes and diagnostics sent to Claude Code automatically
+- **Automatic reconnection** - If Emacs restarts, running sessions (including background agents) re-register themselves and reconnect automatically
 
 ### ⌨️ Key Bindings
 
@@ -63,6 +64,32 @@ Claude Code can directly interact with your Emacs environment:
 | `C-c TAB` | Send Shift+Tab (toggle auto-accept) |
 | `C-c C-t` | Open transient menu |
 | `C-c C-s` | Toggle scroll mode (for fullscreen mode) |
+| `C-c C-a` | Open agents view and enable agent view mode |
+
+#### In Agent View Mode (`claude-code-vterm-agent-mode`)
+
+A minor mode for operating the Claude Code agents view.
+Press `C-c C-a` in a Claude Code session to send `Left` (which opens the
+agents view) and enable this mode.
+
+The mode stays deliberately minimal so its keymap is free for user
+extensions. Everything not listed below passes through to the
+terminal: typing reaches the agents view's text input, and the TUI's
+own control keys (`C-r` rename, `C-s` switch view, `C-t` pin, arrows,
+`RET`, `ESC`) work as in a plain vterm.
+
+| Key | Action |
+|-----|--------|
+| `C-n` / `C-p` | Select next / previous agent |
+| `C-c C-a` | Command menu (transient) with every operation |
+
+The transient menu bundles all agents view operations: select
+(`n`/`p`), rename via minibuffer (`r`), pin to top (`t`), stop with
+confirmation (`k`), switch view (`v`), open (`RET`, `1`) and quit
+(`q`). Opening or quitting from the menu also turns the mode off.
+
+Every operation is also available as a plain command, so you can bind
+your own keys in `claude-code-vterm-agent-mode-map`.
 
 #### In Scroll Mode (`claude-code-vterm-scroll-mode`)
 
@@ -224,7 +251,7 @@ See [docs/MCP-SETUP.md](docs/MCP-SETUP.md) for detailed MCP configuration.
 ## Architecture
 
 - **Modular design** - Separate modules for buffer management, commands, UI, MCP
-- **Per-project WebSocket** - Each project maintains its own MCP connection
+- **Per-session WebSocket** - Each Claude Code session (agent) maintains its own MCP connection, so multiple agents can run in the same project simultaneously
 - **Automatic reconnection** - MCP connection health monitoring with ping/pong
 - **Event batching** - Efficient real-time notifications with debouncing
 

@@ -17,31 +17,78 @@ describe('EmacsBridge', () => {
   });
 
   afterEach(async () => {
-    // Mock bridges don't need explicit cleanup
+    await bridge.stop();
+    jest.useRealTimers();
   });
+
+  // --- shared helpers -------------------------------------------------
+
+  function makeMockWs() {
+    return {
+      on: jest.fn(),
+      send: jest.fn(),
+      close: jest.fn(),
+      ping: jest.fn(),
+      terminate: jest.fn()
+    };
+  }
+
+  function makeMockReq(sessionId: string = testSessionId) {
+    return {
+      url: `/?session=${encodeURIComponent(sessionId)}`,
+      headers: { host: 'localhost:9999' }
+    };
+  }
+
+  function mockWebSocketServer() {
+    (WebSocketServer as any) = jest.fn().mockImplementation(() => {
+      const wss = mockWss;
+      // Simulate successful start
+      setTimeout(() => {
+        const listeningCallback = wss.on.mock.calls.find((call: any) => call[0] === 'listening');
+        if (listeningCallback) {
+          listeningCallback[1]();
+        }
+      }, 0);
+      return wss;
+    });
+  }
+
+  async function startBridge(port = 9999): Promise<number> {
+    mockWebSocketServer();
+    return bridge.start(port, testSessionId);
+  }
+
+  /** Start the bridge while jest fake timers are installed. */
+  async function startBridgeWithFakeTimers(port = 9999): Promise<number> {
+    mockWebSocketServer();
+    const promise = bridge.start(port, testSessionId);
+    await jest.advanceTimersByTimeAsync(0);
+    return promise;
+  }
+
+  function connectClient(ws = makeMockWs(), req = makeMockReq()) {
+    const connectionCallback = mockWss.on.mock.calls.find((call: any) => call[0] === 'connection');
+    expect(connectionCallback).toBeDefined();
+    connectionCallback[1](ws, req);
+    return ws;
+  }
+
+  function wsHandler(ws: any, event: string) {
+    const call = ws.on.mock.calls.find((call: any) => call[0] === event);
+    expect(call).toBeDefined();
+    return call[1];
+  }
+
+  // ---------------------------------------------------------------------
 
   describe('start', () => {
     it('should create WebSocket server on specified port with session ID', async () => {
-      const port = 9999;
-      
-      // Mock WebSocketServer constructor
-      (WebSocketServer as any) = jest.fn().mockImplementation(() => {
-        const wss = mockWss;
-        // Simulate successful start
-        setTimeout(() => {
-          const listeningCallback = wss.on.mock.calls.find((call: any) => call[0] === 'listening');
-          if (listeningCallback) {
-            listeningCallback[1]();
-          }
-        }, 0);
-        return wss;
-      });
-
-      const assignedPort = await bridge.start(port, testSessionId);
+      const assignedPort = await startBridge(9999);
 
       expect(assignedPort).toBe(9999);
-      expect(WebSocketServer).toHaveBeenCalledWith({ 
-        port,
+      expect(WebSocketServer).toHaveBeenCalledWith({
+        port: 9999,
         verifyClient: expect.any(Function)
       });
       expect(mockWss.on).toHaveBeenCalledWith('connection', expect.any(Function));
@@ -65,131 +112,112 @@ describe('EmacsBridge', () => {
 
   describe('multiple sessions', () => {
     it('should handle connection callback with session parameter', async () => {
-      const port = 9999;
-      const mockWs = {
-        on: jest.fn(),
-        send: jest.fn(),
-        close: jest.fn()
-      };
-      const mockReq = {
-        url: `/?session=${encodeURIComponent(testSessionId)}`,
-        headers: { host: 'localhost:9999' }
-      };
-      
-      // Mock WebSocketServer constructor
-      (WebSocketServer as any) = jest.fn().mockImplementation(() => {
-        const wss = mockWss;
-        // Simulate successful start
-        setTimeout(() => {
-          const listeningCallback = wss.on.mock.calls.find((call: any) => call[0] === 'listening');
-          if (listeningCallback) {
-            listeningCallback[1]();
-          }
-        }, 0);
-        return wss;
-      });
+      await startBridge();
+      const mockWs = connectClient();
 
-      await bridge.start(port, testSessionId);
-
-      // Simulate connection
-      const connectionCallback = mockWss.on.mock.calls.find((call: any) => call[0] === 'connection');
-      expect(connectionCallback).toBeDefined();
-      
-      // Call the connection handler
-      connectionCallback[1](mockWs, mockReq);
-      
       expect(mockWs.on).toHaveBeenCalledWith('message', expect.any(Function));
       expect(mockWs.on).toHaveBeenCalledWith('close', expect.any(Function));
       expect(mockWs.on).toHaveBeenCalledWith('error', expect.any(Function));
     });
   });
 
+  describe('connect/disconnect events', () => {
+    it('emits connect on connection and disconnect with the close code when the socket closes', async () => {
+      await startBridge();
+
+      const connectSpy = jest.fn();
+      const disconnectSpy = jest.fn();
+      bridge.on('connect', connectSpy);
+      bridge.on('disconnect', disconnectSpy);
+
+      const mockWs = connectClient();
+      expect(connectSpy).toHaveBeenCalledWith(testSessionId);
+      expect(disconnectSpy).not.toHaveBeenCalled();
+
+      // Simulate the socket dropping abnormally (e.g. Emacs restarted)
+      wsHandler(mockWs, 'close')(1006);
+      expect(disconnectSpy).toHaveBeenCalledWith(testSessionId, 1006);
+      expect(bridge.isConnected()).toBe(false);
+    });
+
+    it('ignores a stale socket closing after the session has reconnected', async () => {
+      await startBridge();
+
+      const disconnectSpy = jest.fn();
+      bridge.on('disconnect', disconnectSpy);
+
+      // Old connection drops uncleanly: its close event has not fired
+      // yet when Emacs reconnects with a fresh socket
+      const oldWs = connectClient();
+      const newWs = connectClient(makeMockWs());
+
+      // The replaced socket is terminated so it cannot linger half-open
+      expect(oldWs.terminate).toHaveBeenCalled();
+
+      // The old socket's close event must not tear down the new
+      // connection nor emit a spurious disconnect
+      wsHandler(oldWs, 'close')(1006);
+      expect(disconnectSpy).not.toHaveBeenCalled();
+      expect(bridge.isConnected()).toBe(true);
+
+      // Closing the current socket still disconnects normally
+      wsHandler(newWs, 'close')(1006);
+      expect(disconnectSpy).toHaveBeenCalledWith(testSessionId, 1006);
+      expect(bridge.isConnected()).toBe(false);
+    });
+  });
+
+  describe('heartbeat', () => {
+    it('terminates a dead socket that misses a pong and keeps a live one', async () => {
+      jest.useFakeTimers();
+      bridge = new EmacsBridge(jest.fn(), { heartbeatIntervalMs: 30000 });
+      await startBridgeWithFakeTimers();
+
+      const mockWs = connectClient();
+      expect(mockWs.on).toHaveBeenCalledWith('pong', expect.any(Function));
+
+      // First interval: socket is marked pending and pinged
+      await jest.advanceTimersByTimeAsync(30000);
+      expect(mockWs.ping).toHaveBeenCalledTimes(1);
+      expect(mockWs.terminate).not.toHaveBeenCalled();
+
+      // The client answers the ping: it must survive the next interval
+      wsHandler(mockWs, 'pong')();
+      await jest.advanceTimersByTimeAsync(30000);
+      expect(mockWs.ping).toHaveBeenCalledTimes(2);
+      expect(mockWs.terminate).not.toHaveBeenCalled();
+
+      // No pong this time: the socket is dead and gets terminated
+      await jest.advanceTimersByTimeAsync(30000);
+      expect(mockWs.terminate).toHaveBeenCalled();
+    });
+  });
+
   describe('ping/pong', () => {
     it('should respond to ping with pong', async () => {
-      const port = 9999;
-      const mockWs = {
-        on: jest.fn(),
-        send: jest.fn(),
-        close: jest.fn()
-      };
-      const mockReq = {
-        url: `/?session=${encodeURIComponent(testSessionId)}`,
-        headers: { host: 'localhost:9999' }
-      };
-      
-      // Mock WebSocketServer constructor
-      (WebSocketServer as any) = jest.fn().mockImplementation(() => {
-        const wss = mockWss;
-        // Simulate successful start
-        setTimeout(() => {
-          const listeningCallback = wss.on.mock.calls.find((call: any) => call[0] === 'listening');
-          if (listeningCallback) {
-            listeningCallback[1]();
-          }
-        }, 0);
-        return wss;
-      });
+      await startBridge();
+      const mockWs = connectClient();
 
-      await bridge.start(port, testSessionId);
-
-      // Simulate connection
-      const connectionCallback = mockWss.on.mock.calls.find((call: any) => call[0] === 'connection');
-      connectionCallback[1](mockWs, mockReq);
-      
-      // Get the message handler
-      const messageCallback = mockWs.on.mock.calls.find((call: any) => call[0] === 'message');
-      expect(messageCallback).toBeDefined();
-      
       // Send ping message
       const pingMessage = JSON.stringify({ type: 'ping' });
-      messageCallback[1](Buffer.from(pingMessage));
-      
+      wsHandler(mockWs, 'message')(Buffer.from(pingMessage));
+
       // Verify pong was sent
       expect(mockWs.send).toHaveBeenCalledWith(JSON.stringify({ type: 'pong' }));
     });
 
     it('should handle request messages alongside ping messages', async () => {
-      const port = 9999;
-      const mockWs = {
-        on: jest.fn(),
-        send: jest.fn(),
-        close: jest.fn()
-      };
-      const mockReq = {
-        url: `/?session=${encodeURIComponent(testSessionId)}`,
-        headers: { host: 'localhost:9999' }
-      };
-      
-      // Mock WebSocketServer constructor
-      (WebSocketServer as any) = jest.fn().mockImplementation(() => {
-        const wss = mockWss;
-        // Simulate successful start
-        setTimeout(() => {
-          const listeningCallback = wss.on.mock.calls.find((call: any) => call[0] === 'listening');
-          if (listeningCallback) {
-            listeningCallback[1]();
-          }
-        }, 0);
-        return wss;
-      });
+      await startBridge();
+      const mockWs = connectClient();
 
-      await bridge.start(port, testSessionId);
-
-      // Simulate connection
-      const connectionCallback = mockWss.on.mock.calls.find((call: any) => call[0] === 'connection');
-      connectionCallback[1](mockWs, mockReq);
-      
-      // Get the message handler
-      const messageCallback = mockWs.on.mock.calls.find((call: any) => call[0] === 'message');
-      
       // Send request message (not ping)
-      const requestMessage = JSON.stringify({ 
-        id: '123', 
-        method: 'openFile', 
-        params: { path: 'test.js' } 
+      const requestMessage = JSON.stringify({
+        id: '123',
+        method: 'openFile',
+        params: { path: 'test.js' }
       });
-      messageCallback[1](Buffer.from(requestMessage));
-      
+      wsHandler(mockWs, 'message')(Buffer.from(requestMessage));
+
       // Should not send pong for non-ping messages
       expect(mockWs.send).not.toHaveBeenCalledWith(JSON.stringify({ type: 'pong' }));
     });
@@ -197,43 +225,14 @@ describe('EmacsBridge', () => {
 
   describe('notifications', () => {
     it('should emit notification events when received', async () => {
-      const port = 9999;
-      const mockWs = {
-        on: jest.fn(),
-        send: jest.fn(),
-        close: jest.fn()
-      };
-      const mockReq = {
-        url: `/?session=${encodeURIComponent(testSessionId)}`,
-        headers: { host: 'localhost:9999' }
-      };
-      
-      // Mock WebSocketServer constructor
-      (WebSocketServer as any) = jest.fn().mockImplementation(() => {
-        const wss = mockWss;
-        // Simulate successful start
-        setTimeout(() => {
-          const listeningCallback = wss.on.mock.calls.find((call: any) => call[0] === 'listening');
-          if (listeningCallback) {
-            listeningCallback[1]();
-          }
-        }, 0);
-        return wss;
-      });
-
-      await bridge.start(port, testSessionId);
+      await startBridge();
 
       // Set up notification handler
       const notificationHandler = jest.fn();
       bridge.setNotificationHandler(notificationHandler);
 
-      // Simulate connection
-      const connectionCallback = mockWss.on.mock.calls.find((call: any) => call[0] === 'connection');
-      connectionCallback[1](mockWs, mockReq);
-      
-      // Get the message handler
-      const messageCallback = mockWs.on.mock.calls.find((call: any) => call[0] === 'message');
-      
+      const mockWs = connectClient();
+
       // Send notification message
       const notificationMessage = JSON.stringify({
         method: 'emacs/bufferListUpdated',
@@ -241,8 +240,8 @@ describe('EmacsBridge', () => {
           buffers: ['/test/file1.el', '/test/file2.el']
         }
       });
-      messageCallback[1](Buffer.from(notificationMessage));
-      
+      wsHandler(mockWs, 'message')(Buffer.from(notificationMessage));
+
       // Verify notification handler was called
       expect(notificationHandler).toHaveBeenCalledWith('emacs/bufferListUpdated', {
         buffers: ['/test/file1.el', '/test/file2.el']
@@ -250,43 +249,15 @@ describe('EmacsBridge', () => {
     });
 
     it('should handle different notification types', async () => {
-      const port = 9999;
-      const mockWs = {
-        on: jest.fn(),
-        send: jest.fn(),
-        close: jest.fn()
-      };
-      const mockReq = {
-        url: `/?session=${encodeURIComponent(testSessionId)}`,
-        headers: { host: 'localhost:9999' }
-      };
-      
-      // Mock WebSocketServer constructor
-      (WebSocketServer as any) = jest.fn().mockImplementation(() => {
-        const wss = mockWss;
-        // Simulate successful start
-        setTimeout(() => {
-          const listeningCallback = wss.on.mock.calls.find((call: any) => call[0] === 'listening');
-          if (listeningCallback) {
-            listeningCallback[1]();
-          }
-        }, 0);
-        return wss;
-      });
-
-      await bridge.start(port, testSessionId);
+      await startBridge();
 
       // Set up notification handler
       const notificationHandler = jest.fn();
       bridge.setNotificationHandler(notificationHandler);
 
-      // Simulate connection
-      const connectionCallback = mockWss.on.mock.calls.find((call: any) => call[0] === 'connection');
-      connectionCallback[1](mockWs, mockReq);
-      
-      // Get the message handler
-      const messageCallback = mockWs.on.mock.calls.find((call: any) => call[0] === 'message');
-      
+      const mockWs = connectClient();
+      const messageHandler = wsHandler(mockWs, 'message');
+
       // Test different notification types
       // 1. Buffer content modified
       const contentModifiedMessage = JSON.stringify({
@@ -300,8 +271,8 @@ describe('EmacsBridge', () => {
           }]
         }
       });
-      messageCallback[1](Buffer.from(contentModifiedMessage));
-      
+      messageHandler(Buffer.from(contentModifiedMessage));
+
       // 2. Diagnostics changed
       const diagnosticsChangedMessage = JSON.stringify({
         method: 'emacs/diagnosticsChanged',
@@ -317,8 +288,8 @@ describe('EmacsBridge', () => {
           }]
         }
       });
-      messageCallback[1](Buffer.from(diagnosticsChangedMessage));
-      
+      messageHandler(Buffer.from(diagnosticsChangedMessage));
+
       // Verify all notifications were handled
       expect(notificationHandler).toHaveBeenCalledTimes(2);
       expect(notificationHandler).toHaveBeenCalledWith('emacs/bufferContentModified', expect.any(Object));
@@ -326,60 +297,32 @@ describe('EmacsBridge', () => {
     });
 
     it('should not emit events for non-notification messages', async () => {
-      const port = 9999;
-      const mockWs = {
-        on: jest.fn(),
-        send: jest.fn(),
-        close: jest.fn()
-      };
-      const mockReq = {
-        url: `/?session=${encodeURIComponent(testSessionId)}`,
-        headers: { host: 'localhost:9999' }
-      };
-      
-      // Mock WebSocketServer constructor
-      (WebSocketServer as any) = jest.fn().mockImplementation(() => {
-        const wss = mockWss;
-        // Simulate successful start
-        setTimeout(() => {
-          const listeningCallback = wss.on.mock.calls.find((call: any) => call[0] === 'listening');
-          if (listeningCallback) {
-            listeningCallback[1]();
-          }
-        }, 0);
-        return wss;
-      });
-
-      await bridge.start(port, testSessionId);
+      await startBridge();
 
       // Set up notification handler
       const notificationHandler = jest.fn();
       bridge.setNotificationHandler(notificationHandler);
 
-      // Simulate connection
-      const connectionCallback = mockWss.on.mock.calls.find((call: any) => call[0] === 'connection');
-      connectionCallback[1](mockWs, mockReq);
-      
-      // Get the message handler
-      const messageCallback = mockWs.on.mock.calls.find((call: any) => call[0] === 'message');
-      
+      const mockWs = connectClient();
+      const messageHandler = wsHandler(mockWs, 'message');
+
       // Send non-notification messages
       // 1. Ping message
-      messageCallback[1](Buffer.from(JSON.stringify({ type: 'ping' })));
-      
+      messageHandler(Buffer.from(JSON.stringify({ type: 'ping' })));
+
       // 2. Response message
-      messageCallback[1](Buffer.from(JSON.stringify({ 
-        id: '123', 
-        result: 'success' 
+      messageHandler(Buffer.from(JSON.stringify({
+        id: '123',
+        result: 'success'
       })));
-      
+
       // 3. Request message (has id)
-      messageCallback[1](Buffer.from(JSON.stringify({ 
+      messageHandler(Buffer.from(JSON.stringify({
         id: '456',
         method: 'someMethod',
         params: {}
       })));
-      
+
       // Verify notification handler was NOT called
       expect(notificationHandler).not.toHaveBeenCalled();
     });

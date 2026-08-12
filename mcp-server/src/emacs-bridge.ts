@@ -19,6 +19,18 @@ interface JsonRpcResponse {
   };
 }
 
+export interface EmacsBridgeOptions {
+  /**
+   * Interval for the server-side WebSocket heartbeat. A client that
+   * misses a whole interval without answering the ping is considered
+   * dead and terminated, which fires the normal disconnect path. This
+   * catches half-open sockets (Emacs killed without FIN, machine
+   * sleep) that would otherwise keep isConnected() true for hours.
+   * Set to 0 to disable. Defaults to 30000ms.
+   */
+  heartbeatIntervalMs?: number;
+}
+
 export class EmacsBridge extends EventEmitter {
   private wss?: WebSocketServer;
   private clients: Map<string, WebSocket> = new Map();
@@ -30,10 +42,14 @@ export class EmacsBridge extends EventEmitter {
   private requestId = 0;
   private log: (message: string) => void;
   private onNotification?: (method: string, params: any) => void;
+  private heartbeatIntervalMs: number;
+  private heartbeatTimer?: NodeJS.Timeout;
+  private alive: WeakMap<WebSocket, boolean> = new WeakMap();
 
-  constructor(logger?: (message: string) => void) {
+  constructor(logger?: (message: string) => void, options?: EmacsBridgeOptions) {
     super();
     this.log = logger || (() => {});
+    this.heartbeatIntervalMs = options?.heartbeatIntervalMs ?? 30000;
   }
 
   async start(port: number = 0, sessionId?: string): Promise<number> {
@@ -60,9 +76,24 @@ export class EmacsBridge extends EventEmitter {
           try {
             const url = new URL(req.url || '', `http://${req.headers.host}`);
             const clientSessionId = decodeURIComponent(url.searchParams.get('session') || 'default');
+            const clientInstanceId = decodeURIComponent(url.searchParams.get('instance') || 'unknown');
 
-            this.log(`Emacs connected for session: ${clientSessionId}`);
+            this.log(`Emacs connected for session: ${clientSessionId} (instance: ${clientInstanceId})`);
+            // A reconnect can arrive before the previous socket's close
+            // event fires (unclean drop); terminate the replaced socket
+            // so it cannot linger half-open.
+            const previous = this.clients.get(clientSessionId);
+            if (previous && previous !== ws) {
+              this.log(`Replacing existing connection for session: ${clientSessionId}`);
+              previous.terminate();
+            }
             this.clients.set(clientSessionId, ws);
+            this.alive.set(ws, true);
+            this.emit('connect', clientSessionId);
+
+            ws.on('pong', () => {
+              this.alive.set(ws, true);
+            });
 
             ws.on('message', (data) => {
               try {
@@ -73,9 +104,17 @@ export class EmacsBridge extends EventEmitter {
               }
             });
 
-            ws.on('close', () => {
-              this.log(`Emacs disconnected for session: ${clientSessionId}`);
+            ws.on('close', (code) => {
+              // Only tear down the session entry if this socket is still
+              // the current one; a stale socket closing after the session
+              // reconnected must not remove the fresh connection.
+              if (this.clients.get(clientSessionId) !== ws) {
+                this.log(`Stale socket closed for session: ${clientSessionId} (code ${code}); keeping newer connection`);
+                return;
+              }
+              this.log(`Emacs disconnected for session: ${clientSessionId} (code ${code})`);
               this.clients.delete(clientSessionId);
+              this.emit('disconnect', clientSessionId, code);
             });
 
             ws.on('error', (error) => {
@@ -90,6 +129,7 @@ export class EmacsBridge extends EventEmitter {
       this.wss.on('listening', () => {
         const assignedPort = (this.wss!.address() as any).port;
         this.log(`Emacs bridge listening on port ${assignedPort}`);
+        this.startHeartbeat();
         resolve(assignedPort);
       });
 
@@ -110,6 +150,7 @@ export class EmacsBridge extends EventEmitter {
   }
 
   async stop(): Promise<void> {
+    this.stopHeartbeat();
     if (this.wss) {
       this.clients.forEach((client) => client.close());
       this.clients.clear();
@@ -117,6 +158,35 @@ export class EmacsBridge extends EventEmitter {
       return new Promise((resolve) => {
         this.wss!.close(() => resolve());
       });
+    }
+  }
+
+  private startHeartbeat(): void {
+    if (this.heartbeatIntervalMs <= 0 || this.heartbeatTimer) {
+      return;
+    }
+    this.heartbeatTimer = setInterval(() => {
+      this.clients.forEach((ws, clientSessionId) => {
+        if (this.alive.get(ws) === false) {
+          // No pong since the last interval: the peer is gone without a
+          // FIN (killed, crashed, suspended). Terminate to trigger the
+          // close event and with it the reconnect flow.
+          this.log(`Heartbeat missed for session: ${clientSessionId}; terminating dead socket`);
+          ws.terminate();
+          return;
+        }
+        this.alive.set(ws, false);
+        ws.ping();
+      });
+    }, this.heartbeatIntervalMs);
+    // Never keep the process alive just for the heartbeat
+    this.heartbeatTimer.unref?.();
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = undefined;
     }
   }
 
