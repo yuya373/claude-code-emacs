@@ -9,8 +9,8 @@ export const diffToolOutputSchema = z.object({
 
 // openDiffFile schemas
 export const openDiffFileInputSchema = z.object({
-  fileA: z.string().describe('Path to the first file to compare (must be different from fileB)'),
-  fileB: z.string().describe('Path to the second file to compare (must be different from fileA)')
+  fileA: z.string().describe('First file, absolute or relative to the project root'),
+  fileB: z.string().describe('Second file, absolute or relative to the project root')
 });
 
 // openRevisionDiff schemas
@@ -21,15 +21,15 @@ export const openRevisionDiffInputSchema = z.object({
 
 // openCurrentChanges schemas
 export const openCurrentChangesInputSchema = z.object({
-  file: z.string().optional().describe('File to show uncommitted changes for (optional, defaults to current file)')
+  file: z.string().optional().describe('File, absolute or relative to the project root; defaults to the file of the current Emacs buffer')
 });
 
 // openDiffContent schemas
 export const openDiffContentInputSchema = z.object({
   contentA: z.string().describe('First text content to compare'),
-  contentB: z.string().describe('Second text content to compare (should be different from contentA)'),
-  titleA: z.string().describe('Descriptive title for the first content (e.g., "Original Code", "Version 1")'),
-  titleB: z.string().describe('Descriptive title for the second content (e.g., "Modified Code", "Version 2")')
+  contentB: z.string().describe('Second text content to compare'),
+  titleA: z.string().describe('Descriptive title for the first content (e.g., "Original Code"), shown in its buffer name'),
+  titleB: z.string().describe('Descriptive title for the second content (e.g., "Modified Code"), shown in its buffer name')
 });
 
 // Inferred types from schemas

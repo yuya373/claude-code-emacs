@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 // Input schema for getDiagnostics tool
 export const getDiagnosticsInputSchema = z.object({
-  buffer: z.string().describe('Buffer name to execute lsp-diagnostics in (required for LSP workspace context)')
+  buffer: z.string().describe('Name of an open Emacs buffer with lsp-mode active (e.g. the name field from getOpenBuffers), not a file path')
 });
 
 // LSP diagnostic schema

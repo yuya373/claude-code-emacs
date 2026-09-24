@@ -102,7 +102,7 @@ bridge.setNotificationHandler((method: string, params: any) => {
 function registerTools() {
   // getOpenBuffers tool
   server.registerTool('getOpenBuffers', {
-    description: 'Get list of open buffers in current project',
+    description: 'List Emacs buffers that visit files under the current project root. Each entry has the absolute file path, the buffer name, whether it is the current buffer in Emacs (active), and whether it has unsaved changes (modified). Buffers without a file (vterm, dired, *scratch*, etc.) and files outside the project are not included. The buffer name is what getDiagnostics takes as its buffer argument.',
     inputSchema: getOpenBuffersInputSchema.shape,
     outputSchema: getOpenBuffersOutputSchema.shape
   }, async (args, _extra) => {
@@ -116,7 +116,7 @@ function registerTools() {
 
   // getCurrentSelection tool
   server.registerTool('getCurrentSelection', {
-    description: 'Get current text selection in Emacs',
+    description: 'Get the text of the active region (selection) in the current Emacs buffer (normally the one the user is working in), with its file path and start/end line and column. When no region is active it returns "No text is currently selected" and empty fields; the file path is empty when the buffer is not visiting a file. It returns only the selected text, not the rest of the buffer.',
     inputSchema: getCurrentSelectionInputSchema.shape,
     outputSchema: getCurrentSelectionOutputSchema.shape
   }, async (args, _extra) => {
@@ -135,7 +135,7 @@ function registerTools() {
 
   // getDiagnostics tool
   server.registerTool('getDiagnostics', {
-    description: 'Get project-wide LSP diagnostics using specified buffer for LSP context',
+    description: 'Get lsp-mode diagnostics (errors, warnings, hints) for every file in the LSP workspace that the given buffer belongs to, grouped by file. The buffer argument is an Emacs buffer name (the name field from getOpenBuffers), not a file path; the buffer must be open with lsp-mode active, because its workspace decides which diagnostics come back. Returns an empty list when lsp-mode is not installed or the server reports nothing. Structured output uses 0-based lines and a single start position per range; the text output shows 1-based lines.',
     inputSchema: getDiagnosticsInputSchema.shape,
     outputSchema: getDiagnosticsOutputSchema.shape
   }, async (args, _extra) => {
@@ -149,7 +149,7 @@ function registerTools() {
 
   // getDefinition tool
   server.registerTool('getDefinition', {
-    description: 'Find definition of symbol using LSP',
+    description: 'Find where a symbol is defined, using lsp-mode (textDocument/definition). The file is opened in Emacs, point moves to the first occurrence of symbol on the given line, and the language server is asked for its definition; if symbol does not appear on that line, the request is made from the start of the line and may resolve a different symbol. Requires lsp-mode to be active for that file. Returns each definition location with a few lines of preview, or an error when none is found.',
     inputSchema: getDefinitionInputSchema.shape,
     outputSchema: getDefinitionOutputSchema.shape
   }, async (args, _extra) => {
@@ -163,7 +163,7 @@ function registerTools() {
 
   // findReferences tool
   server.registerTool('findReferences', {
-    description: 'Find all references to a symbol using LSP',
+    description: 'Find all references to a symbol, using lsp-mode (textDocument/references). The file is opened in Emacs, point moves to the first occurrence of symbol on the given line, and the language server is asked for references; if symbol does not appear on that line, the request is made from the start of the line. Requires lsp-mode to be active for that file. Returns each reference with its path relative to the project root, absolute path, range and a few lines of preview.',
     inputSchema: findReferencesInputSchema.shape,
     outputSchema: findReferencesOutputSchema.shape
   }, async (args, _extra) => {
@@ -177,7 +177,7 @@ function registerTools() {
 
   // describeSymbol tool
   server.registerTool('describeSymbol', {
-    description: 'Get full documentation and information about a symbol using LSP hover',
+    description: 'Get the hover documentation (signature, type, docstring) for a symbol, using lsp-mode (textDocument/hover). The file is opened in Emacs, point moves to the first occurrence of symbol on the given line, and the language server is asked for hover information; if symbol does not appear on that line, the request is made from the start of the line. Requires lsp-mode to be active for that file. Content depends entirely on what the language server returns for hover.',
     inputSchema: describeSymbolInputSchema.shape,
     outputSchema: describeSymbolOutputSchema.shape
   }, async (args, _extra) => {
@@ -193,7 +193,7 @@ function registerTools() {
 
   // sendNotification tool
   server.registerTool('sendNotification', {
-    description: 'Send a desktop notification to alert the user when tasks complete or need attention',
+    description: 'Show a notification to the user in Emacs, for example when a task completes or needs their attention. Uses the alert package when it is installed (which may produce a desktop notification, depending on the user\'s alert style) and otherwise falls back to a message in the Emacs echo area. It does not wait for or return any user response.',
     inputSchema: sendNotificationInputSchema.shape,
     outputSchema: sendNotificationOutputSchema.shape
   }, async (args, _extra) => {

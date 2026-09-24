@@ -2,9 +2,9 @@ import { z } from 'zod';
 
 // Input schema for describeSymbol tool
 export const describeSymbolInputSchema = z.object({
-  file: z.string().describe('File path relative to project root'),
-  line: z.number().describe('Line number (1-based)'),
-  symbol: z.string().describe('Symbol name to describe')
+  file: z.string().describe('File path, absolute or relative to the project root'),
+  line: z.number().describe('1-based line number where symbol appears'),
+  symbol: z.string().describe('Symbol name exactly as written on that line')
 });
 
 // Output schema for describeSymbol tool

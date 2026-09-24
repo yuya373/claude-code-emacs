@@ -203,7 +203,7 @@ export async function handleOpenDiffContent(bridge: EmacsBridge, params: OpenDif
 export const diffTools = {
   openDiffFile: {
     name: 'openDiffFile',
-    description: 'Compare two DIFFERENT files side-by-side in Emacs ediff. Use this to see differences between two distinct files. For comparing a file with its git history, use openRevisionDiff instead.',
+    description: 'Compare two files side-by-side in an Emacs ediff session. Paths may be absolute or relative to the project root, and both files must exist. For comparing a file with its git history, use openRevisionDiff instead.',
     inputSchema: openDiffFileInputSchema,
     outputSchema: diffToolOutputSchema,
     handler: handleOpenDiffFile
@@ -219,7 +219,7 @@ export const diffTools = {
 
   openCurrentChanges: {
     name: 'openCurrentChanges',
-    description: 'Show uncommitted git changes for a file in ediff. This compares the working copy with the last committed version (git diff).',
+    description: 'Show the uncommitted changes of a file as a unified diff in an Emacs *vc-diff* buffer, comparing the working copy with the last committed version (like git diff). Without file it uses the file of the current Emacs buffer. For a side-by-side comparison against a specific revision, use openRevisionDiff.',
     inputSchema: openCurrentChangesInputSchema,
     outputSchema: diffToolOutputSchema,
     handler: handleOpenCurrentChanges
@@ -227,7 +227,7 @@ export const diffTools = {
 
   openDiffContent: {
     name: 'openDiffContent',
-    description: 'Compare two text snippets or code blocks in temporary buffers. Use this for comparing content that is not saved in files, such as different versions of code snippets, API responses, or generated content.',
+    description: 'Compare two text snippets side-by-side in an Emacs ediff session. Use this for content that is not saved in files, such as alternative versions of a code snippet, API responses, or generated content. Each content goes into a dedicated buffer named "*claude-code-diff: <title>*"; an earlier buffer with the same title is reused only if it is unedited and no longer in an ediff session, and no other buffer is ever modified.',
     inputSchema: openDiffContentInputSchema,
     outputSchema: diffToolOutputSchema,
     handler: handleOpenDiffContent
