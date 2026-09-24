@@ -28,8 +28,8 @@ export const openCurrentChangesInputSchema = z.object({
 export const openDiffContentInputSchema = z.object({
   contentA: z.string().describe('First text content to compare'),
   contentB: z.string().describe('Second text content to compare'),
-  titleA: z.string().describe('Buffer name for the first content (e.g., "*Original Code*"); an existing buffer with this name is overwritten'),
-  titleB: z.string().describe('Buffer name for the second content (e.g., "*Modified Code*"); must differ from titleA, otherwise both contents land in one buffer')
+  titleA: z.string().describe('Descriptive title for the first content (e.g., "Original Code"), shown in its buffer name'),
+  titleB: z.string().describe('Descriptive title for the second content (e.g., "Modified Code"), shown in its buffer name')
 });
 
 // Inferred types from schemas

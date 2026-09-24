@@ -227,7 +227,7 @@ export const diffTools = {
 
   openDiffContent: {
     name: 'openDiffContent',
-    description: 'Compare two text snippets side-by-side in an Emacs ediff session. Use this for content that is not saved in files, such as alternative versions of a code snippet, API responses, or generated content. titleA and titleB become the Emacs buffer names: an existing buffer with the same name is erased and overwritten, so use distinct titles that do not match any open buffer.',
+    description: 'Compare two text snippets side-by-side in an Emacs ediff session. Use this for content that is not saved in files, such as alternative versions of a code snippet, API responses, or generated content. Each content goes into a dedicated buffer named "*claude-code-diff: <title>*"; buffers from an earlier call with the same title are reused, and no other buffer is ever modified.',
     inputSchema: openDiffContentInputSchema,
     outputSchema: diffToolOutputSchema,
     handler: handleOpenDiffContent

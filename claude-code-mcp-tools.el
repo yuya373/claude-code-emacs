@@ -257,6 +257,31 @@ Returns project-wide diagnostics using specified buffer for LSP context."
        `((status . "error")
          (message . ,(error-message-string err)))))))
 
+(defvar-local claude-code-mcp--diff-content-owned nil
+  "Non-nil in buffers created by `claude-code-mcp-handle-openDiffContent'.
+Only these buffers may be erased and reused by later calls.")
+;; メジャーモード変更で所有マークが消えないようにする
+(put 'claude-code-mcp--diff-content-owned 'permanent-local t)
+
+(defun claude-code-mcp--diff-content-buffer (title content &optional exclude)
+  "Return a buffer named after TITLE holding CONTENT for openDiffContent.
+The name is prefixed so TITLE can never address a user's buffer.  A
+buffer with that name is reused only if openDiffContent created it and
+it is not EXCLUDE; otherwise a fresh, uniquely named buffer is made."
+  (let* ((name (format "*claude-code-diff: %s*" title))
+         (existing (get-buffer name))
+         (buf (if (and existing
+                       (not (eq existing exclude))
+                       (buffer-local-value 'claude-code-mcp--diff-content-owned existing))
+                  existing
+                (generate-new-buffer name))))
+    (with-current-buffer buf
+      (setq claude-code-mcp--diff-content-owned t)
+      (erase-buffer)
+      (insert content)
+      (goto-char (point-min)))
+    buf))
+
 (defun claude-code-mcp-handle-openDiffContent (params)
   "Handle openDiffContent request with PARAMS."
   (let ((content-a (cdr (assoc 'contentA params)))
@@ -267,19 +292,8 @@ Returns project-wide diagnostics using specified buffer for LSP context."
         (progn
           (unless (and content-a content-b title-a title-b)
             (error "Missing required parameters: contentA, contentB, titleA, and titleB"))
-          (let* ((buf-a (get-buffer-create title-a))
-                 (buf-b (get-buffer-create title-b)))
-            ;; Set up buffer A
-            (with-current-buffer buf-a
-              (erase-buffer)
-              (insert content-a)
-              (goto-char (point-min)))
-            ;; Set up buffer B
-            (with-current-buffer buf-b
-              (erase-buffer)
-              (insert content-b)
-              (goto-char (point-min)))
-            ;; Start ediff
+          (let* ((buf-a (claude-code-mcp--diff-content-buffer title-a content-a))
+                 (buf-b (claude-code-mcp--diff-content-buffer title-b content-b buf-a)))
             (ediff-buffers buf-a buf-b))
           `((status . "success")
             (message . ,(format "Opened ediff session for buffers: %s and %s" title-a title-b))))
