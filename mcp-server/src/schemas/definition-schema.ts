@@ -2,9 +2,9 @@ import { z } from 'zod';
 
 // Input schema for getDefinition tool
 export const getDefinitionInputSchema = z.object({
-  file: z.string().describe('File path to search from (required)'),
-  line: z.number().describe('Line number (1-based, required)'),
-  symbol: z.string().describe('Symbol name to search for (required)')
+  file: z.string().describe('File path, absolute or relative to the project root'),
+  line: z.number().describe('1-based line number where symbol appears'),
+  symbol: z.string().describe('Symbol name exactly as written on that line')
 });
 
 // Definition location schema

@@ -53,8 +53,7 @@ make mcp-dev
 
 ### Emacs Lisp
 - `claude-code.el` - Main package entry point, loads all modules
-- `claude-code-core.el` - Core utilities (chunking, error handling, session management)
-- `claude-code-buffer.el` - Buffer naming and string processing
+- `claude-code-core.el` - Core utilities (buffer naming, error handling, session management)
 - `claude-code-commands.el` - Command execution (slash, custom, key sending)
 - `claude-code-ui.el` - Transient menus and key bindings
 - `claude-code-prompt.el` - Prompt file mode and operations
@@ -63,7 +62,7 @@ make mcp-dev
 - `claude-code-mcp-protocol.el` - MCP protocol implementation
 - `claude-code-mcp-tools.el` - MCP tool handlers
 - `claude-code-mcp-events.el` - Event notification handlers
-- `test-*.el` - Test files using ERT framework
+- `claude-code-*-test.el` - Test files using ERT framework
 
 ### MCP Server (TypeScript)
 - `mcp-server/src/index.ts` - Main server entry point
@@ -76,29 +75,13 @@ make mcp-dev
 Each project gets its own Claude Code buffer named `*claude:<project-root>*`. Key components:
 - `claude-code-buffer-name()` - Generates unique buffer names per project
 - `claude-code-ensure-buffer()` - Ensures buffer exists before operations
-- `claude-code-with-vterm-buffer` - Helper macro for buffer context operations
+- `claude-code-with-vterm-buffer` - Helper function that runs a function in the session buffer
 - `claude-code-run()` - Starts or switches to Claude Code session
 - `claude-code-close()` - Closes the window showing Claude Code buffer
 - `claude-code-quit()` - Terminates session and kills buffer
 
-### String Chunking System
-Long strings are split into 50-character chunks to avoid terminal input limitations:
-- `claude-code-chunk-string()` - Core chunking function
-- Automatic delays between chunks for reliability
-- Transparent to the user
-
 ### Custom Commands Architecture
-Two types of custom commands are supported:
-
-1. **Project Commands** (`.claude/commands/*.md`)
-   - Sent as `/project:command-name`
-   - Functions: `claude-code-execute-custom-command`
-   - Interactive selection: `claude-code-get-custom-commands()`
-   
-2. **Global Commands** (`~/.claude/commands/*.md`)
-   - Sent as `/user:command-name`
-   - Functions: `claude-code-execute-global-command`
-   - Interactive selection: `claude-code-get-global-commands()`
+`claude-code-execute-custom-command` offers commands from both `.claude/commands/*.md` (project) and `~/.claude/commands/*.md` (user) in one completion list, built by `claude-code-get-custom-commands()`. The `project:` / `user:` labels only appear in the completion list; the command is sent as plain `/command-name`.
 
 Both support `$ARGUMENTS` placeholders with interactive prompting via `claude-code-prompt-for-arguments()`.
 
@@ -115,7 +98,7 @@ The `@` symbol triggers project file completion:
 - Handles cases where `@` is already typed to avoid duplication
 
 ### Mode Architecture
-- **`claude-code-vterm-mode`** - Minor mode for Claude Code vterm buffers
+- **`claude-code-vterm-mode`** - Major mode for Claude Code vterm buffers
   - Parent: `vterm-mode`
   - Key bindings: Quick send commands, transient menu access
   - Auto-enabled when starting Claude Code session
@@ -139,7 +122,7 @@ Tests use mock implementations to avoid vterm dependencies:
 - Mock vterm functions with `cl-letf`
 - Test data flows rather than terminal interactions
 - Integration tests verify complete workflows
-- Each module has its own test file (`test-claude-code-*.el`)
+- Each module has its own test file (`claude-code-*-test.el`)
 - Run all tests: `make test` or `emacs -batch -l run-tests.el`
 - Run specific test: `emacs -batch -l run-tests.el -f ert-run-tests-batch-and-exit 'pattern'`
 
@@ -162,8 +145,8 @@ Tests use mock implementations to avoid vterm dependencies:
 - `@` triggers file path completion in prompt buffers
 
 ### Dependencies
-- **Required**: projectile, vterm, transient, markdown-mode, websocket
-- **Optional**: lsp-mode (for diagnostics and language ID configuration)
+- **Required**: projectile, vterm, transient, markdown-mode
+- **Optional**: websocket (MCP integration), lsp-mode (for diagnostics and language ID configuration)
 
 ### Coding Standards
 - Use lexical binding in all files
@@ -187,8 +170,7 @@ When modifying this package:
 1. Add tests for new functionality
 2. Use the established macro patterns for new commands
 3. Maintain project isolation in buffer naming
-4. Follow the chunking pattern for long strings
-5. Update relevant documentation (README, CLAUDE.md)
+4. Update relevant documentation (README, CLAUDE.md)
 
 
 ## MCP Server

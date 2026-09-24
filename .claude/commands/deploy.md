@@ -1,1 +1,0 @@
-Deploy $ARGUMENTS to $ARGUMENTS environment
