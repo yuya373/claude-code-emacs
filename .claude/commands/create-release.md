@@ -5,10 +5,15 @@
    - `git log --oneline $(git describe --tags --abbrev=0)..HEAD`
    - `git diff --stat $(git describe --tags --abbrev=0)..HEAD`
 
-2. Determine the appropriate version bump following semantic versioning:
-   - MAJOR (x.0.0): Breaking changes or major feature overhauls
-   - MINOR (0.x.0): New features, significant improvements, or minor breaking changes to internal APIs
-   - PATCH (0.0.x): Bug fixes, documentation updates, small improvements
+2. Determine the version bump following [Semantic Versioning 2.0.0](https://semver.org/). "Breaking" means a change to the public API: user-facing commands, customizable variables, key bindings, MCP tool names and parameters.
+   - While the version is 0.x.y (initial development, SemVer §4):
+     - MINOR (0.x.0): Breaking changes or new features
+     - PATCH (0.x.y): Backward-compatible bug fixes, documentation updates
+   - From 1.0.0 on:
+     - MAJOR (x.0.0): Breaking changes
+     - MINOR (x.y.0): Backward-compatible new features
+     - PATCH (x.y.z): Backward-compatible bug fixes
+   - Never go to 1.0.0 on your own; that is the maintainer's explicit declaration that the public API is stable (SemVer §5).
 
 3. Update version numbers in the project files:
    - Run: `./scripts/update-version.sh X.Y.Z --auto-commit`
