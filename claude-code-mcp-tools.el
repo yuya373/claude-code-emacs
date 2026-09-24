@@ -257,29 +257,50 @@ Returns project-wide diagnostics using specified buffer for LSP context."
        `((status . "error")
          (message . ,(error-message-string err)))))))
 
-(defvar-local claude-code-mcp--diff-content-owned nil
-  "Non-nil in buffers created by `claude-code-mcp-handle-openDiffContent'.
-Only these buffers may be erased and reused by later calls.")
-;; メジャーモード変更で所有マークが消えないようにする
-(put 'claude-code-mcp--diff-content-owned 'permanent-local t)
+(defvar-local claude-code-mcp--diff-content-title nil
+  "Title of the openDiffContent content held in this buffer.
+Non-nil only in buffers created by `claude-code-mcp-handle-openDiffContent';
+only those buffers may be erased and reused by later calls.")
+;; Keep the ownership mark across major mode changes
+(put 'claude-code-mcp--diff-content-title 'permanent-local t)
+
+(defun claude-code-mcp--buffer-in-ediff-session-p (buffer)
+  "Return non-nil if BUFFER is compared in a live ediff session."
+  (seq-some (lambda (control)
+              (with-current-buffer control
+                (and (derived-mode-p 'ediff-mode)
+                     (memq buffer (list (bound-and-true-p ediff-buffer-A)
+                                        (bound-and-true-p ediff-buffer-B)
+                                        (bound-and-true-p ediff-buffer-C))))))
+            (buffer-list)))
+
+(defun claude-code-mcp--reusable-diff-content-buffer-p (buffer title exclude)
+  "Return non-nil if BUFFER may be overwritten with new content for TITLE.
+It must have been created for TITLE by openDiffContent, not be EXCLUDE,
+not have been edited since, and not be compared in a live ediff session."
+  (and (equal (buffer-local-value 'claude-code-mcp--diff-content-title buffer) title)
+       (not (eq buffer exclude))
+       (not (buffer-modified-p buffer))
+       (not (claude-code-mcp--buffer-in-ediff-session-p buffer))))
 
 (defun claude-code-mcp--diff-content-buffer (title content &optional exclude)
   "Return a buffer named after TITLE holding CONTENT for openDiffContent.
-The name is prefixed so TITLE can never address a user's buffer.  A
-buffer with that name is reused only if openDiffContent created it and
-it is not EXCLUDE; otherwise a fresh, uniquely named buffer is made."
-  (let* ((name (format "*claude-code-diff: %s*" title))
-         (existing (get-buffer name))
-         (buf (if (and existing
-                       (not (eq existing exclude))
-                       (buffer-local-value 'claude-code-mcp--diff-content-owned existing))
-                  existing
-                (generate-new-buffer name))))
+The name is prefixed so TITLE can never address a user's buffer.  An
+earlier openDiffContent buffer for TITLE is reused when that is safe
+\(see `claude-code-mcp--reusable-diff-content-buffer-p'); otherwise a
+fresh, uniquely named buffer is made.  EXCLUDE is never reused."
+  (let ((buf (or (seq-find (lambda (b)
+                             (claude-code-mcp--reusable-diff-content-buffer-p b title exclude))
+                           (buffer-list))
+                 (generate-new-buffer (format "*claude-code-diff: %s*" title)))))
     (with-current-buffer buf
-      (setq claude-code-mcp--diff-content-owned t)
-      (erase-buffer)
-      (insert content)
-      (goto-char (point-min)))
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (insert content))
+      (goto-char (point-min))
+      ;; Unmodified marks the content as ours; any later edit blocks reuse
+      (set-buffer-modified-p nil)
+      (setq claude-code-mcp--diff-content-title title))
     buf))
 
 (defun claude-code-mcp-handle-openDiffContent (params)
@@ -294,9 +315,10 @@ it is not EXCLUDE; otherwise a fresh, uniquely named buffer is made."
             (error "Missing required parameters: contentA, contentB, titleA, and titleB"))
           (let* ((buf-a (claude-code-mcp--diff-content-buffer title-a content-a))
                  (buf-b (claude-code-mcp--diff-content-buffer title-b content-b buf-a)))
-            (ediff-buffers buf-a buf-b))
-          `((status . "success")
-            (message . ,(format "Opened ediff session for buffers: %s and %s" title-a title-b))))
+            (ediff-buffers buf-a buf-b)
+            `((status . "success")
+              (message . ,(format "Opened ediff session for buffers: %s and %s"
+                                  (buffer-name buf-a) (buffer-name buf-b))))))
       (error
        `((status . "error")
          (message . ,(error-message-string err)))))))

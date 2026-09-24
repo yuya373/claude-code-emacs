@@ -116,7 +116,7 @@ function registerTools() {
 
   // getCurrentSelection tool
   server.registerTool('getCurrentSelection', {
-    description: 'Get the text of the active region (selection) in the Emacs buffer the user is currently in, with its file path and start/end line and column. When no region is active it returns "No text is currently selected" and empty fields; the file path is empty when the buffer is not visiting a file. It returns only the selected text, not the rest of the buffer.',
+    description: 'Get the text of the active region (selection) in the current Emacs buffer (normally the one the user is working in), with its file path and start/end line and column. When no region is active it returns "No text is currently selected" and empty fields; the file path is empty when the buffer is not visiting a file. It returns only the selected text, not the rest of the buffer.',
     inputSchema: getCurrentSelectionInputSchema.shape,
     outputSchema: getCurrentSelectionOutputSchema.shape
   }, async (args, _extra) => {

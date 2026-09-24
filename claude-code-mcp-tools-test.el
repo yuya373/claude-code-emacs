@@ -193,7 +193,7 @@ Returns (RESULT BUF-A BUF-B)."
                     "Test Buffer B" "Content B\nLine 2 modified")))
         (should (equal (cdr (assoc 'status result)) "success"))
         (should (string-match "Test Buffer A.*Test Buffer B" (cdr (assoc 'message result))))
-        ;; タイトルは専用プレフィックス付きのバッファ名になる
+        ;; Titles become prefixed buffer names
         (should (equal (buffer-name buf-a) "*claude-code-diff: Test Buffer A*"))
         (should (equal (buffer-name buf-b) "*claude-code-diff: Test Buffer B*"))
         (with-current-buffer buf-a
@@ -254,6 +254,79 @@ by openDiffContent is not erased."
         (should (eq first-a second-a))
         (should (eq first-b second-b))
         (with-current-buffer second-a (should (equal (buffer-string) "new a"))))
+    (claude-code-mcp-test--kill-diff-content-buffers)))
+
+(defun claude-code-mcp-test--diff-content-buffer-count ()
+  "Return how many openDiffContent buffers exist."
+  (seq-count (lambda (buf)
+               (string-prefix-p "*claude-code-diff: " (buffer-name buf)))
+             (buffer-list)))
+
+(ert-deftest test-mcp-handle-openDiffContent-same-titles-do-not-accumulate ()
+  "Repeated calls with identical titles reuse the same two buffers."
+  (unwind-protect
+      (progn
+        (dotimes (_ 3)
+          (claude-code-mcp-test--open-diff-content "Same" "one" "Same" "two"))
+        (should (= (claude-code-mcp-test--diff-content-buffer-count) 2)))
+    (claude-code-mcp-test--kill-diff-content-buffers)))
+
+(ert-deftest test-mcp-handle-openDiffContent-keeps-user-edited-buffer ()
+  "An owned buffer the user edited (e.g. by merging hunks) is not erased."
+  (unwind-protect
+      (pcase-let ((`(,_r1 ,first-a ,_b1)
+                   (claude-code-mcp-test--open-diff-content "A" "old" "B" "b")))
+        (with-current-buffer first-a
+          (goto-char (point-max))
+          (insert " merged"))
+        (pcase-let ((`(,_r2 ,second-a ,_b2)
+                     (claude-code-mcp-test--open-diff-content "A" "new" "B" "b")))
+          (should-not (eq first-a second-a))
+          (with-current-buffer first-a
+            (should (equal (buffer-string) "old merged")))))
+    (claude-code-mcp-test--kill-diff-content-buffers)))
+
+(ert-deftest test-mcp-handle-openDiffContent-keeps-buffer-in-live-ediff ()
+  "An owned buffer still compared in a live ediff session is not erased."
+  (require 'ediff)
+  (let ((control (generate-new-buffer "*Ediff Control Panel*")))
+    (unwind-protect
+        (pcase-let ((`(,_r1 ,first-a ,_b1)
+                     (claude-code-mcp-test--open-diff-content "A" "old" "B" "b")))
+          (with-current-buffer control
+            (setq major-mode 'ediff-mode)
+            (setq-local ediff-buffer-A first-a))
+          (pcase-let ((`(,_r2 ,second-a ,_b2)
+                       (claude-code-mcp-test--open-diff-content "A" "new" "B" "b")))
+            (should-not (eq first-a second-a))
+            (with-current-buffer first-a
+              (should (equal (buffer-string) "old")))))
+      (kill-buffer control)
+      (claude-code-mcp-test--kill-diff-content-buffers))))
+
+(ert-deftest test-mcp-handle-openDiffContent-reuses-read-only-buffer ()
+  "An owned buffer that was made read-only can still be reused."
+  (unwind-protect
+      (pcase-let ((`(,_r1 ,first-a ,_b1)
+                   (claude-code-mcp-test--open-diff-content "A" "old" "B" "b")))
+        (with-current-buffer first-a (setq buffer-read-only t))
+        (pcase-let ((`(,result ,second-a ,_b2)
+                     (claude-code-mcp-test--open-diff-content "A" "new" "B" "b")))
+          (should (equal (cdr (assoc 'status result)) "success"))
+          (should (eq first-a second-a))
+          (with-current-buffer second-a
+            (should (equal (buffer-string) "new")))))
+    (claude-code-mcp-test--kill-diff-content-buffers)))
+
+(ert-deftest test-mcp-handle-openDiffContent-message-names-buffers ()
+  "The success message names the buffers that were actually used."
+  (unwind-protect
+      (pcase-let ((`(,result ,buf-a ,buf-b)
+                   (claude-code-mcp-test--open-diff-content "Same" "one" "Same" "two")))
+        (should (string-match-p (regexp-quote (buffer-name buf-a))
+                                (cdr (assoc 'message result))))
+        (should (string-match-p (regexp-quote (buffer-name buf-b))
+                                (cdr (assoc 'message result)))))
     (claude-code-mcp-test--kill-diff-content-buffers)))
 
 (ert-deftest test-mcp-handle-openDiffContent-error ()
